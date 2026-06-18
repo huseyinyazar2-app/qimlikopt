@@ -4,9 +4,12 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
@@ -25,12 +28,21 @@ import java.util.TimerTask
 class QimlikForegroundService : Service() {
 
     private val CHANNEL_ID = "QimlikGatewayChannel"
+    private val WARNING_CHANNEL_ID = "QimlikWarningChannel"
     private var heartbeatTimer: Timer? = null
     private val client = OkHttpClient()
+
+    private val LOW_BATTERY_NOTIF_ID = 101
+    private val NO_INTERNET_NOTIF_ID = 102
+
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var batteryReceiver: BroadcastReceiver? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        registerNetworkCallback()
+        registerBatteryReceiver()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -54,7 +66,7 @@ class QimlikForegroundService : Service() {
             override fun run() {
                 sendHeartbeat()
             }
-        }, 0, 30000) // Every 30 seconds
+        }, 0, 120000) // Every 2 minutes (120,000 milliseconds)
     }
 
     private fun sendHeartbeat() {
@@ -66,6 +78,12 @@ class QimlikForegroundService : Service() {
         val deviceId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown_device_id"
         val battery = getBatteryLevel()
         val network = getNetworkType()
+
+        // If offline, don't try to make HTTP post, just skip and rely on connection callback for warnings
+        if (network == "OFFLINE") {
+            Log.d("QimlikGateway", "Heartbeat skipped: Offline")
+            return
+        }
 
         val json = JSONObject().apply {
             put("device_id", deviceId)
@@ -116,8 +134,98 @@ class QimlikForegroundService : Service() {
         }
     }
 
+    private fun registerNetworkCallback() {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                super.onAvailable(network)
+                cancelNotification(NO_INTERNET_NOTIF_ID)
+            }
+
+            override fun onLost(network: Network) {
+                super.onLost(network)
+                showWarningNotification(
+                    NO_INTERNET_NOTIF_ID,
+                    "Qimlik: İnternet Bağlantısı Yok",
+                    "Cihazın internet bağlantısı koptu! Lütfen bağlantıyı kontrol edin."
+                )
+            }
+        }
+        try {
+            cm.registerDefaultNetworkCallback(networkCallback!!)
+        } catch (e: Exception) {
+            Log.e("QimlikGateway", "Failed to register network callback", e)
+        }
+    }
+
+    private fun unregisterNetworkCallback() {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        networkCallback?.let {
+            try {
+                cm.unregisterNetworkCallback(it)
+            } catch (e: Exception) {
+                Log.e("QimlikGateway", "Failed to unregister network callback", e)
+            }
+        }
+    }
+
+    private fun registerBatteryReceiver() {
+        batteryReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                intent?.let {
+                    val level = it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                    val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                    if (level != -1 && scale != -1) {
+                        val batteryPct = (level * 100 / scale.toFloat()).toInt()
+                        if (batteryPct < 20) {
+                            showWarningNotification(
+                                LOW_BATTERY_NOTIF_ID,
+                                "Qimlik: Düşük Pil Uyarısı",
+                                "Cihaz pili %$batteryPct seviyesine düştü. Lütfen şarja takın!"
+                            )
+                        } else {
+                            cancelNotification(LOW_BATTERY_NOTIF_ID)
+                        }
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        registerReceiver(batteryReceiver, filter)
+    }
+
+    private fun unregisterBatteryReceiver() {
+        batteryReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (e: Exception) {
+                Log.e("QimlikGateway", "Failed to unregister battery receiver", e)
+            }
+        }
+    }
+
+    private fun showWarningNotification(id: Int, title: String, message: String) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val builder = NotificationCompat.Builder(this, WARNING_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(Notification.DEFAULT_ALL)
+            .setAutoCancel(true)
+            
+        notificationManager.notify(id, builder.build())
+    }
+
+    private fun cancelNotification(id: Int) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(id)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        unregisterNetworkCallback()
+        unregisterBatteryReceiver()
         heartbeatTimer?.cancel()
     }
 
@@ -126,12 +234,24 @@ class QimlikForegroundService : Service() {
     }
 
     private fun createNotificationChannel() {
-        val serviceChannel = NotificationChannel(
-            CHANNEL_ID,
-            "Qimlik Gateway Service Channel",
-            NotificationManager.IMPORTANCE_LOW
-        )
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(serviceChannel)
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val serviceChannel = NotificationChannel(
+                CHANNEL_ID,
+                "Qimlik Gateway Servis Kanalı",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val warningChannel = NotificationChannel(
+                WARNING_CHANNEL_ID,
+                "Qimlik Gateway Uyarı Kanalı",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                enableVibration(true)
+                enableLights(true)
+            }
+            manager.createNotificationChannel(serviceChannel)
+            manager.createNotificationChannel(warningChannel)
+        }
     }
 }
