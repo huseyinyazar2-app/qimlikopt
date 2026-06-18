@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        // Version v1.1.0 is defined in activity_main.xml
+        // Version v1.1.1 is defined in activity_main.xml
 
         // Initialize UI
         editServerUrl = findViewById(R.id.editServerUrl)
