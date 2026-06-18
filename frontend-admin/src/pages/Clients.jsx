@@ -9,7 +9,7 @@ export default function Clients() {
 
   const fetchClients = async () => {
     try {
-      const res = await axios.get('http://localhost:3303/api/admin/clients');
+      const res = await axios.get(`http://${window.location.hostname}:3303/api/admin/clients`);
       setClients(res.data);
     } catch (err) {
       console.error(err);
@@ -23,7 +23,7 @@ export default function Clients() {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3303/api/admin/clients', newClient);
+      await axios.post(`http://${window.location.hostname}:3303/api/admin/clients`, newClient);
       setShowModal(false);
       fetchClients();
     } catch (err) {
@@ -33,7 +33,7 @@ export default function Clients() {
 
   const toggleStatus = async (id, currentStatus) => {
     try {
-      await axios.put(`http://localhost:3303/api/admin/clients/${id}/toggle`, { is_active: !currentStatus });
+      await axios.put(`http://${window.location.hostname}:3303/api/admin/clients/${id}/toggle`, { is_active: !currentStatus });
       fetchClients();
     } catch (err) {
       console.error(err);

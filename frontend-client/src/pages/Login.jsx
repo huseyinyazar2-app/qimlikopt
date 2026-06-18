@@ -14,7 +14,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      const res = await axios.post('http://localhost:3303/api/client/login', { prefix, api_key: apiKey });
+      const res = await axios.post(`http://${window.location.hostname}:3303/api/client/login`, { prefix, api_key: apiKey });
       onLogin(res.data.client);
     } catch (err) {
       setError(err.response?.data?.error || 'Giriş yapılamadı. Bilgilerinizi kontrol edin.');

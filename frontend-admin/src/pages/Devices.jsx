@@ -8,7 +8,7 @@ export default function Devices() {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const res = await axios.get('http://localhost:3303/api/admin/devices');
+        const res = await axios.get(`http://${window.location.hostname}:3303/api/admin/devices`);
         setDevices(res.data);
       } catch (err) {
         console.error(err);

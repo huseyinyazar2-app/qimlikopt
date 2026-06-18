@@ -7,7 +7,7 @@ export default function Logs({ user }) {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await axios.get(`http://localhost:3303/api/client/${user.id}/logs`);
+        const res = await axios.get(`http://${window.location.hostname}:3303/api/client/${user.id}/logs`);
         setLogs(res.data);
       } catch (err) {
         console.error(err);

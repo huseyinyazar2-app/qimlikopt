@@ -8,7 +8,7 @@ export default function Dashboard({ user }) {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get(`http://localhost:3303/api/client/${user.id}/stats`);
+        const res = await axios.get(`http://${window.location.hostname}:3303/api/client/${user.id}/stats`);
         setStats(res.data);
       } catch (err) {
         console.error(err);

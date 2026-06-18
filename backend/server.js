@@ -5,6 +5,10 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = process.env.PORT || 3303;
 
+// Enable CORS
+const cors = require('cors');
+app.use(cors());
+
 // Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));

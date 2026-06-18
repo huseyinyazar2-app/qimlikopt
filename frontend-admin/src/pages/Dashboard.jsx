@@ -10,9 +10,9 @@ export default function Dashboard() {
     const fetchStats = async () => {
       try {
         const [cRes, dRes, lRes] = await Promise.all([
-          axios.get('http://localhost:3000/api/admin/clients'),
-          axios.get('http://localhost:3000/api/admin/devices'),
-          axios.get('http://localhost:3000/api/admin/logs')
+          axios.get(`http://${window.location.hostname}:3303/api/admin/clients`),
+          axios.get(`http://${window.location.hostname}:3303/api/admin/devices`),
+          axios.get(`http://${window.location.hostname}:3303/api/admin/logs`)
         ]);
         setStats({
           clients: cRes.data.length,

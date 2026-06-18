@@ -7,7 +7,7 @@ export default function Settings() {
 
   const fetchSettings = async () => {
     try {
-      const res = await axios.get('http://localhost:3303/api/admin/settings');
+      const res = await axios.get(`http://${window.location.hostname}:3303/api/admin/settings`);
       setSettings(res.data);
     } catch (err) {
       console.error(err);
@@ -24,7 +24,7 @@ export default function Settings() {
 
   const handleSave = async (key, value) => {
     try {
-      await axios.put(`http://localhost:3303/api/admin/settings/${key}`, { value });
+      await axios.put(`http://${window.location.hostname}:3303/api/admin/settings/${key}`, { value });
       alert('Ayar başarıyla kaydedildi.');
     } catch (err) {
       alert('Hata: ' + err.message);
