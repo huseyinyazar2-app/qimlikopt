@@ -1,0 +1,13 @@
+node_modules/
+.env
+dist/
+build/
+.DS_Store
+*.log
+.vscode/
+
+# Android specific ignores
+android-gateway/app/build/
+android-gateway/.gradle/
+android-gateway/local.properties
+android-gateway/.idea/
