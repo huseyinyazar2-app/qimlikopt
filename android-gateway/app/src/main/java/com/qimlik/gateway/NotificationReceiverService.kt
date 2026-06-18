@@ -10,16 +10,32 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
+import java.util.LinkedHashMap
 
 class NotificationReceiverService : NotificationListenerService() {
 
     private val client = OkHttpClient()
+
+    companion object {
+        // Cache of last processed messages to prevent duplicates
+        // Key: "sender:message", Value: Timestamp (System.currentTimeMillis())
+        private val processedMessagesCache = LinkedHashMap<String, Long>(10, 0.75f, true)
+        private const val DUP_TIMEOUT_MS = 5000 // 5 seconds
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val packageName = sbn.packageName
         
         // Intercept both WhatsApp and WhatsApp Business
         if (packageName == "com.whatsapp" || packageName == "com.whatsapp.w4b") {
+            
+            // Ignore group summary notifications
+            val isSummary = (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0
+            if (isSummary) {
+                Log.d("QimlikGateway", "Group summary notification ignored.")
+                return
+            }
+
             val extras = sbn.notification.extras
             val title = extras.getString(Notification.EXTRA_TITLE) ?: return // Contact name/number
             val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: return // Message text
@@ -35,6 +51,27 @@ class NotificationReceiverService : NotificationListenerService() {
                 var cleanPhone = title.replace("\\s+".toRegex(), "")
                 if (!cleanPhone.startsWith("+") && cleanPhone.matches(Regex("^[0-9]+$"))) {
                     cleanPhone = "+$cleanPhone" // Add leading plus if missing
+                }
+
+                // Check for duplicates
+                val signature = "$cleanPhone:$cleanText".toUpperCase()
+                val now = System.currentTimeMillis()
+                synchronized(processedMessagesCache) {
+                    val lastSeen = processedMessagesCache[signature]
+                    if (lastSeen != null && (now - lastSeen) < DUP_TIMEOUT_MS) {
+                        Log.d("QimlikGateway", "Duplicate WhatsApp notification ignored: $signature")
+                        return
+                    }
+                    // Add/update cache
+                    processedMessagesCache[signature] = now
+                    // Keep cache size small (max 50 items)
+                    if (processedMessagesCache.size > 50) {
+                        val iterator = processedMessagesCache.keys.iterator()
+                        if (iterator.hasNext()) {
+                            iterator.next()
+                            iterator.remove()
+                        }
+                    }
                 }
 
                 // Read Settings
