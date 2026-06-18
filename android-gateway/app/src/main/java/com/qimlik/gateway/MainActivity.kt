@@ -1,87 +1,103 @@
 package com.qimlik.gateway
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var editServerUrl: EditText
-    private lateinit var editGatewayKey: EditText
-    private lateinit var editDeviceName: EditText
-    private lateinit var btnSave: Button
     private lateinit var statusText: TextView
     private lateinit var statusSubText: TextView
+    private lateinit var btnEditSettings: Button
+    
+    private lateinit var cardNotificationWarning: CardView
+    private lateinit var btnGrantNotification: Button
 
     private val PERMISSION_REQUEST_CODE = 100
+    private var hasRequestedPermissions = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        // Version v1.1.2 is defined in activity_main.xml
 
-        // Initialize UI
-        editServerUrl = findViewById(R.id.editServerUrl)
-        editGatewayKey = findViewById(R.id.editGatewayKey)
-        editDeviceName = findViewById(R.id.editDeviceName)
-        btnSave = findViewById(R.id.btnSave)
+        // Status View Elements
         statusText = findViewById(R.id.statusText)
         statusSubText = findViewById(R.id.statusSubText)
+        btnEditSettings = findViewById(R.id.btnEditSettings)
 
-        // Load saved settings
-        loadSettings()
+        // Notification Warning Elements
+        cardNotificationWarning = findViewById(R.id.cardNotificationWarning)
+        btnGrantNotification = findViewById(R.id.btnGrantNotification)
 
-        btnSave.setOnClickListener {
-            saveSettingsAndStart()
-        }
+        // Bind button actions
+        btnEditSettings.setOnClickListener { openSettingsPage() }
+        btnGrantNotification.setOnClickListener { openNotificationAccessSettings() }
 
-        // Update UI status based on whether service is active
+        // Initial setup check
+        checkFirstRun()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkNotificationListenerPermission()
         updateStatus()
-    }
-
-    private fun loadSettings() {
-        val prefs = getSharedPreferences("qimlik_gateway_prefs", Context.MODE_PRIVATE)
-        editServerUrl.setText(prefs.getString("server_url", "http://192.168.1.10:3303"))
-        editGatewayKey.setText(prefs.getString("gateway_key", "key"))
-        editDeviceName.setText(prefs.getString("device_name", Build.MODEL))
-    }
-
-    private fun saveSettingsAndStart() {
-        val serverUrl = editServerUrl.text.toString().trim()
-        val gatewayKey = editGatewayKey.text.toString().trim()
-        val deviceName = editDeviceName.text.toString().trim()
-
-        if (serverUrl.isEmpty() || gatewayKey.isEmpty() || deviceName.isEmpty()) {
-            Toast.makeText(this, "Lütfen tüm alanları doldurun!", Toast.LENGTH_SHORT).show()
-            return
-        }
 
         val prefs = getSharedPreferences("qimlik_gateway_prefs", Context.MODE_PRIVATE)
-        prefs.edit().apply {
-            putString("server_url", serverUrl)
-            putString("gateway_key", gatewayKey)
-            putString("device_name", deviceName)
-            apply()
-        }
-
-        Toast.makeText(this, "Ayarlar kaydedildi.", Toast.LENGTH_SHORT).show()
-
-        if (checkAndRequestPermissions()) {
-            startGatewayService()
+        val serverUrl = prefs.getString("server_url", null)
+        if (serverUrl != null) {
+            if (!hasRequestedPermissions && !hasAllPermissions()) {
+                hasRequestedPermissions = true
+                requestPermissions()
+            } else if (hasAllPermissions()) {
+                startGatewayService()
+            }
         }
     }
 
-    private fun checkAndRequestPermissions(): Boolean {
+    private fun checkFirstRun() {
+        val prefs = getSharedPreferences("qimlik_gateway_prefs", Context.MODE_PRIVATE)
+        val serverUrl = prefs.getString("server_url", null)
+
+        if (serverUrl == null) {
+            // First time - direct to settings activity
+            openSettingsPage()
+        }
+    }
+
+    private fun openSettingsPage() {
+        val intent = Intent(this, SettingsActivity::class.java)
+        startActivity(intent)
+    }
+
+    private fun hasAllPermissions(): Boolean {
+        val permissions = mutableListOf(
+            Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.READ_SMS
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        return permissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun requestPermissions() {
         val permissions = mutableListOf(
             Manifest.permission.RECEIVE_SMS,
             Manifest.permission.READ_SMS
@@ -101,9 +117,7 @@ class MainActivity : AppCompatActivity() {
                 listPermissionsNeeded.toTypedArray(),
                 PERMISSION_REQUEST_CODE
             )
-            return false
         }
-        return true
     }
 
     override fun onRequestPermissionsResult(
@@ -118,6 +132,27 @@ class MainActivity : AppCompatActivity() {
             } else {
                 Toast.makeText(this, "Gerekli izinler reddedildi! SMS'ler yakalanamaz.", Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    private fun checkNotificationListenerPermission() {
+        val cn = ComponentName(this, NotificationReceiverService::class.java)
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        val isEnabled = flat != null && flat.contains(cn.flattenToString())
+        
+        if (isEnabled) {
+            cardNotificationWarning.visibility = View.GONE
+        } else {
+            cardNotificationWarning.visibility = View.VISIBLE
+        }
+    }
+
+    private fun openNotificationAccessSettings() {
+        try {
+            val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Ayarlar sayfası açılamadı. Lütfen manuel olarak cihaz bildirim erişimini verin.", Toast.LENGTH_LONG).show()
         }
     }
 

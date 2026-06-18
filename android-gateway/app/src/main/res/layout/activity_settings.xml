@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F8F9FA"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Bağlantı Ayarları"
+                android:textColor="#1A2530"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Form Fields -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sunucu Adresi (URL)"
+            android:textColor="#495057"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/editServerUrl"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@android:drawable/editbox_background_normal"
+            android:hint="http://192.168.1.10:3303"
+            android:inputType="textUri"
+            android:padding="10dp"
+            android:textSize="14sp"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Gateway API Key"
+            android:textColor="#495057"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/editGatewayKey"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@android:drawable/editbox_background_normal"
+            android:hint="Gateway API Anahtarı"
+            android:inputType="textPassword"
+            android:padding="10dp"
+            android:textSize="14sp"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cihaz Adı"
+            android:textColor="#495057"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/editDeviceName"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@android:drawable/editbox_background_normal"
+            android:hint="Örn: Ofis Telefonu"
+            android:inputType="text"
+            android:padding="10dp"
+            android:textSize="14sp"
+            android:layout_marginBottom="32dp"/>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnCancelSettings"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:text="Vazgeç"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                android:textColor="#0D6EFD"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_marginEnd="8dp"/>
+
+            <Button
+                android:id="@+id/btnSave"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1.5"
+                android:text="Kaydet &amp; Başlat"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#198754"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

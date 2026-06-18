@@ -11,3 +11,9 @@ android-gateway/app/build/
 android-gateway/.gradle/
 android-gateway/local.properties
 android-gateway/.idea/
+
+# Database files
+*.db
+*.sqlite
+backend/local.db
+backend/local.db-journal
