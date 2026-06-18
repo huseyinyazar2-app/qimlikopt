@@ -19,7 +19,15 @@ timeout /t 2 /nobreak >nul
 
 echo [4/4] Kurumsal Web Sitesi Baslatiliyor... (Port: 5003)
 start "Qimlik Website" cmd /k "cd frontend-website && npm run dev -- --port 5003"
-timeout /t 2 /nobreak >nul
+timeout /t 3 /nobreak >nul
+
+echo.
+echo ===================================================
+echo TARAYICI ACILIYOR VE SAYFALARA YONLENDIRILIYOR...
+echo ===================================================
+start http://localhost:5001
+start http://localhost:5002
+start http://localhost:5003
 
 echo.
 echo ===================================================
@@ -30,7 +38,6 @@ echo Admin Paneli   -^> http://localhost:5001
 echo Musteri Paneli -^> http://localhost:5002
 echo Web Sitesi     -^> http://localhost:5003
 echo ===================================================
-echo Lutfen acilan 4 siyah pencereyi kapatmayin.
-echo Sistemi durdurmak istediginizde pencereleri kapatabilirsiniz.
+echo Lutfen acilan siyah pencereleri kapatmayin.
 echo.
 pause
