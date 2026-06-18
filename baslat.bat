@@ -5,6 +5,15 @@ echo             QIMLIK SISTEMI BASLATICI
 echo ===================================================
 echo.
 
+echo [0/4] Eski calisan veya cakisan servisler temizleniyor...
+rem Kill processes listening on ports 3303, 5001, 5002, 5003
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3303 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5001 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5002 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5003 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
+echo Temizlik tamamlandi. Portlar serbest birakildi.
+echo.
+
 rem Detect the active local IP address using routing table
 set LOCAL_IP=127.0.0.1
 for /f "tokens=4" %%a in ('route print ^| findstr 0.0.0.0 ^| findstr /v "127.0.0.1"') do set LOCAL_IP=%%a
