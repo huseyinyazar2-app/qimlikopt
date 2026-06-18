@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        // Version v1.1.1 is defined in activity_main.xml
+        // Version v1.1.2 is defined in activity_main.xml
 
         // Initialize UI
         editServerUrl = findViewById(R.id.editServerUrl)
@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadSettings() {
         val prefs = getSharedPreferences("qimlik_gateway_prefs", Context.MODE_PRIVATE)
         editServerUrl.setText(prefs.getString("server_url", "http://192.168.1.10:3303"))
-        editGatewayKey.setText(prefs.getString("gateway_key", "test_gateway_key"))
+        editGatewayKey.setText(prefs.getString("gateway_key", "key"))
         editDeviceName.setText(prefs.getString("device_name", Build.MODEL))
     }
 
