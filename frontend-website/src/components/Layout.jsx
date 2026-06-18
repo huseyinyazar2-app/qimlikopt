@@ -14,7 +14,7 @@ export default function Layout() {
             <a href="#ozellikler" className="nav-link">Özellikler</a>
             <a href="#qr-kod" className="nav-link">Nasıl Çalışır?</a>
             <a href="#fiyatlandirma" className="nav-link">Fiyatlandırma</a>
-            <a href="http://localhost:3303" className="btn btn-outline" style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}>Müşteri Girişi</a>
+            <a href={window.location.hostname.endsWith('qimlik.com') ? 'https://panel.qimlik.com' : 'http://localhost:5002'} className="btn btn-outline" style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}>Müşteri Girişi</a>
             <button className="btn btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}>Demo Talep Et</button>
           </div>
         </div>
