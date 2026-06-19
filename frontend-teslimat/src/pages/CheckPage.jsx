@@ -150,7 +150,7 @@ export default function CheckPage({ user }) {
             <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
               <MapPin size={28} />
             </div>
-            <h2 style={{ fontSize: '1.4rem', color: 'white', margin: '0 0 0.5rem 0' }}>{location.location_name}</h2>
+            <h2 style={{ fontSize: '1.4rem', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{location.location_name}</h2>
             <p className="text-muted" style={{ fontSize: '0.85rem' }}>Koordinat sınırları dahilinde mesainizi yönetin.</p>
           </div>
         ) : (
@@ -181,12 +181,12 @@ export default function CheckPage({ user }) {
             {user.photo_base64 ? (
               <img src={user.photo_base64} alt={user.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--brand-primary)' }} />
             ) : (
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(15,23,42,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <UserCheck size={20} />
               </div>
             )}
             <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>{user.name} {user.surname}</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{user.name} {user.surname}</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user.phone_number}</div>
             </div>
           </div>
@@ -206,9 +206,9 @@ export default function CheckPage({ user }) {
         )}
 
         {/* GPS Verification Module */}
-        <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1.5rem', background: 'rgba(0,0,0,0.2)' }}>
+        <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.8)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
               <Navigation size={16} /> GPS Doğrulama
             </span>
             <button 
@@ -273,7 +273,7 @@ export default function CheckPage({ user }) {
             onClick={() => handleCheck('check_out')} 
             disabled={actionLoading || !user || user.role !== 'employee' || !isWithinRadius}
             className="btn-outline"
-            style={{ flex: 1, padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.9rem', border: '1px solid var(--status-warning)', color: 'white', background: 'rgba(245, 158, 11, 0.05)' }}
+            style={{ flex: 1, padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.9rem', border: '1px solid var(--status-warning)', color: 'var(--text-primary)', background: 'rgba(245, 158, 11, 0.05)' }}
           >
             <LogOut size={18} color="var(--status-warning)" /> Mesaiyi Bitir
           </button>

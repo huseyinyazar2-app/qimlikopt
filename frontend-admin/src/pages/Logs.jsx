@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 export default function Logs() {
+  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [logs, setLogs] = useState([]);
 
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await axios.get(`http://${window.location.hostname}:3303/api/admin/logs`);
+        const res = await axios.get(`${getApiUrl()}/api/admin/logs`);
         setLogs(res.data);
       } catch (err) {
         console.error(err);

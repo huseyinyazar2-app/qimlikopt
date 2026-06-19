@@ -38,7 +38,7 @@ export default function Layout({ user, onLogout }) {
           ))}
         </nav>
 
-        <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+        <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.8)', borderRadius: 8 }}>
           <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: 4 }}>
             {isCompany ? 'Firma Yetkilisi' : 'Kurye Personeli'}
           </div>

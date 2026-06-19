@@ -99,7 +99,7 @@ export default function Locations({ user }) {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--brand-primary)' }}>
                   <MapPin size={22} />
-                  <h3 style={{ fontSize: '1.15rem', margin: 0, color: 'white' }}>{loc.location_name}</h3>
+                  <h3 style={{ fontSize: '1.15rem', margin: 0, color: 'var(--text-primary)' }}>{loc.location_name}</h3>
                 </div>
 
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 6, marginBottom: '1.5rem' }}>
@@ -174,7 +174,7 @@ export default function Locations({ user }) {
               </div>
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer' }}>İptal</button>
+                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}>İptal</button>
                 <button type="submit" className="btn-primary" disabled={loading} style={{ flex: 1 }}>{loading ? 'Ekleniyor...' : 'Ekle'}</button>
               </div>
             </form>
@@ -186,5 +186,5 @@ export default function Locations({ user }) {
 }
 
 const inputStyle = {
-  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none', boxSizing: 'border-box'
+  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box'
 };

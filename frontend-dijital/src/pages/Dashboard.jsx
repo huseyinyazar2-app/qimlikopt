@@ -129,7 +129,7 @@ export default function Dashboard({ user }) {
               placeholder="Makine Kodu Girin (Örn: MAC-001)" 
               value={scanCode}
               onChange={e => setScanCode(e.target.value)}
-              style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }}
+              style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none' }}
             />
             <button type="submit" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <ExternalLink size={18} /> Ekranı Aç
@@ -145,10 +145,10 @@ export default function Dashboard({ user }) {
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {techLogs.slice(0, 5).map(log => (
-                <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.15)', padding: '0.75rem 1rem', borderRadius: 8, border: '1px solid var(--glass-border)', fontSize: '0.85rem' }}>
+                <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.7)', padding: '0.75rem 1rem', borderRadius: 8, border: '1px solid var(--glass-border)', fontSize: '0.85rem' }}>
                   <div>
-                    <span className="badge" style={{ background: 'rgba(255,255,255,0.08)', fontFamily: 'monospace', marginRight: '0.5rem' }}>{log.machine_code}</span>
-                    <strong style={{ color: 'white' }}>{log.machine_name}</strong>
+                    <span className="badge" style={{ background: 'rgba(15,23,42,0.05)', fontFamily: 'monospace', marginRight: '0.5rem' }}>{log.machine_code}</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{log.machine_name}</strong>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <span className={`badge ${log.status_after === 'active' ? 'success' : log.status_after === 'maintenance' ? 'warning' : 'error'}`}>
@@ -203,7 +203,7 @@ export default function Dashboard({ user }) {
             placeholder="Makine adı, kodu veya konuma göre ara..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.5rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: 8, outline: 'none' }}
+            style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.5rem', background: 'rgba(255,255,255,0.7)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none' }}
           />
         </div>
       </div>
@@ -219,7 +219,7 @@ export default function Dashboard({ user }) {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                   <div>
-                    <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', marginRight: '0.5rem', fontFamily: 'monospace' }}>{m.machine_code}</span>
+                    <span className="badge" style={{ background: 'rgba(15,23,42,0.05)', marginRight: '0.5rem', fontFamily: 'monospace' }}>{m.machine_code}</span>
                     <span className={`badge ${m.status === 'active' ? 'success' : m.status === 'maintenance' ? 'warning' : 'error'}`}>
                       {m.status === 'active' ? 'Aktif' : m.status === 'maintenance' ? 'Bakımda' : 'Arızalı'}
                     </span>
@@ -229,7 +229,7 @@ export default function Dashboard({ user }) {
                   </a>
                 </div>
 
-                <h3 style={{ fontSize: '1.15rem', marginBottom: '0.5rem', color: 'white' }}>{m.machine_name}</h3>
+                <h3 style={{ fontSize: '1.15rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{m.machine_name}</h3>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
                   <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
@@ -310,7 +310,7 @@ export default function Dashboard({ user }) {
               </div>
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer' }}>İptal</button>
+                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}>İptal</button>
                 <button type="submit" className="btn-primary" disabled={loading} style={{ flex: 1 }}>{loading ? 'Ekleniyor...' : 'Ekle'}</button>
               </div>
             </form>
@@ -322,9 +322,9 @@ export default function Dashboard({ user }) {
 }
 
 const inputStyle = {
-  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none', boxSizing: 'border-box'
+  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box'
 };
 
 const selectStyle = {
-  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: '#1e293b', color: 'white', outline: 'none', boxSizing: 'border-box'
+  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: '#ffffff', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box'
 };

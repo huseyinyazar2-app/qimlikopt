@@ -24,8 +24,8 @@ const companyAuth = async (req, res, next) => {
 
 // --- 1. COMPANY REGISTER & LOGIN ---
 router.post('/company/register', async (req, res) => {
-    const { company_name, phone_number, password } = req.body;
-    if (!company_name || !phone_number || !password) {
+    const { company_name, contact_name, contact_surname, phone_number, password } = req.body;
+    if (!company_name || !contact_name || !contact_surname || !phone_number || !password) {
         return res.status(400).json({ error: 'Tüm alanlar zorunludur.' });
     }
     try {
@@ -35,8 +35,8 @@ router.post('/company/register', async (req, res) => {
         }
 
         await db.query(
-            'INSERT INTO teslimat_companies (company_name, phone_number, password) VALUES (?, ?, ?)',
-            [company_name, phone_number, password]
+            'INSERT INTO teslimat_companies (company_name, contact_name, contact_surname, phone_number, password) VALUES (?, ?, ?, ?, ?)',
+            [company_name, contact_name, contact_surname, phone_number, password]
         );
 
         const { rows } = await db.query('SELECT * FROM teslimat_companies WHERE phone_number = ?', [phone_number]);

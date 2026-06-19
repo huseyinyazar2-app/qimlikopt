@@ -3,13 +3,14 @@ import { Plus, Pause, Play } from 'lucide-react';
 import axios from 'axios';
 
 export default function Clients() {
+  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [clients, setClients] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [newClient, setNewClient] = useState({ company_name: '', prefix: '', webhook_url: '', api_key: '', phone_number: '', contact_name: '', contact_surname: '' });
 
   const fetchClients = async () => {
     try {
-      const res = await axios.get(`http://${window.location.hostname}:3303/api/admin/clients`);
+      const res = await axios.get(`${getApiUrl()}/api/admin/clients`);
       setClients(res.data);
     } catch (err) {
       console.error(err);
@@ -23,7 +24,7 @@ export default function Clients() {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`http://${window.location.hostname}:3303/api/admin/clients`, newClient);
+      await axios.post(`${getApiUrl()}/api/admin/clients`, newClient);
       setShowModal(false);
       fetchClients();
     } catch (err) {
@@ -33,7 +34,7 @@ export default function Clients() {
 
   const toggleStatus = async (id, currentStatus) => {
     try {
-      await axios.put(`http://${window.location.hostname}:3303/api/admin/clients/${id}/toggle`, { is_active: !currentStatus });
+      await axios.put(`${getApiUrl()}/api/admin/clients/${id}/toggle`, { is_active: !currentStatus });
       fetchClients();
     } catch (err) {
       console.error(err);
@@ -74,7 +75,7 @@ export default function Clients() {
                     <div style={{ fontWeight: 500 }}>{c.company_name}</div>
                     <div className="text-muted" style={{ fontSize: '0.8rem' }}>{c.contact_name} {c.contact_surname}</div>
                   </td>
-                  <td><span className="badge" style={{ background: 'rgba(255,255,255,0.1)' }}>{c.prefix}</span></td>
+                  <td><span className="badge" style={{ background: 'rgba(15,23,42,0.05)' }}>{c.prefix}</span></td>
                   <td style={{ fontSize: '0.9rem' }}>{c.phone_number || '-'}</td>
                   <td className="text-muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.webhook_url}
@@ -121,7 +122,7 @@ export default function Clients() {
               <input placeholder="Webhook URL" required style={inputStyle} onChange={e => setNewClient({...newClient, webhook_url: e.target.value})} />
               <input placeholder="Şifre (Giriş için)" required style={inputStyle} onChange={e => setNewClient({...newClient, api_key: e.target.value})} />
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer' }}>İptal</button>
+                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}>İptal</button>
                 <button type="submit" className="btn-primary" style={{ flex: 1 }}>Kaydet</button>
               </div>
             </form>
@@ -133,5 +134,5 @@ export default function Clients() {
 }
 
 const inputStyle = {
-  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none'
+  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none'
 };

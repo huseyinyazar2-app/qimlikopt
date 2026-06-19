@@ -54,6 +54,8 @@ ON CONFLICT (key) DO NOTHING;
 CREATE TABLE IF NOT EXISTS dijital_companies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     company_name VARCHAR(255) NOT NULL,
+    contact_name VARCHAR(100),
+    contact_surname VARCHAR(100),
     phone_number VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
@@ -107,6 +109,8 @@ CREATE TABLE IF NOT EXISTS dijital_maintenance_logs (
 CREATE TABLE IF NOT EXISTS mesai_companies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     company_name VARCHAR(255) NOT NULL,
+    contact_name VARCHAR(100),
+    contact_surname VARCHAR(100),
     phone_number VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
@@ -150,6 +154,8 @@ CREATE TABLE IF NOT EXISTS mesai_logs (
 CREATE TABLE IF NOT EXISTS teslimat_companies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     company_name VARCHAR(255) NOT NULL,
+    contact_name VARCHAR(100),
+    contact_surname VARCHAR(100),
     phone_number VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,

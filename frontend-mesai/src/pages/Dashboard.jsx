@@ -140,7 +140,7 @@ export default function Dashboard({ user }) {
             </div>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Bu Ayki Toplam Mesai</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'white' }}>{monthlySummary.hours} Saat</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{monthlySummary.hours} Saat</div>
             </div>
           </div>
 
@@ -150,7 +150,7 @@ export default function Dashboard({ user }) {
             </div>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Çalışılan Gün Sayısı</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'white' }}>{monthlySummary.days_present} Gün</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{monthlySummary.days_present} Gün</div>
             </div>
           </div>
         </div>
@@ -160,7 +160,7 @@ export default function Dashboard({ user }) {
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(236, 72, 153, 0.1)', color: 'var(--brand-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto' }}>
             <QrCode size={30} />
           </div>
-          <h3 style={{ fontSize: '1.15rem', color: 'white', marginBottom: '0.5rem' }}>Şantiye QR Kod Tarama Simülatörü</h3>
+          <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Şantiye QR Kod Tarama Simülatörü</h3>
           <p className="text-muted" style={{ fontSize: '0.85rem', maxWidth: '500px', margin: '0 auto 1.5rem auto' }}>
             Sahadaki QR kodunu kameranızla okutmuş gibi simüle etmek için aşağıdaki çalışma alanlarından birini seçip butona basın.
           </p>
@@ -169,7 +169,7 @@ export default function Dashboard({ user }) {
             <select 
               value={selectedLocId} 
               onChange={e => setSelectedLocId(e.target.value)}
-              style={{ flex: 1, minWidth: '200px', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: '#1e293b', color: 'white', outline: 'none' }}
+              style={{ flex: 1, minWidth: '200px', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: '#ffffff', color: 'var(--text-primary)', outline: 'none' }}
             >
               <option value="">Çalışma Alanı Seçin...</option>
               {locations.map(loc => (
@@ -184,7 +184,7 @@ export default function Dashboard({ user }) {
 
         {/* Recent logs check list */}
         <div className="glass-card">
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white' }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
             <FileText size={18} color="var(--brand-primary)" /> Son Giriş / Çıkış Geçmişiniz
           </h3>
           <div className="table-container">
@@ -240,7 +240,7 @@ export default function Dashboard({ user }) {
           </div>
           <div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Toplam Şantiye / Sınır</div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'white' }}>{locations.length} Lokasyon</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>{locations.length} Lokasyon</div>
           </div>
         </div>
 
@@ -250,7 +250,7 @@ export default function Dashboard({ user }) {
           </div>
           <div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Kayıtlı Saha Personeli</div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'white' }}>{employees.length} Kişi</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>{employees.length} Kişi</div>
           </div>
         </div>
 
@@ -260,7 +260,7 @@ export default function Dashboard({ user }) {
           </div>
           <div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Bugün Sahada Çalışan</div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'white' }}>{getTodayActiveCount()} Personel</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>{getTodayActiveCount()} Personel</div>
           </div>
         </div>
       </div>
@@ -269,7 +269,7 @@ export default function Dashboard({ user }) {
         
         {/* Left Side: Recent Activity Logs */}
         <div className="glass-card">
-          <h3 style={{ fontSize: '1.15rem', color: 'white', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Activity size={18} color="var(--brand-primary)" /> Son Giriş/Çıkış Hareketleri (Canlı)
           </h3>
           
@@ -322,7 +322,7 @@ export default function Dashboard({ user }) {
 
         {/* Right Side: Quick Simulation Panel */}
         <div className="glass-card" style={{ border: '1px solid var(--brand-secondary)' }}>
-          <h3 style={{ fontSize: '1.15rem', color: 'white', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
             <QrCode size={18} color="var(--brand-secondary)" /> Geliştirici & Test Simülatörü
           </h3>
           <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.25rem' }}>
@@ -388,8 +388,8 @@ const inputStyle = {
   padding: '0.75rem', 
   borderRadius: 8, 
   border: '1px solid var(--glass-border)', 
-  background: '#1e293b', 
-  color: 'white', 
+  background: '#ffffff', 
+  color: 'var(--text-primary)', 
   outline: 'none',
   boxSizing: 'border-box'
 };

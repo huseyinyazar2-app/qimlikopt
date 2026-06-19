@@ -54,7 +54,7 @@ export default function ApiDocs({ user, onLogout }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div>
               <div className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Atanan Prefix (Ön Ek)</div>
-              <div style={{ padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', borderRadius: 8, fontFamily: 'monospace', fontSize: '1.1rem', color: 'var(--brand-primary)' }}>
+              <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', borderRadius: 8, fontFamily: 'monospace', fontSize: '1.1rem', color: 'var(--brand-primary)' }}>
                 {user?.prefix}
               </div>
               <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
@@ -69,7 +69,7 @@ export default function ApiDocs({ user, onLogout }) {
                   type={showKey ? "text" : "password"} 
                   value={user?.api_key || ''} 
                   readOnly 
-                  style={{ flex: 1, padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'white', outline: 'none', fontFamily: showKey ? 'monospace' : 'inherit' }}
+                  style={{ flex: 1, padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--text-primary)', outline: 'none', fontFamily: showKey ? 'monospace' : 'inherit' }}
                 />
                 <button 
                   onClick={() => setShowKey(!showKey)} 
@@ -91,7 +91,7 @@ export default function ApiDocs({ user, onLogout }) {
 
             <div>
               <div className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Kayıtlı Webhook URL</div>
-              <div style={{ padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'white' }}>
+              <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--text-primary)' }}>
                 {user?.webhook_url}
               </div>
               <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
@@ -108,7 +108,7 @@ export default function ApiDocs({ user, onLogout }) {
           </h2>
           
           <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
               <div>
                 <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Mevcut Şifre</label>
                 <input 
@@ -117,7 +117,7 @@ export default function ApiDocs({ user, onLogout }) {
                   placeholder="Eski şifreniz"
                   value={currentPassword}
                   onChange={e => setCurrentPassword(e.target.value)}
-                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }}
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none' }}
                 />
               </div>
 
@@ -129,7 +129,7 @@ export default function ApiDocs({ user, onLogout }) {
                   placeholder="Yeni şifreniz"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
-                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }}
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none' }}
                 />
               </div>
             </div>
@@ -146,7 +146,7 @@ export default function ApiDocs({ user, onLogout }) {
           <div style={{ background: '#0d1117', padding: '1.5rem', borderRadius: 8, border: '1px solid var(--glass-border)', position: 'relative' }}>
             <button 
               onClick={() => handleCopy(`{\n  "prefix": "${user?.prefix}",\n  "user_phone": "+905xxxxxxxxx",\n  "code": "123456",\n  "full_message": "${user?.prefix} 123456",\n  "status": "verified"\n}`)}
-              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(15,23,42,0.05)', border: 'none', color: 'var(--text-primary)', padding: '0.5rem', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
               {copied ? <CheckCircle size={16} color="var(--status-success)" /> : <Copy size={16} />}
               {copied ? 'Kopyalandı' : 'Kopyala'}

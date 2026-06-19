@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Logs from './pages/Logs';
 import Locations from './pages/Locations';
@@ -45,7 +46,10 @@ function App() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         ) : (
-          <Route path="*" element={<Login onLogin={handleLogin} />} />
+          <>
+            <Route path="/register" element={<Register onLogin={handleLogin} />} />
+            <Route path="*" element={<Login onLogin={handleLogin} />} />
+          </>
         )}
       </Routes>
     </BrowserRouter>

@@ -111,7 +111,7 @@ window.addEventListener("message", (event) => {
           Aşağıdaki butona basarak açılır pencere doğrulama akışını kendi tarayıcınızda canlı olarak test edin. Kod doğrulanınca bu sayfa anında yeşile dönecektir.
         </p>
 
-        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: 8, textAlign: 'center' }}>
+        <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1.5rem', borderRadius: 8, textAlign: 'center' }}>
           {testStatus === 'idle' && (
             <div>
               <button onClick={handleStartTest} className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>

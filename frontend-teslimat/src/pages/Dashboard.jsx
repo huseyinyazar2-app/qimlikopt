@@ -107,7 +107,7 @@ export default function Dashboard({ user }) {
             </div>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Dağıtımdaki Paketlerim</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'white' }}>{transitPacks.length} Paket</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{transitPacks.length} Paket</div>
             </div>
           </div>
 
@@ -117,14 +117,14 @@ export default function Dashboard({ user }) {
             </div>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Bugün Teslim Edilenler</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'white' }}>{deliveredPacks.length} Paket</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{deliveredPacks.length} Paket</div>
             </div>
           </div>
         </div>
 
         {/* Courier Packages list */}
         <div className="glass-card">
-          <h3 style={{ fontSize: '1.1rem', color: 'white', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3 style={{ fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6 }}>
             <ClipboardList size={18} color="var(--brand-primary)" /> Güncel Zimmet Listesi
           </h3>
 
@@ -143,7 +143,7 @@ export default function Dashboard({ user }) {
                 {packages.map(p => (
                   <tr key={p.id}>
                     <td>
-                      <span className="badge" style={{ background: 'rgba(255,255,255,0.08)', fontFamily: 'monospace' }}>{p.package_code}</span>
+                      <span className="badge" style={{ background: 'rgba(15,23,42,0.05)', fontFamily: 'monospace' }}>{p.package_code}</span>
                     </td>
                     <td><strong>{p.recipient_name}</strong></td>
                     <td style={{ fontSize: '0.85rem' }}>{p.recipient_phone}</td>
@@ -201,7 +201,7 @@ export default function Dashboard({ user }) {
           </div>
           <div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Toplam Paket Gönderisi</div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'white' }}>{packages.length} Gönderi</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>{packages.length} Gönderi</div>
           </div>
         </div>
 
@@ -211,7 +211,7 @@ export default function Dashboard({ user }) {
           </div>
           <div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Yolda / Dağıtımda</div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'white' }}>{inTransitCount} Paket</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>{inTransitCount} Paket</div>
           </div>
         </div>
 
@@ -221,7 +221,7 @@ export default function Dashboard({ user }) {
           </div>
           <div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Başarıyla Teslim Edilen</div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'white' }}>{deliveredCount} Paket</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>{deliveredCount} Paket</div>
           </div>
         </div>
       </div>
@@ -230,7 +230,7 @@ export default function Dashboard({ user }) {
         
         {/* Left column: Company Packages list */}
         <div className="glass-card">
-          <h3 style={{ fontSize: '1.15rem', color: 'white', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6 }}>
             <ClipboardList size={18} color="var(--brand-primary)" /> Son Gönderiler & Teslimat Kanıtları
           </h3>
 
@@ -249,7 +249,7 @@ export default function Dashboard({ user }) {
                 {packages.map(p => (
                   <tr key={p.id}>
                     <td>
-                      <span className="badge" style={{ background: 'rgba(255,255,255,0.08)', fontFamily: 'monospace' }}>{p.package_code}</span>
+                      <span className="badge" style={{ background: 'rgba(15,23,42,0.05)', fontFamily: 'monospace' }}>{p.package_code}</span>
                     </td>
                     <td>
                       <div style={{ fontWeight: 600 }}>{p.recipient_name}</div>
@@ -289,7 +289,7 @@ export default function Dashboard({ user }) {
 
         {/* Right column: Developer scan simulator */}
         <div className="glass-card" style={{ border: '1px solid var(--brand-secondary)' }}>
-          <h3 style={{ fontSize: '1.15rem', color: 'white', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Truck size={18} color="var(--brand-secondary)" /> Kurye Teslimat Simülatörü
           </h3>
           <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.25rem' }}>
@@ -340,8 +340,8 @@ const inputStyle = {
   padding: '0.75rem', 
   borderRadius: 8, 
   border: '1px solid var(--glass-border)', 
-  background: '#1e293b', 
-  color: 'white', 
+  background: '#ffffff', 
+  color: 'var(--text-primary)', 
   outline: 'none',
   boxSizing: 'border-box'
 };

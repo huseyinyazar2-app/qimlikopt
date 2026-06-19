@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { KeyRound, Phone, Building2, User, QrCode, MessageSquare, Clock, ShieldCheck } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
 
 export default function Login({ onLogin }) {
-  const [activeTab, setActiveTab] = useState('company_login'); // 'company_login', 'company_register', 'courier_login'
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'courier' ? 'courier_login' : 'company_login';
+  const [activeTab, setActiveTab] = useState(initialTab); // 'company_login', 'courier_login'
   
   // Form states
   const [phone, setPhone] = useState('');
@@ -67,9 +70,6 @@ export default function Login({ onLogin }) {
       if (activeTab === 'company_login') {
         const res = await axios.post(`${host}/api/teslimat/company/login`, { phone_number: phone, password });
         onLogin({ ...res.data.company, role: 'company' });
-      } else if (activeTab === 'company_register') {
-        const res = await axios.post(`${host}/api/teslimat/company/register`, { company_name: companyName, phone_number: phone, password });
-        onLogin({ ...res.data.company, role: 'company' });
       } else if (activeTab === 'courier_login') {
         const res = await axios.post(`${host}/api/teslimat/courier/login/request`, { phone_number: phone });
         setVerifyDetails(res.data);
@@ -99,8 +99,8 @@ export default function Login({ onLogin }) {
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
             <ShieldCheck size={36} color="var(--brand-primary)" />
-            <span style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.04em', color: 'white' }}>Qimlik</span>
-            <span style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: 4, fontWeight: 600 }}>Teslimat</span>
+            <span style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--text-primary)' }}>Qimlik</span>
+            <span style={{ background: 'rgba(15,23,42,0.05)', color: 'var(--text-secondary)', fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: 4, fontWeight: 600 }}>Teslimat</span>
           </div>
           <p className="text-muted">Güvenli ve İmzalı Paket Teslimat Sistemi</p>
         </div>
@@ -111,21 +111,14 @@ export default function Login({ onLogin }) {
             <button 
               type="button" 
               onClick={() => { setActiveTab('company_login'); setError(''); }}
-              style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'company_login' ? 'var(--brand-gradient)' : 'transparent', color: 'white', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+              style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'company_login' ? 'var(--brand-gradient)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
             >
               Firma Girişi
             </button>
             <button 
               type="button" 
-              onClick={() => { setActiveTab('company_register'); setError(''); }}
-              style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'company_register' ? 'var(--brand-gradient)' : 'transparent', color: 'white', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
-            >
-              Kayıt Ol
-            </button>
-            <button 
-              type="button" 
               onClick={() => { setActiveTab('courier_login'); setError(''); }}
-              style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'courier_login' ? 'var(--brand-gradient)' : 'transparent', color: 'white', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+              style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'courier_login' ? 'var(--brand-gradient)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
             >
               Kurye Girişi
             </button>
@@ -141,7 +134,7 @@ export default function Login({ onLogin }) {
         {courierStatus === 'waiting' ? (
           /* WhatsApp Reverse OTP screen for couriers */
           <div style={{ textAlign: 'center' }}>
-            <h3 style={{ fontSize: '1.15rem', marginBottom: '0.5rem', color: 'white' }}>WhatsApp ile Giriş Yapın</h3>
+            <h3 style={{ fontSize: '1.15rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>WhatsApp ile Giriş Yapın</h3>
             <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>
               <strong>{phone}</strong> numaranızı doğrulamak için aşağıdaki QR kodu taratın veya doğrudan WhatsApp uygulamasını açın.
             </p>
@@ -188,23 +181,6 @@ export default function Login({ onLogin }) {
         ) : (
           /* Normal logins */
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {activeTab === 'company_register' && (
-              <div>
-                <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>Şirket Adı</label>
-                <div style={{ position: 'relative' }}>
-                  <Building2 size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input 
-                    type="text" 
-                    required 
-                    value={companyName}
-                    onChange={e => setCompanyName(e.target.value)}
-                    placeholder="Örn: Aktaş Lojistik A.Ş."
-                    style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-            )}
-
             <div>
               <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>
                 {activeTab === 'courier_login' ? 'Kurye Telefon Numarası' : 'Firma Telefon Numarası'}
@@ -217,7 +193,7 @@ export default function Login({ onLogin }) {
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   placeholder="Örn: +905XXXXXXXXX"
-                  style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
@@ -233,15 +209,22 @@ export default function Login({ onLogin }) {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
             )}
 
             <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '0.5rem', padding: '0.85rem' }}>
-              {loading ? 'İşlem yapılıyor...' : activeTab === 'company_register' ? 'Ücretsiz Kaydol' : activeTab === 'courier_login' ? 'WhatsApp ile Giriş İste' : 'Giriş Yap'}
+              {loading ? 'İşlem yapılıyor...' : activeTab === 'courier_login' ? 'WhatsApp ile Giriş İste' : 'Giriş Yap'}
             </button>
+
+            {activeTab === 'company_login' && (
+              <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                <span className="text-muted">Hesabınız yok mu? </span>
+                <Link to="/register" style={{ color: 'var(--brand-primary)', fontWeight: 600, textDecoration: 'none' }}>Kayıt Olun</Link>
+              </div>
+            )}
           </form>
         )}
       </div>

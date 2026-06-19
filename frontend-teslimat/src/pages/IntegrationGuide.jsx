@@ -147,21 +147,21 @@ public class WebhookPayload
       <div className="glass-card" style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem' }}>Çalışma Akışı</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-          <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
+          <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
             <div style={{ color: 'var(--brand-primary)', fontWeight: 700, fontSize: '1.2rem', marginBottom: '0.5rem' }}>1. Kod Üretin</div>
             <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
               Kullanıcınız web sitenizde veya uygulamanızda doğrulama talep ettiğinde, arka planda 6 haneli rastgele bir sayı üretin (Örn: <code>791104</code>) ve bunu kullanıcının oturumuyla ilişkilendirin.
             </p>
           </div>
           
-          <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
+          <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
             <div style={{ color: 'var(--brand-primary)', fontWeight: 700, fontSize: '1.2rem', marginBottom: '0.5rem' }}>2. Yönlendirin</div>
             <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
               Kullanıcıyi WhatsApp butonuyla Gateway cihazınıza yönlendirin. Gönderilecek hazır mesaj <strong>Firma Ön Eki + Kodu</strong> olmalıdır (Örn: <code>{user?.prefix || 'ASHE'} 791104</code>).
             </p>
           </div>
 
-          <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
+          <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
             <div style={{ color: 'var(--brand-primary)', fontWeight: 700, fontSize: '1.2rem', marginBottom: '0.5rem' }}>3. Webhook Dinleyin</div>
             <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
               Kullanıcı mesajı gönderdiği anda, Qimlik Gateway mesajı okur ve tanımladığınız Webhook adresine doğrulanmış veriyi anında iletir. Sunucunuzda oturumu açarsınız.
@@ -186,7 +186,7 @@ public class WebhookPayload
                   borderRadius: 6,
                   border: 'none',
                   background: activeTab === lang ? 'var(--brand-gradient)' : 'transparent',
-                  color: 'white',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer',
                   fontWeight: 600,
                   fontSize: '0.85rem',
@@ -203,7 +203,7 @@ public class WebhookPayload
         <div style={{ background: '#0d1117', padding: '1.5rem', borderRadius: 8, border: '1px solid var(--glass-border)', position: 'relative' }}>
           <button 
             onClick={() => handleCopy(codeTemplates[activeTab], activeTab)}
-            style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem 0.75rem', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}
+            style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(15,23,42,0.05)', border: 'none', color: 'var(--text-primary)', padding: '0.5rem 0.75rem', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}
           >
             {copiedText === activeTab ? <CheckCircle size={14} color="var(--status-success)" /> : <Copy size={14} />}
             {copiedText === activeTab ? 'Kopyalandı' : 'Kodu Kopyala'}
@@ -313,7 +313,7 @@ window.addEventListener("message", (event) => {
 
           <div>
             <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>Popup Link Yapısı Parametreleri</div>
-            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', height: 'calc(100% - 1.5rem)' }}>
+            <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', height: 'calc(100% - 1.5rem)' }}>
               <ul style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6', paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <li><strong><code>prefix</code></strong>: Firmanızın ön eki (örn: <code>{user?.prefix || 'ASHE'}</code>) - <em>Zorunlu</em></li>
                 <li><strong><code>code</code></strong>: Ürettiğiniz 6 haneli doğrulama kodu - <em>Zorunlu</em></li>

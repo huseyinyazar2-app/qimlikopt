@@ -44,7 +44,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const res = await axios.post(`http://${window.location.hostname}:3303/api/client/register`, {
+      const res = await axios.post(`${window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`}/api/client/register`, {
         company_name: companyName,
         password: password,
         phone_number: phoneNumber,
@@ -73,7 +73,7 @@ export default function Home() {
               Saha, Güvenlik ve Maliyet Kontrolü.
             </h1>
             <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginBottom: '2.5rem', lineHeight: '1.6' }}>
-              operatör SMS giderlerini sıfırlayan Reverse OTP doğrulama altyapısı, akıllı QR kodlu makine bakımı, geofencing saha mesai takibi ve dijital imzalı teslimat kanıtı. Hepsi tek bir platformda: <strong>qimlik</strong>.
+              operatör SMS giderlerini sıfırlayan Reverse OTP doğrulama altyapısı, akıllı QR kodlu makine bakımı, konum doğrulamalı saha mesai takibi ve dijital imzalı teslimat kanıtı. Hepsi tek bir platformda: <strong>qimlik</strong>.
             </p>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <a href="#cozumler" className="btn btn-primary" style={{ padding: '0.9rem 1.8rem', textDecoration: 'none' }}>Çözümleri İncele</a>
@@ -133,7 +133,7 @@ export default function Home() {
                 </div>
                 <h3>qimlik Mesai</h3>
                 <p className="text-muted" style={{ fontSize: '0.95rem', marginBottom: '1.5rem' }}>
-                  Geofencing saha sınır uyumlu, sahte GPS (Fake GPS) korumalı personel giriş-çıkış takibi. Şantiye veya ofis sınırlarına giren personelin mesaisini güvenle loglayın.
+                  Konum doğrulamalı saha sınır uyumlu, sahte GPS (Fake GPS) korumalı personel giriş-çıkış takibi. Şantiye veya ofis sınırlarına giren personelin mesaisini güvenle loglayın.
                 </p>
               </div>
               <a href="#cozum-mesai" className="btn btn-outline" style={{ width: '100%', fontSize: '0.9rem', padding: '0.6rem' }}>Detayları İncele</a>
@@ -236,12 +236,12 @@ export default function Home() {
             </div>
             <h2 className="product-showcase-title">qimlik Mesai</h2>
             <p className="product-showcase-desc">
-              Personelinizin mesai başlangıç ve bitişlerini güvenli geofencing teknolojisiyle yönetin. GPS doğrulaması sayesinde saha dışında giriş yapılmasını engelleyin.
+              Personelinizin mesai başlangıç ve bitişlerini güvenli konum doğrulamalı teknolojiyle yönetin. GPS doğrulaması sayesinde saha dışında giriş yapılmasını engelleyin.
             </p>
             <ul className="product-showcase-list">
               <li>
                 <MapPin size={18} color="#10b981" style={{ marginTop: '0.2rem', flexShrink: 0 }} />
-                <span><strong>Geofencing Sınırları:</strong> Personel sadece sizin belirlediğiniz koordinat alanı içerisindeyken giriş-çıkış yapabilir.</span>
+                <span><strong>Konum Doğrulamalı Sınırlar:</strong> Personel sadece sizin belirlediğiniz koordinat alanı içerisindeyken giriş-çıkış yapabilir.</span>
               </li>
               <li>
                 <Lock size={18} color="#10b981" style={{ marginTop: '0.2rem', flexShrink: 0 }} />
@@ -335,7 +335,7 @@ export default function Home() {
               <div>
                 <Clock size={36} color="#10b981" style={{ margin: '0 auto 1rem auto' }} />
                 <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Mesai Saha Paneli</h4>
-                <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Geofencing koordinat ayarları, sahte GPS logları ve mesai raporları.</p>
+                <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Konum doğrulamalı koordinat ayarları, sahte GPS logları ve mesai raporları.</p>
               </div>
               <a href={getAppUrl(5005, 'mesai')} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ display: 'inline-flex', width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}>
                 Yönetime Giriş <ExternalLink size={14} />
@@ -376,7 +376,7 @@ export default function Home() {
                   </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>Şirket Adı</label>
                     <div style={{ position: 'relative' }}>
@@ -408,7 +408,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>Yetkili Adı</label>
                     <div style={{ position: 'relative' }}>

@@ -99,7 +99,7 @@ export default function Couriers({ user }) {
             placeholder="İsim, soyisim veya telefona göre ara..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.5rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.5rem', background: 'rgba(255,255,255,0.7)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
       </div>
@@ -122,10 +122,10 @@ export default function Couriers({ user }) {
                 <tr key={c.id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(15,23,42,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <User size={16} />
                       </div>
-                      <span style={{ fontWeight: 600, color: 'white' }}>{c.name} {c.surname}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{c.name} {c.surname}</span>
                     </div>
                   </td>
                   <td style={{ fontSize: '0.85rem' }}>{c.phone_number}</td>
@@ -161,7 +161,7 @@ export default function Couriers({ user }) {
       {showAddModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div className="glass-card" style={{ width: 400 }}>
-            <h2 style={{ marginBottom: '1.5rem', color: 'white' }}>Yeni Kurye Kaydet</h2>
+            <h2 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Yeni Kurye Kaydet</h2>
             {error && (
               <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: 8, fontSize: '0.9rem', textAlign: 'center', marginBottom: '1rem' }}>
                 {error}
@@ -190,7 +190,7 @@ export default function Couriers({ user }) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer' }}>İptal</button>
+                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}>İptal</button>
                 <button type="submit" className="btn-primary" disabled={loading} style={{ flex: 1 }}>{loading ? 'Kaydediliyor...' : 'Kaydet'}</button>
               </div>
             </form>
@@ -202,5 +202,5 @@ export default function Couriers({ user }) {
 }
 
 const inputStyle = {
-  width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none', boxSizing: 'border-box'
+  width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box'
 };

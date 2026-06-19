@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ShieldAlert, User, KeyRound } from 'lucide-react';
 
 export default function Login({ onLogin }) {
+  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -14,7 +15,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      const res = await axios.post(`http://${window.location.hostname}:3303/api/admin/login`, { username, password });
+      const res = await axios.post(`${getApiUrl()}/api/admin/login`, { username, password });
       onLogin(res.data.token, res.data.username);
     } catch (err) {
       setError(err.response?.data?.error || 'Giriş başarısız. Kullanıcı adı veya şifre hatalı.');
@@ -51,7 +52,7 @@ export default function Login({ onLogin }) {
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 placeholder="Yönetici kullanıcı adı"
-                style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: 8, outline: 'none' }}
+                style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none' }}
               />
             </div>
           </div>
@@ -66,7 +67,7 @@ export default function Login({ onLogin }) {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
-                style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: 8, outline: 'none' }}
+                style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none' }}
               />
             </div>
           </div>

@@ -274,12 +274,12 @@ export default function DeliverPage({ user }) {
               <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
                 <Package size={28} />
               </div>
-              <h2 style={{ fontSize: '1.3rem', color: 'white', margin: '0 0 0.5rem 0' }}>{pack.package_code} Teslimatı</h2>
+              <h2 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{pack.package_code} Teslimatı</h2>
               <div style={{ fontSize: '0.8rem', color: 'var(--brand-secondary)', fontWeight: 600 }}>{pack.company_name} Gönderisi</div>
             </div>
 
             {/* Recipient Details */}
-            <div className="glass-card" style={{ padding: '1rem', textAlign: 'left', marginBottom: '1.5rem', background: 'rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="glass-card" style={{ padding: '1rem', textAlign: 'left', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.7)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}>
                 <User size={14} className="text-muted" />
                 <span style={{ fontWeight: 600 }}>Alıcı:</span>
@@ -316,9 +316,9 @@ export default function DeliverPage({ user }) {
             {!signatureSaved && (
               <div>
                 {/* STAGE 1: GPS verification */}
-                <div className="glass-card" style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', marginBottom: '1.5rem', textAlign: 'left' }}>
+                <div className="glass-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.8)', marginBottom: '1.5rem', textAlign: 'left' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, color: 'white' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-primary)' }}>
                       <Navigation size={15} /> Konum Saptama
                     </span>
                     <button 
@@ -357,7 +357,7 @@ export default function DeliverPage({ user }) {
 
                 {verifyStatus === 'verifying' && (
                   <div className="glass-card" style={{ padding: '1.5rem 1rem', marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontSize: '1rem', color: 'white', marginBottom: '0.5rem' }}>WhatsApp Teslim Doğrulaması</h3>
+                    <h3 style={{ fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>WhatsApp Teslim Doğrulaması</h3>
                     <p className="text-muted" style={{ fontSize: '0.8rem', marginBottom: '1.25rem' }}>
                       Alıcı, aşağıdaki QR kodu telefonuyla okutmalı veya alttaki WhatsApp butonuna tıklayıp onay mesajını göndermelidir.
                     </p>

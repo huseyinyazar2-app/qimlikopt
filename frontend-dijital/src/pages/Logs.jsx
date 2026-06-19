@@ -61,8 +61,8 @@ export default function Logs({ user }) {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span className="badge" style={{ background: 'rgba(255,255,255,0.08)', fontFamily: 'monospace' }}>{log.machine_code}</span>
-                    <strong style={{ fontSize: '1rem', color: 'white' }}>{log.machine_name}</strong>
+                    <span className="badge" style={{ background: 'rgba(15,23,42,0.05)', fontFamily: 'monospace' }}>{log.machine_code}</span>
+                    <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{log.machine_name}</strong>
                   </div>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                     {isCompany ? `Teknisyen: ${log.technician_name}` : `Tarih: ${new Date(log.created_at).toLocaleDateString()}`}
@@ -88,7 +88,7 @@ export default function Logs({ user }) {
                   {/* Dynamic checklist details */}
                   <div>
                     <h4 style={{ fontSize: '0.9rem', color: 'var(--brand-secondary)', marginBottom: '0.75rem', fontWeight: 600 }}>Dinamik Kontrol Listesi Sonuçları</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', background: 'rgba(0,0,0,0.15)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', background: 'rgba(255,255,255,0.7)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
                       {Object.entries(log.form_data).map(([key, val]) => (
                         <div key={key}>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{key}</div>
@@ -114,7 +114,7 @@ export default function Logs({ user }) {
                         <h4 style={{ fontSize: '0.9rem', color: 'var(--brand-secondary)', marginBottom: '0.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Image size={16} /> Servis Kanıt Fotoğrafı
                         </h4>
-                        <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: 8, display: 'inline-block' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: 8, display: 'inline-block' }}>
                           <img 
                             src={log.photo_base64} 
                             alt="Servis Rapor Görseli" 

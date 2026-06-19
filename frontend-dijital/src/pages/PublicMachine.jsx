@@ -151,7 +151,7 @@ export default function PublicMachine({ user }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <ShieldCheck size={28} color="#0284c7" />
-            <span style={{ fontSize: '1.3rem', fontWeight: 800, color: 'white' }}>Qimlik Dijital</span>
+            <span style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)' }}>Qimlik Dijital</span>
           </div>
           {user && (
             <button 
@@ -167,12 +167,12 @@ export default function PublicMachine({ user }) {
         {/* Machine Details Card */}
         <div className="glass-card" style={{ borderLeft: `4px solid ${machine.status === 'active' ? 'var(--status-success)' : machine.status === 'maintenance' ? 'var(--status-warning)' : 'var(--status-error)'}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-            <span className="badge" style={{ background: 'rgba(255,255,255,0.08)', fontFamily: 'monospace' }}>{machine.machine_code}</span>
+            <span className="badge" style={{ background: 'rgba(15,23,42,0.05)', fontFamily: 'monospace' }}>{machine.machine_code}</span>
             <span className={`badge ${machine.status === 'active' ? 'success' : machine.status === 'maintenance' ? 'warning' : 'error'}`}>
               {machine.status === 'active' ? 'Aktif' : machine.status === 'maintenance' ? 'Bakımda' : 'Arızalı'}
             </span>
           </div>
-          <h2 style={{ fontSize: '1.4rem', color: 'white', marginBottom: '0.5rem' }}>{machine.machine_name}</h2>
+          <h2 style={{ fontSize: '1.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{machine.machine_name}</h2>
           <div className="text-muted" style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
             <MapPin size={14} />
             <span>{machine.location}</span>
@@ -194,13 +194,13 @@ export default function PublicMachine({ user }) {
                 <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
                   <CheckCircle size={24} />
                 </div>
-                <h4 style={{ color: 'white', fontSize: '1.1rem', marginBottom: '0.5rem' }}>Rapor Başarıyla Gönderildi!</h4>
+                <h4 style={{ color: 'var(--text-primary)', fontSize: '1.1rem', marginBottom: '0.5rem' }}>Rapor Başarıyla Gönderildi!</h4>
                 <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Ekipman kontrol verileri ve durum güncellendi.</p>
                 <button onClick={() => setSuccess(false)} className="btn-outline" style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>Yeni Rapor Gir</button>
               </div>
             ) : (
               <form onSubmit={handleSubmitReport} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
+                <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--brand-secondary)', marginBottom: '0.75rem' }}>Form Şablonu: {form.title}</div>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -241,9 +241,9 @@ export default function PublicMachine({ user }) {
                       <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
                     </label>
                     {photo && (
-                      <div style={{ position: 'relative', border: '1px solid var(--glass-border)', padding: 4, borderRadius: 6, background: 'rgba(255,255,255,0.05)' }}>
+                      <div style={{ position: 'relative', border: '1px solid var(--glass-border)', padding: 4, borderRadius: 6, background: 'rgba(15,23,42,0.03)' }}>
                         <img src={photo} alt="Preview" style={{ height: 48, width: 48, objectFit: 'cover', borderRadius: 4 }} />
-                        <span style={{ position: 'absolute', top: -5, right: -5, background: 'var(--status-success)', color: 'white', borderRadius: '50%', width: 14, height: 14, fontSize: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 750 }}>✓</span>
+                        <span style={{ position: 'absolute', top: -5, right: -5, background: 'var(--status-success)', color: 'var(--text-primary)', borderRadius: '50%', width: 14, height: 14, fontSize: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 750 }}>✓</span>
                       </div>
                     )}
                   </div>
@@ -276,7 +276,7 @@ export default function PublicMachine({ user }) {
               Bu makineye servis/bakım raporu girmek için sisteme kayıtlı yetkili teknisyen girişi yapmanız gerekmektedir.
             </p>
             <a 
-              href={`/login`} 
+              href={`/login?tab=technician`} 
               className="btn-primary" 
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', padding: '0.75rem 1.25rem', fontSize: '0.9rem' }}
             >
@@ -287,13 +287,13 @@ export default function PublicMachine({ user }) {
 
         {/* Maintenance Log History List */}
         <div className="glass-card">
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white' }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
             <Calendar size={18} /> Geçmiş Bakım ve Servis Kayıtları
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {history.map(h => (
-              <div key={h.id} style={{ background: 'rgba(0,0,0,0.15)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)', fontSize: '0.85rem' }}>
+              <div key={h.id} style={{ background: 'rgba(255,255,255,0.7)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)', fontSize: '0.85rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                   <strong>Teknisyen: {h.technician_name}</strong>
                   <span className="text-muted">{new Date(h.created_at).toLocaleString()}</span>
@@ -328,8 +328,8 @@ export default function PublicMachine({ user }) {
 const containerStyle = {
   fontFamily: "'Inter', sans-serif",
   minHeight: '100vh',
-  background: '#0f172a',
-  color: '#cbd5e1',
+  background: 'var(--bg-main, #f8fafc)',
+  color: 'var(--text-primary, #1e293b)',
   display: 'flex',
   justifyContent: 'center',
   padding: '2.5rem 1.5rem',
@@ -337,9 +337,9 @@ const containerStyle = {
 };
 
 const formInputStyle = {
-  width: '100%', padding: '0.65rem', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none', boxSizing: 'border-box', fontSize: '0.85rem'
+  width: '100%', padding: '0.65rem', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', fontSize: '0.85rem'
 };
 
 const formSelectStyle = {
-  width: '100%', padding: '0.65rem', borderRadius: 6, border: '1px solid var(--glass-border)', background: '#1e293b', color: 'white', outline: 'none', boxSizing: 'border-box', fontSize: '0.85rem'
+  width: '100%', padding: '0.65rem', borderRadius: 6, border: '1px solid var(--glass-border)', background: '#ffffff', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', fontSize: '0.85rem'
 };

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { KeyRound, Phone } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function Login({ onLogin }) {
+  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [phoneNumber, setPhoneNumber] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState('');
@@ -14,7 +16,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      const res = await axios.post(`http://${window.location.hostname}:3303/api/client/login`, { phone_number: phoneNumber, api_key: apiKey });
+      const res = await axios.post(`${getApiUrl()}/api/client/login`, { phone_number: phoneNumber, api_key: apiKey });
       onLogin(res.data.client);
     } catch (err) {
       setError(err.response?.data?.error || 'Giriş yapılamadı. Bilgilerinizi kontrol edin.');
@@ -49,7 +51,7 @@ export default function Login({ onLogin }) {
                 value={phoneNumber}
                 onChange={e => setPhoneNumber(e.target.value)}
                 placeholder="Örn: +905XXXXXXXXX"
-                style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: 8, outline: 'none' }}
+                style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none' }}
               />
             </div>
           </div>
@@ -64,14 +66,19 @@ export default function Login({ onLogin }) {
                 value={apiKey}
                 onChange={e => setApiKey(e.target.value)}
                 placeholder="••••••••"
-                style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: 8, outline: 'none' }}
+                style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none' }}
               />
             </div>
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '0.5rem' }}>
+          <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '0.5rem', padding: '0.85rem' }}>
             {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
           </button>
+          
+          <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.9rem' }}>
+            <span className="text-muted">Hesabınız yok mu? </span>
+            <Link to="/register" style={{ color: 'var(--brand-primary)', fontWeight: 600, textDecoration: 'none' }}>Kayıt Olun</Link>
+          </div>
         </form>
       </div>
     </div>

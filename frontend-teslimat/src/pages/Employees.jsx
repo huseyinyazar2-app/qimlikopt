@@ -169,7 +169,7 @@ export default function Employees({ user }) {
                         {emp.photo_base64 ? (
                           <img src={emp.photo_base64} alt={emp.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
                         ) : (
-                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(15,23,42,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <User size={16} />
                           </div>
                         )}
@@ -207,12 +207,12 @@ export default function Employees({ user }) {
               {selectedEmp.photo_base64 ? (
                 <img src={selectedEmp.photo_base64} alt={selectedEmp.name} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--brand-primary)' }} />
               ) : (
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(15,23,42,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <User size={24} />
                 </div>
               )}
               <div>
-                <h2 style={{ fontSize: '1.25rem', margin: 0, color: 'white' }}>{selectedEmp.name} {selectedEmp.surname}</h2>
+                <h2 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--text-primary)' }}>{selectedEmp.name} {selectedEmp.surname}</h2>
                 <div className="text-muted" style={{ fontSize: '0.85rem' }}>{selectedEmp.phone_number}</div>
               </div>
             </div>
@@ -228,7 +228,7 @@ export default function Employees({ user }) {
               </button>
               <button 
                 onClick={() => setSelectedEmp(null)} 
-                style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}
               >
                 <X size={20} />
               </button>
@@ -243,9 +243,9 @@ export default function Employees({ user }) {
                 <h3 style={{ fontSize: '1rem', color: 'var(--brand-secondary)', marginBottom: '0.75rem' }}>Aylık Çalışma Toplamları</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                   {reportData.monthly.map((m, idx) => (
-                    <div key={idx} style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
+                    <div key={idx} style={{ background: 'rgba(255,255,255,0.8)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{m.month}</div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 700, margin: '0.25rem 0', color: 'white' }}>{m.hours} Saat</div>
+                      <div style={{ fontSize: '1.3rem', fontWeight: 700, margin: '0.25rem 0', color: 'var(--text-primary)' }}>{m.hours} Saat</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Toplam: {m.days_present} Gün Çalışıldı</div>
                     </div>
                   ))}
@@ -319,7 +319,7 @@ export default function Employees({ user }) {
                 {photo ? (
                   <img src={photo} alt="Avatar Preview" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--brand-primary)' }} />
                 ) : (
-                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(15,23,42,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                     <Users size={32} />
                   </div>
                 )}
@@ -351,7 +351,7 @@ export default function Employees({ user }) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer' }}>İptal</button>
+                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}>İptal</button>
                 <button type="submit" className="btn-primary" disabled={loading} style={{ flex: 1 }}>{loading ? 'Kaydediliyor...' : 'Kaydet'}</button>
               </div>
             </form>
@@ -363,5 +363,5 @@ export default function Employees({ user }) {
 }
 
 const inputStyle = {
-  width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none', boxSizing: 'border-box'
+  width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box'
 };

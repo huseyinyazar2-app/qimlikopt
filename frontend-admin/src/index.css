@@ -1,22 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Premium Admin Dark Palette */
-  --bg-color: #0b0f19;
-  --sidebar-bg: rgba(15, 23, 42, 0.85);
-  --surface-color: rgba(30, 41, 59, 0.6);
-  --surface-hover: rgba(51, 65, 85, 0.8);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-hover: rgba(255, 255, 255, 0.15);
+  /* Premium Admin Light Palette */
+  --bg-color: #f8fafc;
+  --sidebar-bg: rgba(255, 255, 255, 0.95);
+  --surface-color: rgba(255, 255, 255, 0.85);
+  --surface-hover: rgba(241, 245, 249, 0.9);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-border-hover: rgba(15, 23, 42, 0.15);
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
   --text-muted: #64748b;
   
   /* Brand Accents */
-  --brand-primary: #3b82f6;
-  --brand-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  --brand-glow: rgba(59, 130, 246, 0.3);
+  --brand-primary: #0ea5e9;
+  --brand-gradient: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+  --brand-glow: rgba(99, 102, 241, 0.15);
   
   /* Status Colors */
   --status-success: #10b981;
@@ -25,6 +25,7 @@
   
   /* Animations */
   --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -42,8 +43,8 @@ body {
   
   /* Ambient glow */
   background-image: 
-    radial-gradient(circle at top right, rgba(139, 92, 246, 0.1), transparent 40%),
-    radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.1), transparent 40%);
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent 40%),
+    radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.05), transparent 40%);
   background-attachment: fixed;
 }
 
@@ -117,7 +118,7 @@ h2 { font-size: 1.4rem; font-weight: 600; }
 }
 
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.05);
   color: var(--text-primary);
 }
 
@@ -153,7 +154,7 @@ th {
 }
 
 tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(15, 23, 42, 0.02);
 }
 
 /* Status Badges */
@@ -166,3 +167,41 @@ tr:hover td {
 .badge.success { background: rgba(16, 185, 129, 0.15); color: var(--status-success); }
 .badge.error { background: rgba(239, 68, 68, 0.15); color: var(--status-error); }
 .badge.warning { background: rgba(245, 158, 11, 0.15); color: var(--status-warning); }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .admin-layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    padding: 1rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .sidebar .nav-link {
+    margin-bottom: 0;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  .main-content {
+    padding: 1rem;
+  }
+  .glass-panel, .glass-card {
+    padding: 1.5rem 1rem;
+  }
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.25rem; }
+}
+
+@media (max-width: 480px) {
+  form div[style*="display: flex"] {
+    flex-direction: column !important;
+  }
+}

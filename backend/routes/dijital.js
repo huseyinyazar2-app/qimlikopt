@@ -24,8 +24,8 @@ const companyAuth = async (req, res, next) => {
 
 // --- 1. COMPANY REGISTER & LOGIN ---
 router.post('/company/register', async (req, res) => {
-    const { company_name, phone_number, password } = req.body;
-    if (!company_name || !phone_number || !password) {
+    const { company_name, contact_name, contact_surname, phone_number, password } = req.body;
+    if (!company_name || !contact_name || !contact_surname || !phone_number || !password) {
         return res.status(400).json({ error: 'Tüm alanlar zorunludur.' });
     }
     try {
@@ -36,8 +36,8 @@ router.post('/company/register', async (req, res) => {
         }
 
         await db.query(
-            'INSERT INTO dijital_companies (company_name, phone_number, password) VALUES (?, ?, ?)',
-            [company_name, phone_number, password]
+            'INSERT INTO dijital_companies (company_name, contact_name, contact_surname, phone_number, password) VALUES (?, ?, ?, ?, ?)',
+            [company_name, contact_name, contact_surname, phone_number, password]
         );
 
         const { rows } = await db.query('SELECT * FROM dijital_companies WHERE phone_number = ?', [phone_number]);
@@ -140,6 +140,34 @@ router.get('/forms', companyAuth, async (req, res) => {
             fields: JSON.parse(r.fields_json)
         }));
         res.json(parsed);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/forms/:id', companyAuth, async (req, res) => {
+    const { id } = req.params;
+    const { title, fields } = req.body;
+    if (!title || !fields) {
+        return res.status(400).json({ error: 'Başlık ve dinamik alanlar zorunludur.' });
+    }
+    try {
+        await db.query(
+            'UPDATE dijital_forms SET title = ?, fields_json = ? WHERE id = ? AND company_id = ?',
+            [title, JSON.stringify(fields), id, req.company.id]
+        );
+        res.json({ message: 'Dinamik kontrol şablonu güncellendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.delete('/forms/:id', companyAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Form kullanımda mı diye kontrol edilebilir, ama basit tutalım
+        await db.query('DELETE FROM dijital_forms WHERE id = ? AND company_id = ?', [id, req.company.id]);
+        res.json({ message: 'Şablon silindi.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

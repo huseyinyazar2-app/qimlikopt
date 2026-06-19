@@ -124,7 +124,7 @@ export default function Packages({ user }) {
             placeholder="Takip kodu, alıcı adı veya telefon numarasına göre ara..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.5rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.5rem', background: 'rgba(255,255,255,0.7)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
       </div>
@@ -140,7 +140,7 @@ export default function Packages({ user }) {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                   <div>
-                    <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', marginRight: '0.5rem', fontFamily: 'monospace' }}>{p.package_code}</span>
+                    <span className="badge" style={{ background: 'rgba(15,23,42,0.05)', marginRight: '0.5rem', fontFamily: 'monospace' }}>{p.package_code}</span>
                     <span className={`badge ${p.status === 'delivered' ? 'success' : p.status === 'in_transit' ? 'warning' : p.status === 'failed' ? 'error' : 'secondary'}`}>
                       {p.status === 'delivered' ? 'Teslim Edildi' : p.status === 'in_transit' ? 'Dağıtımda' : p.status === 'failed' ? 'Hata' : 'Zimmet Bekliyor'}
                     </span>
@@ -152,7 +152,7 @@ export default function Packages({ user }) {
                   </a>
                 </div>
 
-                <h3 style={{ fontSize: '1.15rem', marginBottom: '0.75rem', color: 'white' }}>{p.recipient_name}</h3>
+                <h3 style={{ fontSize: '1.15rem', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>{p.recipient_name}</h3>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
                   <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -186,7 +186,7 @@ export default function Packages({ user }) {
                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--glass-border)', borderRadius: 8, padding: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <img src={qrImage} alt="Package QR" style={{ width: 52, height: 52, borderRadius: 4, background: 'white', padding: 2 }} />
                   <div style={{ textAlign: 'left', flex: 1 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'white' }}>Teslim QR Etiketi</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>Teslim QR Etiketi</div>
                     <a href={qrImage} download={`${p.package_code}_qr.png`} target="_blank" rel="noreferrer" style={{ fontSize: '0.7rem', color: 'var(--brand-primary)', textDecoration: 'none', display: 'block', marginTop: 2 }}>
                       Etiketi İndir
                     </a>
@@ -210,7 +210,7 @@ export default function Packages({ user }) {
       {showAddModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div className="glass-card" style={{ width: 450 }}>
-            <h2 style={{ marginBottom: '1.5rem', color: 'white' }}>Yeni Gönderi Oluştur</h2>
+            <h2 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Yeni Gönderi Oluştur</h2>
             {error && (
               <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: 8, fontSize: '0.9rem', textAlign: 'center', marginBottom: '1rem' }}>
                 {error}
@@ -234,7 +234,7 @@ export default function Packages({ user }) {
                 <textarea required style={{ ...inputStyle, height: '70px', resize: 'none' }} value={address} onChange={e => setAddress(e.target.value)} placeholder="Teslim edilecek açık adres..." />
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer' }}>İptal</button>
+                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}>İptal</button>
                 <button type="submit" className="btn-primary" disabled={loading} style={{ flex: 1 }}>{loading ? 'Kaydediliyor...' : 'Gönderi Kaydet'}</button>
               </div>
             </form>
@@ -246,7 +246,7 @@ export default function Packages({ user }) {
       {showAssignModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div className="glass-card" style={{ width: 400 }}>
-            <h2 style={{ marginBottom: '1rem', color: 'white' }}>Kuryeye Zimmetle</h2>
+            <h2 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>Kuryeye Zimmetle</h2>
             <p className="text-muted" style={{ fontSize: '0.8rem', marginBottom: '1.5rem' }}>Lütfen bu gönderiyi zimmetlemek istediğiniz aktif kuryeyi seçin.</p>
             <form onSubmit={handleAssign} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
@@ -264,7 +264,7 @@ export default function Packages({ user }) {
                 </select>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" onClick={() => { setShowAssignModal(false); setSelectedPackId(null); }} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer' }}>İptal</button>
+                <button type="button" onClick={() => { setShowAssignModal(false); setSelectedPackId(null); }} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}>İptal</button>
                 <button type="submit" className="btn-primary" style={{ flex: 1 }}>Zimmetle</button>
               </div>
             </form>
@@ -276,9 +276,9 @@ export default function Packages({ user }) {
 }
 
 const inputStyle = {
-  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none', boxSizing: 'border-box'
+  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box'
 };
 
 const selectStyle = {
-  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: '#1e293b', color: 'white', outline: 'none', boxSizing: 'border-box'
+  width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: '#ffffff', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box'
 };

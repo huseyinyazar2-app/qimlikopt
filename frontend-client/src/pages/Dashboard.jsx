@@ -3,6 +3,7 @@ import axios from 'axios';
 import { MessageSquare, CheckCircle, XCircle, RefreshCw, Smartphone, QrCode, ArrowRight } from 'lucide-react';
 
 export default function Dashboard({ user }) {
+  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [stats, setStats] = useState({ total: 0, successful: 0, failed: 0 });
 
   // WhatsApp Simulator State
@@ -14,7 +15,7 @@ export default function Dashboard({ user }) {
 
   const fetchStats = async () => {
     try {
-      const res = await axios.get(`http://${window.location.hostname}:3303/api/client/${user.id}/stats`);
+      const res = await axios.get(`${getApiUrl()}/api/client/${user.id}/stats`);
       setStats(res.data);
     } catch (err) {
       console.error(err);
@@ -49,7 +50,7 @@ export default function Dashboard({ user }) {
     if (verificationStatus === 'waiting' && otpCode && user?.id) {
       intervalId = setInterval(async () => {
         try {
-          const res = await axios.get(`http://${window.location.hostname}:3303/api/client/${user.id}/logs`);
+          const res = await axios.get(`${getApiUrl()}/api/client/${user.id}/logs`);
           const logs = res.data;
           
           const targetMsg = `${user.prefix} ${otpCode}`.toUpperCase();
@@ -175,10 +176,10 @@ export default function Dashboard({ user }) {
                   style={{ 
                     flex: 1, 
                     padding: '0.75rem 1rem', 
-                    background: 'rgba(0,0,0,0.2)', 
+                    background: 'rgba(255,255,255,0.8)', 
                     border: '1px solid var(--glass-border)', 
                     borderRadius: 8, 
-                    color: 'white', 
+                    color: 'var(--text-primary)', 
                     outline: 'none',
                     fontFamily: 'monospace',
                     fontSize: '1rem'
@@ -187,7 +188,7 @@ export default function Dashboard({ user }) {
                 <button 
                   onClick={generateNewCode} 
                   className="btn-primary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.2rem', background: 'rgba(255,255,255,0.05)', boxShadow: 'none', color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.2rem', background: 'rgba(15,23,42,0.03)', boxShadow: 'none', color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
                 >
                   <RefreshCw size={16} /> Kodu Yenile
                 </button>
@@ -198,14 +199,14 @@ export default function Dashboard({ user }) {
             </div>
 
             {/* Generated Message details */}
-            <div style={{ background: 'rgba(0,0,0,0.15)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
+            <div style={{ background: 'rgba(255,255,255,0.7)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span className="text-muted" style={{ fontSize: '0.85rem' }}>Gönderilecek Ön Ek:</span>
                 <span style={{ fontWeight: 600, color: 'var(--brand-primary)', fontFamily: 'monospace' }}>{user?.prefix}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span className="text-muted" style={{ fontSize: '0.85rem' }}>OTP Kodu (Rastgele):</span>
-                <span style={{ fontWeight: 600, color: 'white', fontFamily: 'monospace' }}>{otpCode}</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{otpCode}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
                 <span className="text-muted" style={{ fontSize: '0.85rem' }}>Hazır Mesaj Metni:</span>

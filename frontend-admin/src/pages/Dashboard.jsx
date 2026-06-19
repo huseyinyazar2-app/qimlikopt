@@ -3,6 +3,7 @@ import { Activity, Users, Smartphone, AlertCircle, CheckCircle, AlertTriangle } 
 import axios from 'axios';
 
 export default function Dashboard() {
+  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [stats, setStats] = useState({ clients: 0, devices: 0, logs: 0 });
   const [devicesList, setDevicesList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,9 +23,9 @@ export default function Dashboard() {
     const fetchStats = async () => {
       try {
         const [cRes, dRes, lRes] = await Promise.all([
-          axios.get(`http://${window.location.hostname}:3303/api/admin/clients`),
-          axios.get(`http://${window.location.hostname}:3303/api/admin/devices`),
-          axios.get(`http://${window.location.hostname}:3303/api/admin/logs`)
+          axios.get(`${getApiUrl()}/api/admin/clients`),
+          axios.get(`${getApiUrl()}/api/admin/devices`),
+          axios.get(`${getApiUrl()}/api/admin/logs`)
         ]);
         setStats({
           clients: cRes.data.length,

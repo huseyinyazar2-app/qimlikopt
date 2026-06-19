@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Save, Lock, User } from 'lucide-react';
 
 export default function Settings() {
+  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [settings, setSettings] = useState([]);
   const [adminUser, setAdminUser] = useState(localStorage.getItem('qimlik_admin_username') || 'admin');
   const [newPassword, setNewPassword] = useState('');
@@ -10,7 +11,7 @@ export default function Settings() {
 
   const fetchSettings = async () => {
     try {
-      const res = await axios.get(`http://${window.location.hostname}:3303/api/admin/settings`);
+      const res = await axios.get(`${getApiUrl()}/api/admin/settings`);
       setSettings(res.data);
     } catch (err) {
       console.error(err);
@@ -27,7 +28,7 @@ export default function Settings() {
 
   const handleSave = async (key, value) => {
     try {
-      await axios.put(`http://${window.location.hostname}:3303/api/admin/settings/${key}`, { value });
+      await axios.put(`${getApiUrl()}/api/admin/settings/${key}`, { value });
       alert('Ayar başarıyla kaydedildi.');
     } catch (err) {
       alert('Hata: ' + err.message);
@@ -45,12 +46,12 @@ export default function Settings() {
     try {
       const currentSavedUsername = localStorage.getItem('qimlik_admin_username');
       if (adminUser !== currentSavedUsername) {
-        await axios.put(`http://${window.location.hostname}:3303/api/admin/settings/ADMIN_USERNAME`, { value: adminUser });
+        await axios.put(`${getApiUrl()}/api/admin/settings/ADMIN_USERNAME`, { value: adminUser });
         localStorage.setItem('qimlik_admin_username', adminUser);
       }
 
       if (newPassword) {
-        await axios.put(`http://${window.location.hostname}:3303/api/admin/settings/ADMIN_PASSWORD`, { value: newPassword });
+        await axios.put(`${getApiUrl()}/api/admin/settings/ADMIN_PASSWORD`, { value: newPassword });
         alert('Giriş bilgileri başarıyla güncellendi. Yeni şifrenizle giriş yapmanız gerekiyor.');
         localStorage.removeItem('qimlik_admin_token');
         localStorage.removeItem('qimlik_admin_username');
@@ -82,7 +83,7 @@ export default function Settings() {
           </h2>
           
           <form onSubmit={handleUpdateCredentials} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
               <div>
                 <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Kullanıcı Adı</label>
                 <div style={{ position: 'relative' }}>
@@ -91,7 +92,7 @@ export default function Settings() {
                     type="text" 
                     value={adminUser}
                     onChange={e => setAdminUser(e.target.value)}
-                    style={{ width: '100%', padding: '0.65rem 0.65rem 0.65rem 2.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }}
+                    style={{ width: '100%', padding: '0.65rem 0.65rem 0.65rem 2.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none' }}
                   />
                 </div>
               </div>
@@ -105,7 +106,7 @@ export default function Settings() {
                     placeholder="••••••••"
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
-                    style={{ width: '100%', padding: '0.65rem 0.65rem 0.65rem 2.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none' }}
+                    style={{ width: '100%', padding: '0.65rem 0.65rem 0.65rem 2.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none' }}
                   />
                 </div>
               </div>
@@ -134,7 +135,7 @@ export default function Settings() {
                       type="text" 
                       value={setting.value} 
                       onChange={(e) => handleChange(setting.key, e.target.value)}
-                      style={{ padding: '0.5rem', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', outline: 'none', width: 200 }}
+                      style={{ padding: '0.5rem', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none', width: 200 }}
                     />
                     <button onClick={() => handleSave(setting.key, setting.value)} className="btn-primary" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <Save size={16} /> Kaydet

@@ -53,7 +53,7 @@ export default function TrackPage() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
           <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--brand-gradient)' }}></div>
-          <span style={{ fontSize: '1.6rem', fontWeight: 800, color: 'white', letterSpacing: '-0.04em' }}>Qimlik <span style={{ fontWeight: 400, fontSize: '1.1rem', color: 'var(--text-secondary)' }}>Takip</span></span>
+          <span style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>Qimlik <span style={{ fontWeight: 400, fontSize: '1.1rem', color: 'var(--text-secondary)' }}>Takip</span></span>
         </div>
 
         {loading ? (
@@ -64,7 +64,7 @@ export default function TrackPage() {
         ) : error ? (
           <div style={{ padding: '2rem 0' }}>
             <AlertTriangle size={48} color="#ef4444" style={{ margin: '0 auto 1rem auto' }} />
-            <div style={{ color: 'white', fontWeight: 600, marginBottom: '0.5rem' }}>Takip Başarısız</div>
+            <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: '0.5rem' }}>Takip Başarısız</div>
             <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>{error}</p>
             <button onClick={fetchTrackingData} className="btn-outline" style={{ padding: '0.55rem 1rem' }}>Tekrar Dene</button>
           </div>
@@ -73,12 +73,12 @@ export default function TrackPage() {
             {/* Tracking summary */}
             <div style={{ marginBottom: '2rem' }}>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>GÖNDERİ KODU</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'monospace', color: 'white', margin: '0.25rem 0' }}>{pack.package_code}</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--text-primary)', margin: '0.25rem 0' }}>{pack.package_code}</div>
               <div className="text-muted" style={{ fontSize: '0.85rem' }}>Gönderen Firma: <strong style={{ color: 'var(--brand-secondary)' }}>{pack.company_name}</strong></div>
             </div>
 
             {/* Censor Recipient details */}
-            <div className="glass-card" style={{ padding: '1rem', textAlign: 'left', marginBottom: '2rem', background: 'rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="glass-card" style={{ padding: '1rem', textAlign: 'left', marginBottom: '2rem', background: 'rgba(255,255,255,0.7)', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', gap: 6, fontSize: '0.85rem' }}>
                 <User size={14} className="text-muted" />
                 <span style={{ fontWeight: 600 }}>Alıcı:</span>
@@ -96,9 +96,9 @@ export default function TrackPage() {
               {/* Step 1: Shipment Registered */}
               <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
                 <div style={lineStyle}></div>
-                <div style={{ ...dotStyle, background: 'var(--status-success)', color: 'white' }}>✓</div>
+                <div style={{ ...dotStyle, background: 'var(--status-success)', color: 'var(--text-primary)' }}>✓</div>
                 <div>
-                  <div style={{ fontWeight: 600, color: 'white', fontSize: '0.9rem' }}>Gönderi Kaydı Alındı</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>Gönderi Kaydı Alındı</div>
                   <div className="text-muted" style={{ fontSize: '0.75rem' }}>{new Date(pack.created_at).toLocaleString('tr-TR')}</div>
                 </div>
               </div>
@@ -146,7 +146,7 @@ export default function TrackPage() {
               <div className="glass-card" style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '1rem', textAlign: 'left', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CheckCircle2 color="var(--status-success)" size={20} style={{ flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontWeight: 600, color: 'white' }}>Güvenli Teslimat Konumu</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Güvenli Teslimat Konumu</div>
                   <div className="text-muted" style={{ marginTop: 2 }}>
                     Alıcı, WhatsApp Reverse OTP doğrulamasıyla şu koordinatlarda onay vermiştir: {pack.gps_latitude.toFixed(5)}, {pack.gps_longitude.toFixed(5)}
                   </div>
@@ -191,5 +191,5 @@ const lineStyle = {
   top: 24,
   bottom: -20,
   width: 2,
-  background: 'rgba(255,255,255,0.08)'
+  background: 'rgba(15,23,42,0.05)'
 };

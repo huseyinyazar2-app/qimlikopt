@@ -3,12 +3,13 @@ import axios from 'axios';
 import { Battery, Wifi } from 'lucide-react';
 
 export default function Devices() {
+  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [devices, setDevices] = useState([]);
 
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const res = await axios.get(`http://${window.location.hostname}:3303/api/admin/devices`);
+        const res = await axios.get(`${getApiUrl()}/api/admin/devices`);
         setDevices(res.data);
       } catch (err) {
         console.error(err);

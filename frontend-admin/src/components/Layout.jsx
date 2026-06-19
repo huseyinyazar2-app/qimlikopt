@@ -16,7 +16,7 @@ export default function Layout({ username, onLogout }) {
       <aside className="sidebar">
         <div style={{ padding: '1rem 0 2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--brand-gradient)' }}></div>
-          <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>Admin v1.7.4</span></h2>
+          <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>Admin v1.7.5</span></h2>
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -33,7 +33,7 @@ export default function Layout({ username, onLogout }) {
         </nav>
 
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+          <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.8)', borderRadius: 8 }}>
             <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: 4 }}>Aktif Yönetici</div>
             <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.75rem' }}>{username}</div>
             <button 
