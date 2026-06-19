@@ -80,7 +80,7 @@ export default function Home() {
               <a href="#giris" className="btn btn-outline" style={{ padding: '0.9rem 1.8rem', textDecoration: 'none' }}>Giriş Panelleri</a>
             </div>
           </div>
-          <div className="hero-image" style={{ background: 'rgba(255,255,255,0.02)', padding: '0.5rem', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+          <div className="hero-image" style={{ background: 'rgba(15, 23, 42, 0.01)', padding: '0.5rem', borderRadius: '32px', border: '1px solid rgba(15, 23, 42, 0.04)', boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.1)' }}>
             <img src="/hero.png" alt="qimlik B2B SaaS Ecosystem" style={{ borderRadius: '26px', width: '100%', display: 'block' }} />
           </div>
         </div>
@@ -312,7 +312,7 @@ export default function Home() {
             <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid rgba(14, 165, 233, 0.15)' }}>
               <div>
                 <ShieldCheck size={36} color="#0ea5e9" style={{ margin: '0 auto 1rem auto' }} />
-                <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'white' }}>OTP API Paneli</h4>
+                <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>OTP API Paneli</h4>
                 <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Doğrulama ayarları, API anahtarları ve Webhook entegrasyonu.</p>
               </div>
               <a href={getAppUrl(5002, 'panel')} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ display: 'inline-flex', width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}>
@@ -323,7 +323,7 @@ export default function Home() {
             <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid rgba(99, 102, 241, 0.15)' }}>
               <div>
                 <Wrench size={36} color="#6366f1" style={{ margin: '0 auto 1rem auto' }} />
-                <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'white' }}>Dijital Makine Paneli</h4>
+                <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Dijital Makine Paneli</h4>
                 <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Makine envanteri, arıza kayıtları ve personel çalışma raporları.</p>
               </div>
               <a href={getAppUrl(5004, 'dijital')} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ display: 'inline-flex', width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}>
@@ -334,7 +334,7 @@ export default function Home() {
             <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
               <div>
                 <Clock size={36} color="#10b981" style={{ margin: '0 auto 1rem auto' }} />
-                <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'white' }}>Mesai Saha Paneli</h4>
+                <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Mesai Saha Paneli</h4>
                 <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Geofencing koordinat ayarları, sahte GPS logları ve mesai raporları.</p>
               </div>
               <a href={getAppUrl(5005, 'mesai')} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ display: 'inline-flex', width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}>
@@ -345,7 +345,7 @@ export default function Home() {
             <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
               <div>
                 <Truck size={36} color="#f59e0b" style={{ margin: '0 auto 1rem auto' }} />
-                <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'white' }}>Teslimat Lojistik Paneli</h4>
+                <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Teslimat Lojistik Paneli</h4>
                 <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Kurye takibi, zimmet atama, teslim edilen imzalı paket arşivleri.</p>
               </div>
               <a href={getAppUrl(5006, 'teslimat')} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ display: 'inline-flex', width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}>
@@ -471,30 +471,30 @@ export default function Home() {
                 <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
                   <CheckCircle size={28} />
                 </div>
-                <h3 style={{ fontSize: '1.5rem', color: 'white' }}>Hesabınız Başarıyla Oluşturuldu!</h3>
+                <h3 style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>Hesabınız Başarıyla Oluşturuldu!</h3>
                 <p className="text-muted" style={{ fontSize: '0.9rem', marginTop: '0.25rem' }}>Aşağıdaki bilgilerle müşteri paneline giriş yapabilirsiniz.</p>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem', background: 'rgba(0,0,0,0.2)', borderRadius: 12, marginBottom: '2rem', border: '1px solid var(--glass-border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem', background: 'rgba(15, 23, 42, 0.03)', borderRadius: 12, marginBottom: '2rem', border: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(15,23,42,0.05)', paddingBottom: '0.75rem' }}>
                   <span className="text-muted">Şirket Adı</span>
                   <span style={{ fontWeight: 600 }}>{successData.company_name}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(15,23,42,0.05)', paddingBottom: '0.75rem' }}>
                   <span className="text-muted">Yetkili</span>
                   <span style={{ fontWeight: 600 }}>{successData.contact_name} {successData.contact_surname}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(15,23,42,0.05)', paddingBottom: '0.75rem' }}>
                   <span className="text-muted">Firma Ön Eki (Prefix)</span>
                   <span style={{ fontWeight: 700, color: 'var(--brand-primary)', fontFamily: 'monospace', fontSize: '1.1rem' }}>{successData.prefix}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(15,23,42,0.05)', paddingBottom: '0.75rem' }}>
                   <span className="text-muted">Şifreniz</span>
                   <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{successData.api_key}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <span className="text-muted" style={{ fontSize: '0.85rem' }}>Size Özel Web Servis API (Webhook) URL</span>
-                  <span style={{ fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: 6, wordBreak: 'break-all', fontFamily: 'monospace' }}>{successData.webhook_url}</span>
+                  <span style={{ fontSize: '0.8rem', background: 'rgba(15, 23, 42, 0.05)', color: 'var(--text-primary)', padding: '0.5rem', borderRadius: 6, wordBreak: 'break-all', fontFamily: 'monospace' }}>{successData.webhook_url}</span>
                 </div>
               </div>
 
