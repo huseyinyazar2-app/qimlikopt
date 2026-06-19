@@ -5,7 +5,7 @@ import axios from 'axios';
 export default function Clients() {
   const [clients, setClients] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [newClient, setNewClient] = useState({ company_name: '', prefix: '', webhook_url: '', api_key: '' });
+  const [newClient, setNewClient] = useState({ company_name: '', prefix: '', webhook_url: '', api_key: '', phone_number: '', contact_name: '', contact_surname: '' });
 
   const fetchClients = async () => {
     try {
@@ -58,8 +58,9 @@ export default function Clients() {
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Firma Adı</th>
+                <th>Firma Adı / Yetkili</th>
                 <th>Prefix</th>
+                <th>Telefon</th>
                 <th>Webhook URL</th>
                 <th>Durum</th>
                 <th>İşlemler</th>
@@ -69,8 +70,12 @@ export default function Clients() {
               {clients.map(c => (
                 <tr key={c.id}>
                   <td className="text-muted">#{c.id}</td>
-                  <td style={{ fontWeight: 500 }}>{c.company_name}</td>
+                  <td>
+                    <div style={{ fontWeight: 500 }}>{c.company_name}</div>
+                    <div className="text-muted" style={{ fontSize: '0.8rem' }}>{c.contact_name} {c.contact_surname}</div>
+                  </td>
                   <td><span className="badge" style={{ background: 'rgba(255,255,255,0.1)' }}>{c.prefix}</span></td>
+                  <td style={{ fontSize: '0.9rem' }}>{c.phone_number || '-'}</td>
                   <td className="text-muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.webhook_url}
                   </td>
@@ -103,13 +108,18 @@ export default function Clients() {
       {/* Basic Modal */}
       {showModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="glass-card" style={{ width: 400 }}>
+          <div className="glass-card" style={{ width: 450, maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ marginBottom: '1.5rem' }}>Yeni Müşteri Ekle</h2>
-            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               <input placeholder="Firma Adı" required style={inputStyle} onChange={e => setNewClient({...newClient, company_name: e.target.value})} />
+              <input placeholder="Firma Telefonu (Giriş için)" required style={inputStyle} onChange={e => setNewClient({...newClient, phone_number: e.target.value})} />
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input placeholder="Yetkili Adı" required style={inputStyle} onChange={e => setNewClient({...newClient, contact_name: e.target.value})} />
+                <input placeholder="Yetkili Soyadı" required style={inputStyle} onChange={e => setNewClient({...newClient, contact_surname: e.target.value})} />
+              </div>
               <input placeholder="Ön Ek (Örn: QMLK)" required style={inputStyle} onChange={e => setNewClient({...newClient, prefix: e.target.value})} />
               <input placeholder="Webhook URL" required style={inputStyle} onChange={e => setNewClient({...newClient, webhook_url: e.target.value})} />
-              <input placeholder="API Key (Müşteri için)" required style={inputStyle} onChange={e => setNewClient({...newClient, api_key: e.target.value})} />
+              <input placeholder="Şifre (Giriş için)" required style={inputStyle} onChange={e => setNewClient({...newClient, api_key: e.target.value})} />
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                 <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer' }}>İptal</button>
                 <button type="submit" className="btn-primary" style={{ flex: 1 }}>Kaydet</button>

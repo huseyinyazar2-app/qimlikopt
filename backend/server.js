@@ -16,10 +16,16 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const gatewayRoutes = require('./routes/gateway');
 const adminRoutes = require('./routes/admin');
 const clientRoutes = require('./routes/client');
+const dijitalRoutes = require('./routes/dijital');
+const mesaiRoutes = require('./routes/mesai');
+const teslimatRoutes = require('./routes/teslimat');
 
 app.use('/api/gateway', gatewayRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
+app.use('/api/dijital', dijitalRoutes);
+app.use('/api/mesai', mesaiRoutes);
+app.use('/api/teslimat', teslimatRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

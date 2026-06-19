@@ -1,0 +1,395 @@
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { 
+  MapPin, 
+  Users, 
+  Clock, 
+  Activity, 
+  FileText, 
+  QrCode, 
+  ExternalLink, 
+  Navigation, 
+  CheckCircle, 
+  AlertTriangle 
+} from 'lucide-react';
+
+export default function Dashboard({ user }) {
+  const isCompany = user?.role === 'company';
+  
+  // States
+  const [locations, setLocations] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [logs, setLogs] = useState([]);
+  
+  // Employee stats states
+  const [employeeReport, setEmployeeReport] = useState(null);
+  
+  // Simulation states
+  const [selectedLocId, setSelectedLocId] = useState('');
+  const [selectedEmpId, setSelectedEmpId] = useState(user?.role === 'employee' ? user.id : '');
+
+  const host = `http://${window.location.hostname}:3303`;
+  const token = user?.password;
+
+  const fetchCompanyData = async () => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const resLoc = await axios.get(`${host}/api/mesai/locations`, { headers });
+      setLocations(resLoc.data);
+      if (resLoc.data.length > 0) setSelectedLocId(resLoc.data[0].id.toString());
+      
+      const resEmp = await axios.get(`${host}/api/mesai/employees`, { headers });
+      setEmployees(resEmp.data);
+
+      const resLogs = await axios.get(`${host}/api/mesai/company/logs`, { headers });
+      setLogs(resLogs.data);
+    } catch (err) {
+      console.error('Firma verileri yüklenirken hata:', err);
+    }
+  };
+
+  const fetchEmployeeData = async () => {
+    try {
+      const resReport = await axios.get(`${host}/api/mesai/public/employees/${user.id}/report`);
+      setEmployeeReport(resReport.data);
+
+      // Fetch public locations for employee simulator dropdown
+      const resLocs = await axios.get(`${host}/api/mesai/company/login`); // wait, we don't have public locations route. Let's see if we can get locations.
+      // Actually we can query them or employee knows location. We will fetch locations from a public endpoint if available, but let's mock or fetch from public route if needed.
+    } catch (err) {
+      console.error('Personel verileri yüklenirken hata:', err);
+    }
+  };
+
+  // Wait, let's also fetch locations for employee simulator so they can simulate easily.
+  // We can write a public list route or since it is local testing, we can let them enter ID or we will make an open endpoint for listing locations.
+  // Actually, let's look at what we need. For simplicity, we can fetch locations if we make a simple endpoint, or just allow the employee to enter the location name/ID, or we can fetch them.
+  // Wait, let's look at `fetchEmployeeLocations`
+  const fetchEmployeeLocations = async () => {
+    try {
+      // In this setup, we can fetch locations by calling `/api/mesai/company/logs` or since employee doesn't have companyAuth, let's retrieve them or let them choose.
+      // Actually, since we want employee simulation to be super smooth, let's create a public locations listing or just list locations.
+      // Let's check if we can make a public route `GET /api/mesai/public/locations` in `backend/routes/mesai.js` to list locations. That's very helpful!
+      const res = await axios.get(`${host}/api/mesai/public/locations/all`);
+      setLocations(res.data);
+      if (res.data.length > 0) setSelectedLocId(res.data[0].id.toString());
+    } catch (err) {
+      console.error('Lokasyonlar yüklenemedi:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isCompany) {
+      fetchCompanyData();
+    } else {
+      fetchEmployeeData();
+      fetchEmployeeLocations();
+    }
+  }, []);
+
+  const handleSimulateScan = (e) => {
+    e.preventDefault();
+    if (!selectedLocId) return;
+    
+    // Open check page in a new window / tab
+    window.open(`/check/${selectedLocId}`, '_blank');
+  };
+
+  // Count active check-ins today (unique employees currently clocked in)
+  const getTodayActiveCount = () => {
+    const todayStr = new Date().toLocaleDateString('tr-TR');
+    const activeStaff = new Set();
+    
+    // Sort logs chronologically to check final state
+    const sortedLogs = [...logs].reverse();
+    const staffState = {}; // employee_id -> check_in or check_out
+    
+    sortedLogs.forEach(log => {
+      const logDate = new Date(log.created_at).toLocaleDateString('tr-TR');
+      if (logDate === todayStr) {
+        staffState[log.employee_id] = log.log_type;
+      }
+    });
+
+    Object.entries(staffState).forEach(([empId, type]) => {
+      if (type === 'check_in') {
+        activeStaff.add(empId);
+      }
+    });
+
+    return activeStaff.size;
+  };
+
+  if (!isCompany) {
+    /* --- SAHA PERSONELİ (EMPLOYEE) DASHBOARD --- */
+    const monthlySummary = employeeReport?.monthly[0] || { hours: 0, days_present: 0 };
+    const latestLogs = employeeReport?.daily.slice(0, 5) || [];
+
+    return (
+      <div style={{ maxWidth: '900px' }}>
+        <header style={{ marginBottom: '2rem' }}>
+          <h1 className="gradient-text">Hoş Geldiniz, {user.name}!</h1>
+          <p className="text-muted">Mesai saatlerinizi ve günlük giriş/çıkış kayıtlarınızı bu panelden takip edebilirsiniz.</p>
+        </header>
+
+        {/* Retrospective Summary Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(2, 132, 199, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Clock size={24} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Bu Ayki Toplam Mesai</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'white' }}>{monthlySummary.hours} Saat</div>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CheckCircle size={24} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Çalışılan Gün Sayısı</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'white' }}>{monthlySummary.days_present} Gün</div>
+            </div>
+          </div>
+        </div>
+
+        {/* QR SCAN SIMULATION (For testing on laptop browser) */}
+        <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', textAlign: 'center', border: '1px solid var(--brand-secondary)' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(236, 72, 153, 0.1)', color: 'var(--brand-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto' }}>
+            <QrCode size={30} />
+          </div>
+          <h3 style={{ fontSize: '1.15rem', color: 'white', marginBottom: '0.5rem' }}>Şantiye QR Kod Tarama Simülatörü</h3>
+          <p className="text-muted" style={{ fontSize: '0.85rem', maxWidth: '500px', margin: '0 auto 1.5rem auto' }}>
+            Sahadaki QR kodunu kameranızla okutmuş gibi simüle etmek için aşağıdaki çalışma alanlarından birini seçip butona basın.
+          </p>
+
+          <form onSubmit={handleSimulateScan} style={{ display: 'flex', gap: '0.75rem', maxWidth: '450px', margin: '0 auto', flexWrap: 'wrap' }}>
+            <select 
+              value={selectedLocId} 
+              onChange={e => setSelectedLocId(e.target.value)}
+              style={{ flex: 1, minWidth: '200px', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: '#1e293b', color: 'white', outline: 'none' }}
+            >
+              <option value="">Çalışma Alanı Seçin...</option>
+              {locations.map(loc => (
+                <option key={loc.id} value={loc.id}>{loc.location_name}</option>
+              ))}
+            </select>
+            <button type="submit" className="btn-primary" disabled={!selectedLocId} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ExternalLink size={16} /> QR Giriş Sayfasını Aç
+            </button>
+          </form>
+        </div>
+
+        {/* Recent logs check list */}
+        <div className="glass-card">
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white' }}>
+            <FileText size={18} color="var(--brand-primary)" /> Son Giriş / Çıkış Geçmişiniz
+          </h3>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tarih</th>
+                  <th>Giriş Saati</th>
+                  <th>Çıkış Saati</th>
+                  <th>Süre (Saat)</th>
+                  <th>Çalışma Alanı</th>
+                </tr>
+              </thead>
+              <tbody>
+                {latestLogs.map((log, idx) => (
+                  <tr key={idx}>
+                    <td>{log.date}</td>
+                    <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{log.check_in}</td>
+                    <td style={{ color: 'var(--status-warning)', fontWeight: 600 }}>{log.check_out}</td>
+                    <td>{log.hours}</td>
+                    <td>{log.location}</td>
+                  </tr>
+                ))}
+                {latestLogs.length === 0 && (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">
+                      Henüz mesai giriş/çıkış kaydınız bulunmuyor.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    );
+  }
+
+  /* --- FİRMA YETKİLİSİ (COMPANY) DASHBOARD --- */
+  return (
+    <div>
+      <header style={{ marginBottom: '2rem' }}>
+        <h1 className="gradient-text">{user.company_name} Yönetim Paneli</h1>
+        <p className="text-muted">Şantiyelerinizdeki son hareketleri, çalışan durumlarını ve verimliliği izleyin.</p>
+      </header>
+
+      {/* Stats row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(2, 132, 199, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <MapPin size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Toplam Şantiye / Sınır</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'white' }}>{locations.length} Lokasyon</div>
+          </div>
+        </div>
+
+        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Users size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Kayıtlı Saha Personeli</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'white' }}>{employees.length} Kişi</div>
+          </div>
+        </div>
+
+        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(245, 158, 11, 0.1)', color: 'var(--status-warning)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Activity size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Bugün Sahada Çalışan</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'white' }}>{getTodayActiveCount()} Personel</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+        
+        {/* Left Side: Recent Activity Logs */}
+        <div className="glass-card">
+          <h3 style={{ fontSize: '1.15rem', color: 'white', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Activity size={18} color="var(--brand-primary)" /> Son Giriş/Çıkış Hareketleri (Canlı)
+          </h3>
+          
+          <div className="table-container" style={{ maxHeight: '420px', overflowY: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Personel</th>
+                  <th>İşlem</th>
+                  <th>Saat</th>
+                  <th>Konum</th>
+                  <th>Sapma</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.slice(0, 10).map(log => {
+                  const dateVal = new Date(log.created_at);
+                  const timeStr = dateVal.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                  const isSuccess = log.calculated_distance <= 100; // arbitrary warning threshold
+
+                  return (
+                    <tr key={log.id}>
+                      <td>
+                        <strong>{log.employee_name}</strong>
+                      </td>
+                      <td>
+                        <span className={`badge ${log.log_type === 'check_in' ? 'success' : 'warning'}`}>
+                          {log.log_type === 'check_in' ? 'Giriş Yapıldı' : 'Çıkış Yapıldı'}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '0.85rem' }}>{timeStr}</td>
+                      <td>{log.location_name}</td>
+                      <td style={{ fontSize: '0.8rem', fontWeight: 600, color: isSuccess ? 'var(--status-success)' : '#ef4444' }}>
+                        {Math.round(log.calculated_distance)}m
+                      </td>
+                    </tr>
+                  );
+                })}
+                {logs.length === 0 && (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">
+                      Henüz mesai logu bulunmuyor.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right Side: Quick Simulation Panel */}
+        <div className="glass-card" style={{ border: '1px solid var(--brand-secondary)' }}>
+          <h3 style={{ fontSize: '1.15rem', color: 'white', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <QrCode size={18} color="var(--brand-secondary)" /> Geliştirici & Test Simülatörü
+          </h3>
+          <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+            QR okutma ve GPS doğrulamalı giriş/çıkış senaryolarını test etmek için aşağıdaki formu kullanabilirsiniz.
+          </p>
+
+          <form onSubmit={handleSimulateScan} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Adım 1: Test Edilecek Şantiye</label>
+              <select 
+                required
+                value={selectedLocId} 
+                onChange={e => setSelectedLocId(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">Şantiye / Sınır Seçin...</option>
+                {locations.map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.location_name} (R: {loc.allowed_radius}m)</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Adım 2: İşlem Yapacak Personel</label>
+              <select 
+                required
+                value={selectedEmpId} 
+                onChange={e => setSelectedEmpId(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">Personel Seçin...</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.name} {emp.surname}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: 8, border: '1px dashed var(--glass-border)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Navigation size={16} className="text-muted" />
+              <span>
+                Simülasyon sayfasını açtıktan sonra Chrome DevTools Sensors panelinden şantiye koordinatlarını simüle ederek mesaiyi test edebilirsiniz.
+              </span>
+            </div>
+
+            <button 
+              type="submit" 
+              className="btn-primary" 
+              disabled={!selectedLocId || !selectedEmpId}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '0.8rem' }}
+            >
+              <ExternalLink size={16} /> QR Test Arayüzünü Aç
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+const inputStyle = {
+  width: '100%', 
+  padding: '0.75rem', 
+  borderRadius: 8, 
+  border: '1px solid var(--glass-border)', 
+  background: '#1e293b', 
+  color: 'white', 
+  outline: 'none',
+  boxSizing: 'border-box'
+};

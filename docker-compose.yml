@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   backend:
@@ -32,12 +31,15 @@ services:
       - ./website:/usr/share/nginx/html/website:ro
       - ./admin:/usr/share/nginx/html/admin:ro
       - ./client:/usr/share/nginx/html/client:ro
+      - ./dijital:/usr/share/nginx/html/dijital:ro
+      - ./mesai:/usr/share/nginx/html/mesai:ro
+      - ./teslimat:/usr/share/nginx/html/teslimat:ro
     networks:
       - coolify
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.qimlik-frontend.entrypoints=http,https"
-      - "traefik.http.routers.qimlik-frontend.rule=Host(`qimlik.com`) || Host(`www.qimlik.com`) || Host(`admin.qimlik.com`) || Host(`panel.qimlik.com`)"
+      - "traefik.http.routers.qimlik-frontend.rule=Host(`qimlik.com`) || Host(`www.qimlik.com`) || Host(`admin.qimlik.com`) || Host(`panel.qimlik.com`) || Host(`dijital.qimlik.com`) || Host(`mesai.qimlik.com`) || Host(`teslimat.qimlik.com`)"
       - "traefik.http.routers.qimlik-frontend.tls=true"
       - "traefik.http.routers.qimlik-frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.qimlik-frontend.loadbalancer.server.port=80"

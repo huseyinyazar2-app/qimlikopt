@@ -6,16 +6,16 @@ export default function Layout() {
     <>
       <nav className="navbar">
         <div className="container">
-          <Link to="/" className="brand-logo">
+          <Link to="/" className="brand-logo" style={{ display: 'flex', alignItems: 'center' }}>
             <ShieldCheck color="var(--brand-primary)" size={28} />
-            Qimlik
+            qimlik
+            <span className="version-badge">v1.0.1</span>
           </Link>
           <div className="nav-links">
-            <a href="#ozellikler" className="nav-link">Özellikler</a>
-            <a href="#qr-kod" className="nav-link">Nasıl Çalışır?</a>
-            <a href="#fiyatlandirma" className="nav-link">Fiyatlandırma</a>
-            <a href={window.location.hostname.endsWith('qimlik.com') ? 'https://panel.qimlik.com' : 'http://localhost:5002'} className="btn btn-outline" style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}>Müşteri Girişi</a>
-            <button className="btn btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}>Demo Talep Et</button>
+            <a href="#cozumler" className="nav-link">Çözümlerimiz</a>
+            <a href="#ozellikler" className="nav-link">Neden qimlik?</a>
+            <a href="#giris" className="nav-link">Giriş Yap</a>
+            <a href="#kayit" className="btn btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Hemen Kaydol</a>
           </div>
         </div>
       </nav>
@@ -27,18 +27,20 @@ export default function Layout() {
       <footer>
         <div className="container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4rem' }}>
           <div>
-            <Link to="/" className="brand-logo" style={{ color: 'white', marginBottom: '1rem' }}>
+            <Link to="/" className="brand-logo" style={{ color: 'white', marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
               <ShieldCheck color="var(--brand-primary)" size={28} />
-              Qimlik
+              qimlik
+              <span className="version-badge">v1.0.1</span>
             </Link>
-            <p>B2B şirketler için sıfır maliyetli, yüksek güvenlikli Reverse OTP doğrulama altyapısı.</p>
+            <p>Saha operasyonları, mesai takibi, lojistik teslimatları ve OTP doğrulama süreçleri için yeni nesil SaaS platformu.</p>
           </div>
           <div>
-            <h4 style={{ color: 'white', marginBottom: '1rem' }}>Ürün</h4>
+            <h4 style={{ color: 'white', marginBottom: '1rem' }}>Çözümler</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <a href="#" style={{ color: '#94a3b8', textDecoration: 'none' }}>Özellikler</a>
-              <a href="#" style={{ color: '#94a3b8', textDecoration: 'none' }}>Entegrasyon</a>
-              <a href="#" style={{ color: '#94a3b8', textDecoration: 'none' }}>Güvenlik</a>
+              <a href="#cozum-otp" style={{ color: '#94a3b8', textDecoration: 'none' }}>qimlik OTP</a>
+              <a href="#cozum-dijital" style={{ color: '#94a3b8', textDecoration: 'none' }}>qimlik Dijital</a>
+              <a href="#cozum-mesai" style={{ color: '#94a3b8', textDecoration: 'none' }}>qimlik Mesai</a>
+              <a href="#cozum-teslimat" style={{ color: '#94a3b8', textDecoration: 'none' }}>qimlik Teslimat</a>
             </div>
           </div>
           <div>
@@ -48,7 +50,7 @@ export default function Layout() {
           </div>
         </div>
         <div className="container" style={{ marginTop: '4rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
-          <p>&copy; {new Date().getFullYear()} Qimlik. Tüm hakları saklıdır.</p>
+          <p>&copy; {new Date().getFullYear()} qimlik. Tüm hakları saklıdır.</p>
         </div>
       </footer>
     </>

@@ -20,9 +20,16 @@ export default function Devices() {
     return () => clearInterval(interval);
   }, []);
 
+  // Helper to parse SQLite UTC string correctly
+  const parseUtcDate = (dateStr) => {
+    if (!dateStr) return new Date(0);
+    const normalizedStr = dateStr.endsWith('Z') ? dateStr : `${dateStr.replace(' ', 'T')}Z`;
+    return new Date(normalizedStr);
+  };
+
   // Helper to check if offline (not seen in last 5 mins)
   const isOffline = (lastSeen) => {
-    const diff = new Date() - new Date(lastSeen);
+    const diff = new Date() - parseUtcDate(lastSeen);
     return diff > 5 * 60 * 1000;
   };
 
@@ -61,7 +68,7 @@ export default function Devices() {
               </div>
 
               <div className="text-muted" style={{ fontSize: '0.8rem', marginTop: '1.5rem' }}>
-                Son Sinyal: {new Date(device.last_seen).toLocaleString()}
+                Son Sinyal: {parseUtcDate(device.last_seen).toLocaleString()}
               </div>
             </div>
           )

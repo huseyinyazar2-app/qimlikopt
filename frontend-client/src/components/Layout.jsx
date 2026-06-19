@@ -1,11 +1,13 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, Code2, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Code2, BookOpen, ExternalLink, LogOut } from 'lucide-react';
 
 export default function Layout({ user, onLogout }) {
   const menuItems = [
     { path: '/dashboard', name: 'Genel Bakış', icon: <LayoutDashboard size={20} /> },
     { path: '/logs', name: 'İşlem Kayıtları', icon: <FileText size={20} /> },
     { path: '/api', name: 'API Bilgileri', icon: <Code2 size={20} /> },
+    { path: '/integration', name: 'Nasıl Kullanılır?', icon: <BookOpen size={20} /> },
+    { path: '/popup-guide', name: 'Açılır Pencere (Popup)', icon: <ExternalLink size={20} /> },
   ];
 
   return (
@@ -14,7 +16,7 @@ export default function Layout({ user, onLogout }) {
       <aside className="sidebar">
         <div style={{ padding: '1rem 0 2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--brand-gradient)' }}></div>
-          <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '1rem' }}>Müşteri</span></h2>
+          <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>Müşteri v1.7.4</span></h2>
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>

@@ -1,7 +1,7 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Smartphone, FileText, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Smartphone, FileText, Settings, LogOut } from 'lucide-react';
 
-export default function Layout() {
+export default function Layout({ username, onLogout }) {
   const menuItems = [
     { path: '/dashboard', name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { path: '/clients', name: 'Müşteriler', icon: <Users size={20} /> },
@@ -16,10 +16,10 @@ export default function Layout() {
       <aside className="sidebar">
         <div style={{ padding: '1rem 0 2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--brand-gradient)' }}></div>
-          <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '1rem' }}>Admin</span></h2>
+          <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>Admin v1.7.4</span></h2>
         </div>
 
-        <nav style={{ display: 'flex', flexDirection: 'column' }}>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {menuItems.map(item => (
             <NavLink 
               key={item.path} 
@@ -32,11 +32,24 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div style={{ marginTop: 'auto', padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
-          <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: 4 }}>System Status</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: 'var(--status-success)', fontWeight: 500 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--status-success)', boxShadow: '0 0 10px var(--status-success)' }}></div>
-            All Systems Operational
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+            <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: 4 }}>Aktif Yönetici</div>
+            <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.75rem' }}>{username}</div>
+            <button 
+              onClick={onLogout}
+              style={{ width: '100%', padding: '0.55rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}
+            >
+              <LogOut size={14} /> Çıkış Yap
+            </button>
+          </div>
+
+          <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.1)', borderRadius: 8 }}>
+            <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: 4 }}>System Status</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: 'var(--status-success)', fontWeight: 500 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--status-success)', boxShadow: '0 0 10px var(--status-success)' }}></div>
+              All Systems Operational
+            </div>
           </div>
         </div>
       </aside>

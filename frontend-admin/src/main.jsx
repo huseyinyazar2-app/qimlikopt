@@ -4,12 +4,16 @@ import App from './App.jsx'
 import './index.css'
 import axios from 'axios'
 
-// Intercept axios requests to rewrite base URL in production (qimlik.com)
+// Intercept axios requests to rewrite base URL in production (qimlik.com) and add auth header
 axios.interceptors.request.use((config) => {
   if (config.url && config.url.includes(':3303')) {
     if (window.location.hostname.endsWith('qimlik.com')) {
       config.url = config.url.replace(`http://${window.location.hostname}:3303`, 'https://api.qimlik.com');
     }
+  }
+  const token = localStorage.getItem('qimlik_admin_token');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
 });
