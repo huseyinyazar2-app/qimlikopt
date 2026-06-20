@@ -138,7 +138,10 @@ router.get('/packages', companyAuth, async (req, res) => {
                     l.gps_latitude, l.gps_longitude, l.recipient_signature_base64, l.created_at as delivered_at
              FROM teslimat_packages p
              LEFT JOIN teslimat_couriers c ON p.courier_id = c.id
-             LEFT JOIN teslimat_logs l ON p.id = l.package_id AND l.log_type = 'delivered_success'
+             LEFT JOIN teslimat_logs l ON l.id = (
+                 SELECT max(id) FROM teslimat_logs 
+                 WHERE package_id = p.id AND log_type IN ('delivered_success', 'delivered_partial', 'returned')
+             )
              WHERE p.company_id = ? ORDER BY p.created_at DESC`,
             [req.company.id]
         );
@@ -205,7 +208,7 @@ router.get('/courier/login/status', async (req, res) => {
     try {
         const targetMessage = `TSLM ${code}`;
         const { rows } = await db.query(
-            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? LIMIT 1",
+            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? AND created_at >= datetime('now', '-5 minutes') LIMIT 1",
             [targetMessage]
         );
 
@@ -257,7 +260,7 @@ router.get('/deliver/status', async (req, res) => {
     try {
         const targetMessage = `TSLM ${code}`;
         const { rows } = await db.query(
-            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? LIMIT 1",
+            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? AND created_at >= datetime('now', '-5 minutes') LIMIT 1",
             [targetMessage]
         );
 
@@ -280,24 +283,35 @@ router.get('/deliver/status', async (req, res) => {
 
 // Confirm delivery with signature and GPS
 router.post('/deliver/confirm', async (req, res) => {
-    const { package_id, gps_latitude, gps_longitude, recipient_signature_base64 } = req.body;
+    const { package_id, gps_latitude, gps_longitude, recipient_signature_base64, status, return_reason } = req.body;
     if (!package_id || gps_latitude === undefined || gps_longitude === undefined) {
         return res.status(400).json({ error: 'Paket ID ve GPS konum verisi zorunludur.' });
     }
+    const finalStatus = status || 'delivered'; // delivered, partial, returned
     try {
-        // Update package status to delivered
+        // Update package status
         await db.query(
-            "UPDATE teslimat_packages SET status = 'delivered' WHERE id = ?",
-            [package_id]
+            "UPDATE teslimat_packages SET status = ?, return_reason = ? WHERE id = ?",
+            [finalStatus, return_reason || null, package_id]
         );
+
+        let logType = 'delivered_success';
+        let msg = 'Teslimat başarıyla doğrulandı ve tamamlandı.';
+        if (finalStatus === 'partial') {
+            logType = 'delivered_partial';
+            msg = 'Kısmi teslimat başarıyla kaydedildi.';
+        } else if (finalStatus === 'returned') {
+            logType = 'returned';
+            msg = 'Paket iade olarak işaretlendi.';
+        }
 
         // Insert delivery log
         await db.query(
             "INSERT INTO teslimat_logs (package_id, log_type, gps_latitude, gps_longitude, recipient_signature_base64) VALUES (?, ?, ?, ?, ?)",
-            [package_id, 'delivered_success', parseFloat(gps_latitude), parseFloat(gps_longitude), recipient_signature_base64 || null]
+            [package_id, logType, parseFloat(gps_latitude), parseFloat(gps_longitude), recipient_signature_base64 || null]
         );
 
-        res.json({ message: 'Teslimat başarıyla doğrulandı ve tamamlandı.' });
+        res.json({ message: msg });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

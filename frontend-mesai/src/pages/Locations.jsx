@@ -11,6 +11,8 @@ export default function Locations({ user }) {
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [radius, setRadius] = useState(50); // defaults to 50 meters
+  const [shiftStart, setShiftStart] = useState('09:00');
+  const [shiftEnd, setShiftEnd] = useState('18:00');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -50,7 +52,9 @@ export default function Locations({ user }) {
           location_name: name,
           latitude: parseFloat(latitude),
           longitude: parseFloat(longitude),
-          allowed_radius: parseInt(radius)
+          allowed_radius: parseInt(radius),
+          shift_start_time: shiftStart,
+          shift_end_time: shiftEnd
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -59,6 +63,8 @@ export default function Locations({ user }) {
       setLatitude('');
       setLongitude('');
       setRadius(50);
+      setShiftStart('09:00');
+      setShiftEnd('18:00');
       fetchLocations();
     } catch (err) {
       setError(err.response?.data?.error || 'Çalışma alanı eklenirken hata oluştu.');
@@ -173,6 +179,17 @@ export default function Locations({ user }) {
                 <input required type="number" style={inputStyle} value={radius} onChange={e => setRadius(e.target.value)} placeholder="Tolerans yarıçapı (örn: 50)" />
               </div>
 
+              
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <div style={{ flex: 1 }}>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Mesai Başlangıç (Lokasyon Bazlıysa)</label>
+                  <input type="time" required style={inputStyle} value={shiftStart} onChange={e => setShiftStart(e.target.value)} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Mesai Bitiş</label>
+                  <input type="time" required style={inputStyle} value={shiftEnd} onChange={e => setShiftEnd(e.target.value)} />
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                 <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}>İptal</button>
                 <button type="submit" className="btn-primary" disabled={loading} style={{ flex: 1 }}>{loading ? 'Ekleniyor...' : 'Ekle'}</button>

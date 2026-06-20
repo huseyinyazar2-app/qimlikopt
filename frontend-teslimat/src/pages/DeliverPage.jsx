@@ -39,6 +39,8 @@ export default function DeliverPage({ user }) {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [signatureSaved, setSignatureSaved] = useState(false);
+  const [deliveryStatus, setDeliveryStatus] = useState('delivered'); // delivered, partial, returned
+  const [returnReason, setReturnReason] = useState('');
 
   const host = `http://${window.location.hostname}:3303`;
 
@@ -132,6 +134,7 @@ export default function DeliverPage({ user }) {
 
   // Canvas drawing handlers
   const startDrawing = (e) => {
+    if (e.cancelable) e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -149,6 +152,7 @@ export default function DeliverPage({ user }) {
   };
 
   const draw = (e) => {
+    if (e.cancelable) e.preventDefault();
     if (!isDrawing) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -211,7 +215,9 @@ export default function DeliverPage({ user }) {
         package_id: packageId,
         gps_latitude: coords.latitude,
         gps_longitude: coords.longitude,
-        recipient_signature_base64: signatureBase64
+        recipient_signature_base64: signatureBase64,
+        status: deliveryStatus,
+        return_reason: deliveryStatus !== 'delivered' ? returnReason : null
       });
       setSuccessMsg(res.data.message);
       setSignatureSaved(true);
@@ -255,7 +261,7 @@ export default function DeliverPage({ user }) {
           >
             <ArrowLeft size={16} /> Paneli Aç
           </button>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>v1.7.5</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>v1.7.10</span>
         </div>
 
         {/* Courier Auth Warning */}
@@ -422,13 +428,29 @@ export default function DeliverPage({ user }) {
                       <span className="text-muted" style={{ fontSize: '0.7rem' }}>Parmağınızla çizin.</span>
                     </div>
 
+                    <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>İşlem Sonucu</label>
+                      <select style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)' }} value={deliveryStatus} onChange={e => setDeliveryStatus(e.target.value)}>
+                        <option value="delivered">Tam Teslimat (Başarılı)</option>
+                        <option value="partial">Kısmi Teslimat (Eksik/Hasarlı)</option>
+                        <option value="returned">İade Edildi (Teslim Edilemedi)</option>
+                      </select>
+                    </div>
+
+                    {deliveryStatus !== 'delivered' && (
+                      <div style={{ marginTop: '1rem', textAlign: 'left' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Neden (Zorunlu Değil)</label>
+                        <input type="text" placeholder="Açıklama giriniz..." style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)' }} value={returnReason} onChange={e => setReturnReason(e.target.value)} />
+                      </div>
+                    )}
+
                     <button 
                       onClick={handleConfirmDelivery}
-                      disabled={actionLoading}
-                      className="btn-primary" 
-                      style={{ width: '100%', padding: '0.85rem', marginTop: '1.5rem' }}
+                      disabled={actionLoading || (deliveryStatus !== 'delivered' && returnReason.length < 3)}
+                      className={deliveryStatus === 'delivered' ? "btn-primary" : deliveryStatus === 'partial' ? "btn-outline" : "btn-outline"}
+                      style={{ width: '100%', padding: '0.85rem', marginTop: '1.5rem', borderColor: deliveryStatus === 'returned' ? '#ef4444' : deliveryStatus === 'partial' ? '#f59e0b' : '', color: deliveryStatus === 'returned' ? '#ef4444' : deliveryStatus === 'partial' ? '#f59e0b' : '' }}
                     >
-                      {actionLoading ? 'Teslimat Onaylanıyor...' : 'Teslimatı Tamamla'}
+                      {actionLoading ? 'İşleniyor...' : deliveryStatus === 'delivered' ? 'Teslimatı Tamamla' : deliveryStatus === 'partial' ? 'Kısmi Teslimatı Kaydet' : 'İadeyi Kaydet'}
                     </button>
                   </div>
                 )}

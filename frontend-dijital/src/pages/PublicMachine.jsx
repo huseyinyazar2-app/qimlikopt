@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ShieldCheck, MapPin, Wrench, Calendar, Camera, CheckCircle, ArrowLeft, LogIn } from 'lucide-react';
+import { ShieldCheck, MapPin, Wrench, Calendar, Camera, CheckCircle, ArrowLeft, LogIn, AlertCircle, Plus, Trash2 } from 'lucide-react';
 
 export default function PublicMachine({ user }) {
   const { code } = useParams();
@@ -12,12 +12,21 @@ export default function PublicMachine({ user }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+  const [incName, setIncName] = useState('');
+  const [incPhone, setIncPhone] = useState('');
+  const [incDesc, setIncDesc] = useState('');
+  
+  const [usedParts, setUsedParts] = useState([]);
 
   // Form input states (for technician)
   const [formData, setFormData] = useState({});
   const [statusAfter, setStatusAfter] = useState('active');
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState(null); // Base64 compressed image
+  const [techLat, setTechLat] = useState(null);
+  const [techLng, setTechLng] = useState(null);
+  const [locError, setLocError] = useState('');
 
   const host = `http://${window.location.hostname}:3303`;
   const isTechnician = user?.role === 'technician';
@@ -49,6 +58,21 @@ export default function PublicMachine({ user }) {
   useEffect(() => {
     fetchMachineDetails();
   }, [code]);
+
+  useEffect(() => {
+    if (isTechnician && navigator.geolocation) {
+       navigator.geolocation.getCurrentPosition(
+         pos => {
+           setTechLat(pos.coords.latitude);
+           setTechLng(pos.coords.longitude);
+         },
+         err => {
+           console.warn("Konum alinamadi:", err);
+           setLocError('Konum alınamadı. Rapor konum olmadan gönderilecek.');
+         }
+       );
+    }
+  }, [isTechnician]);
 
   // Client-side image compression logic
   const handlePhotoUpload = (e) => {
@@ -91,11 +115,44 @@ export default function PublicMachine({ user }) {
     };
   };
 
+  
+  const handleIncidentSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${host}/api/dijital/public/incident`, {
+        machine_code: code,
+        reporter_name: incName,
+        reporter_phone: incPhone,
+        description: incDesc
+      });
+      setShowIncidentModal(false);
+      setIncName(''); setIncPhone(''); setIncDesc('');
+      alert('Arıza bildiriminiz başarıyla alındı. Teşekkür ederiz.');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Arıza bildirimi gönderilemedi.');
+    }
+  };
+
   const handleFormChange = (label, value) => {
     setFormData({
       ...formData,
       [label]: value
     });
+  };
+
+  
+  const handleAddPart = () => {
+    setUsedParts([...usedParts, { part_id: '', quantity: 1 }]);
+  };
+  const handleRemovePart = (index) => {
+    const arr = [...usedParts];
+    arr.splice(index, 1);
+    setUsedParts(arr);
+  };
+  const handlePartChange = (index, field, val) => {
+    const arr = [...usedParts];
+    arr[index][field] = val;
+    setUsedParts(arr);
   };
 
   const handleSubmitReport = async (e) => {
@@ -109,11 +166,15 @@ export default function PublicMachine({ user }) {
         form_data: formData,
         status_after: statusAfter,
         notes,
-        photo_base64: photo
+        photo_base64: photo,
+        technician_latitude: techLat,
+        technician_longitude: techLng,
+        used_parts: usedParts
       });
       setSuccess(true);
       setNotes('');
       setPhoto(null);
+      setUsedParts([]);
       fetchMachineDetails();
     } catch (err) {
       alert('Rapor gönderilemedi: ' + (err.response?.data?.error || err.message));
@@ -188,6 +249,16 @@ export default function PublicMachine({ user }) {
             <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Wrench size={18} color="var(--brand-primary)" /> Servis / Bakım Raporu Doldur
             </h3>
+            {machine.require_location_match && (
+              <div style={{ padding: '0.75rem', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--brand-primary)', borderRadius: 8, fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                 <MapPin size={16} /> Bu makine için GPS konum doğrulaması açıktır.
+              </div>
+            )}
+            {locError && (
+              <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: 8, fontSize: '0.85rem', marginBottom: '1rem' }}>
+                 ⚠️ {locError}
+              </div>
+            )}
 
             {success ? (
               <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
@@ -232,6 +303,31 @@ export default function PublicMachine({ user }) {
                   </div>
                 </div>
 
+                {/* Yedek Parça Kullanımı */}
+                {machineData.spare_parts && machineData.spare_parts.length > 0 && (
+                  <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Kullanılan Yedek Parçalar (Opsiyonel)</label>
+                      <button type="button" onClick={handleAddPart} className="btn-outline" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Plus size={12}/> Parça Ekle
+                      </button>
+                    </div>
+                    {usedParts.map((up, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
+                        <select style={{...formSelectStyle, flex: 2}} value={up.part_id} onChange={e => handlePartChange(idx, 'part_id', e.target.value)} required>
+                          <option value="">Parça Seçin...</option>
+                          {machineData.spare_parts.map(p => (
+                            <option key={p.id} value={p.id}>{p.part_name} (Stok: {p.stock_quantity})</option>
+                          ))}
+                        </select>
+                        <input type="number" min="1" style={{...formInputStyle, flex: 1}} value={up.quantity} onChange={e => handlePartChange(idx, 'quantity', parseInt(e.target.value))} required />
+                        <button type="button" onClick={() => handleRemovePart(idx)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                      </div>
+                    ))}
+                    {usedParts.length === 0 && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Herhangi bir yedek parça kullanılmadı.</div>}
+                  </div>
+                )}
+
                 {/* Photo upload and base64 compression display */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 600 }}>Kanıt Fotoğrafı Yükle (Otomatik Sıkıştırılır)</label>
@@ -273,15 +369,24 @@ export default function PublicMachine({ user }) {
           /* Public Guest view - Prompt to login as technician to fill reports */
           <div className="glass-card" style={{ padding: '2rem', textAlign: 'center' }}>
             <p className="text-muted" style={{ fontSize: '0.9rem', marginBottom: '1.25rem' }}>
-              Bu makineye servis/bakım raporu girmek için sisteme kayıtlı yetkili teknisyen girişi yapmanız gerekmektedir.
+              Makinede bir arıza tespit ettiyseniz firmaya bildirebilir veya yetkili teknisyen girişi yapabilirsiniz.
             </p>
-            <a 
-              href={`/login?tab=technician`} 
-              className="btn-primary" 
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', padding: '0.75rem 1.25rem', fontSize: '0.9rem' }}
-            >
-              <LogIn size={18} /> Teknisyen Girişi Yap
-            </a>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button 
+                onClick={() => setShowIncidentModal(true)} 
+                className="btn-outline" 
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', fontSize: '0.9rem', borderColor: '#ef4444', color: '#ef4444' }}
+              >
+                <AlertCircle size={18} /> Arıza Bildir
+              </button>
+              <a 
+                href={`/login?tab=technician`} 
+                className="btn-primary" 
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', padding: '0.75rem 1.25rem', fontSize: '0.9rem' }}
+              >
+                <LogIn size={18} /> Teknisyen Girişi Yap
+              </a>
+            </div>
           </div>
         )}
 
@@ -301,6 +406,17 @@ export default function PublicMachine({ user }) {
                 <div style={{ marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
                   Durum: <span style={{ fontWeight: 600 }}>{h.status_after === 'active' ? 'Aktif' : h.status_after === 'maintenance' ? 'Bakımda' : 'Arızalı'}</span>
                 </div>
+                {h.calculated_distance !== null && (
+                  <div style={{ marginBottom: '0.5rem', fontSize: '0.8rem', color: h.calculated_distance <= (machine.allowed_radius || 50) ? 'var(--status-success)' : '#ef4444', fontWeight: 600 }}>
+                    <MapPin size={12} style={{ display: 'inline', marginRight: 4 }} />
+                    {h.calculated_distance <= (machine.allowed_radius || 50) ? `Konum Doğrulandı (${Math.round(h.calculated_distance)}m)` : `Makineye Uzaktan Girildi! Sapma: ${Math.round(h.calculated_distance)}m`}
+                  </div>
+                )}
+                {h.calculated_distance === null && machine.require_location_match && (
+                  <div style={{ marginBottom: '0.5rem', fontSize: '0.8rem', color: '#ef4444', fontWeight: 600 }}>
+                    <MapPin size={12} style={{ display: 'inline', marginRight: 4 }} /> Konum alınmadan gönderilmiş!
+                  </div>
+                )}
                 {h.notes && <div className="text-muted" style={{ fontStyle: 'italic', marginBottom: '0.5rem' }}>" {h.notes} "</div>}
                 
                 {/* Photo link if uploaded */}

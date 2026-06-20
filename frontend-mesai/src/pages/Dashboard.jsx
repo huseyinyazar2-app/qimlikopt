@@ -63,10 +63,6 @@ export default function Dashboard({ user }) {
     try {
       const resReport = await axios.get(`${host}/api/mesai/public/employees/${user.id}/report`);
       setEmployeeReport(resReport.data);
-
-      // Fetch public locations for employee simulator dropdown
-      const resLocs = await axios.get(`${host}/api/mesai/company/login`); // wait, we don't have public locations route. Let's see if we can get locations.
-      // Actually we can query them or employee knows location. We will fetch locations from a public endpoint if available, but let's mock or fetch from public route if needed.
     } catch (err) {
       toast.error('Personel verileri yüklenirken hata');
     } finally {

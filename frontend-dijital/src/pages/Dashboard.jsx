@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, Calendar, MapPin, Box, Command } from 'lucide-react';
+import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, Calendar, MapPin, Box, Command, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard({ user }) {
@@ -11,6 +12,12 @@ export default function Dashboard({ user }) {
   const [forms, setForms] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('machines');
+  const [incidents, setIncidents] = useState([]);
+  const [spareParts, setSpareParts] = useState([]);
+  const [newPartName, setNewPartName] = useState('');
+  const [newPartStock, setNewPartStock] = useState('');
+
 
   // New Machine form states
   const [code, setCode] = useState('');
@@ -18,6 +25,10 @@ export default function Dashboard({ user }) {
   const [model, setModel] = useState('');
   const [serial, setSerial] = useState('');
   const [location, setLocation] = useState('');
+  const [gpsLat, setGpsLat] = useState('');
+  const [gpsLng, setGpsLng] = useState('');
+  const [requireLoc, setRequireLoc] = useState(false);
+  const [radius, setRadius] = useState(50);
   const [formId, setFormId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,6 +53,12 @@ export default function Dashboard({ user }) {
       setMachines(resM.data);
       const resF = await axios.get(`${host}/api/dijital/forms`, { headers });
       setForms(resF.data);
+      try {
+        const resI = await axios.get(`${host}/api/dijital/company/incidents`, { headers });
+        setIncidents(resI.data);
+        const resSP = await axios.get(`${host}/api/dijital/spare-parts`, { headers });
+        setSpareParts(resSP.data);
+      } catch(e) {}
     } catch (err) {
       toast.error('Veriler yüklenirken hata oluştu');
     } finally {
@@ -76,6 +93,14 @@ export default function Dashboard({ user }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  
+  const exportToExcel = (data, filename) => {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rapor");
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+  };
+
   const handleAddMachine = async (e) => {
     e.preventDefault();
     setError('');
@@ -90,7 +115,12 @@ export default function Dashboard({ user }) {
           model,
           serial_number: serial,
           location,
-          form_template_id: formId
+          form_template_id: formId,
+          gps_latitude: gpsLat ? parseFloat(gpsLat) : null,
+          gps_longitude: gpsLng ? parseFloat(gpsLng) : null,
+          require_location_match: requireLoc,
+          allowed_radius: parseInt(radius),
+          maintenance_interval_days: parseInt(document.getElementById('maintInterval').value) || null
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -100,6 +130,10 @@ export default function Dashboard({ user }) {
       setModel('');
       setSerial('');
       setLocation('');
+      setGpsLat('');
+      setGpsLng('');
+      setRequireLoc(false);
+      setRadius(50);
       setFormId('');
       fetchCompanyData();
       toast.success('Makine başarıyla eklendi!');
@@ -203,19 +237,59 @@ export default function Dashboard({ user }) {
     <div>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 className="gradient-text">Makine & Ekipman Yönetimi</h1>
-          <p className="text-muted">QR kodlu envanterinizi listeleyin, durumlarını takip edin ve yeni ekipman ekleyin.</p>
+          <h1 className="gradient-text">Makine & Servis Yönetimi</h1>
+          <p className="text-muted">Envanterinizi, arıza taleplerini ve yedek parça stoklarınızı yönetin.</p>
         </div>
-        <button 
-          onClick={() => setShowAddModal(true)} 
-          className="btn-primary" 
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          <Plus size={18} /> Yeni Makine Ekle
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            onClick={() => exportToExcel(
+              activeTab === 'machines' ? machines : activeTab === 'incidents' ? incidents : spareParts, 
+              `Qimlik_Rapor_${activeTab}`
+            )} 
+            className="btn-outline" 
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <Download size={18} /> Excel İndir
+          </button>
+          {activeTab === 'machines' && (
+            <button 
+              onClick={() => setShowAddModal(true)} 
+              className="btn-primary" 
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <Plus size={18} /> Yeni Makine Ekle
+            </button>
+          )}
+        </div>
       </header>
 
-      {/* Search and Statistics bar */}
+      <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--glass-border)', marginBottom: '1.5rem', overflowX: 'auto' }}>
+        <button 
+          onClick={() => setActiveTab('machines')}
+          style={{ background: 'transparent', border: 'none', padding: '0.75rem 1rem', cursor: 'pointer', color: activeTab === 'machines' ? 'var(--brand-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'machines' ? '2px solid var(--brand-primary)' : '2px solid transparent', fontWeight: activeTab === 'machines' ? 600 : 400 }}
+        >
+          Makineler
+        </button>
+        <button 
+          onClick={() => setActiveTab('incidents')}
+          style={{ background: 'transparent', border: 'none', padding: '0.75rem 1rem', cursor: 'pointer', color: activeTab === 'incidents' ? 'var(--brand-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'incidents' ? '2px solid var(--brand-primary)' : '2px solid transparent', fontWeight: activeTab === 'incidents' ? 600 : 400 }}
+        >
+          Müşteri Arıza Talepleri
+          {incidents.filter(i => i.status === 'pending').length > 0 && (
+            <span style={{ background: '#ef4444', color: '#fff', padding: '2px 6px', borderRadius: 10, fontSize: '0.7rem', marginLeft: '0.5rem' }}>{incidents.filter(i => i.status === 'pending').length}</span>
+          )}
+        </button>
+        <button 
+          onClick={() => setActiveTab('spareParts')}
+          style={{ background: 'transparent', border: 'none', padding: '0.75rem 1rem', cursor: 'pointer', color: activeTab === 'spareParts' ? 'var(--brand-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'spareParts' ? '2px solid var(--brand-primary)' : '2px solid transparent', fontWeight: activeTab === 'spareParts' ? 600 : 400 }}
+        >
+          Yedek Parça & Stok
+        </button>
+      </div>
+
+
+      {activeTab === 'machines' && (
+        <>
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <Search size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -315,9 +389,29 @@ export default function Dashboard({ user }) {
                     <span>Konum: {m.location || '-'}</span>
                   </div>
                   <div>Model / Seri No: {m.model || '-'} / {m.serial_number || '-'}</div>
+                  {m.require_location_match === 1 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--brand-primary)', fontWeight: 600 }}>
+                       <MapPin size={12} /> GPS Doğrulaması Açık (Yarıçap: {m.allowed_radius}m)
+                    </div>
+                  )}
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.5rem', marginTop: '0.5rem', color: 'var(--brand-secondary)' }}>
                     Atanan Form: <strong>{m.form_title || 'Yok'}</strong>
                   </div>
+                  {m.maintenance_interval_days && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
+                      Periyodik Bakım: <strong>{m.maintenance_interval_days} Gün</strong>
+                      {(() => {
+                        if (!m.last_maintenance_date) return <div style={{color: '#f59e0b'}}>Hiç bakım yapılmadı.</div>;
+                        const diff = Math.floor((new Date() - new Date(m.last_maintenance_date)) / (1000 * 60 * 60 * 24));
+                        const isOverdue = diff >= m.maintenance_interval_days;
+                        return (
+                          <div style={{ color: isOverdue ? '#ef4444' : '#10b981', fontWeight: isOverdue ? 600 : 400 }}>
+                            Son Bakım: {diff} gün önce {isOverdue && '(BAKIM GECİKTİ!)'}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -350,6 +444,131 @@ export default function Dashboard({ user }) {
           </div>
         )}
       </div>
+      </>
+      )}
+
+      {/* INCIDENTS TAB */}
+      {activeTab === 'incidents' && (
+        <div className="glass-card" style={{ padding: '1.5rem' }}>
+          <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Müşteri Arıza Bildirimleri</h2>
+          {incidents.length === 0 ? (
+            <p className="text-muted">Henüz kayıtlı bir arıza bildirimi bulunmuyor.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}>
+                  <th style={{ padding: '0.75rem 0' }}>Tarih</th>
+                  <th style={{ padding: '0.75rem 0' }}>Makine</th>
+                  <th style={{ padding: '0.75rem 0' }}>Müşteri Adı</th>
+                  <th style={{ padding: '0.75rem 0' }}>Telefon</th>
+                  <th style={{ padding: '0.75rem 0' }}>Açıklama</th>
+                  <th style={{ padding: '0.75rem 0' }}>Durum</th>
+                  <th style={{ padding: '0.75rem 0' }}>İşlem</th>
+                </tr>
+              </thead>
+              <tbody>
+                {incidents.map(i => (
+                  <tr key={i.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                    <td style={{ padding: '0.75rem 0' }}>{new Date(i.created_at).toLocaleDateString('tr-TR')}</td>
+                    <td style={{ padding: '0.75rem 0' }}>{i.machine_name} <br/><span className="text-muted" style={{fontSize: '0.75rem'}}>{i.machine_code}</span></td>
+                    <td style={{ padding: '0.75rem 0' }}>{i.reporter_name}</td>
+                    <td style={{ padding: '0.75rem 0' }}>{i.reporter_phone}</td>
+                    <td style={{ padding: '0.75rem 0', maxWidth: 200 }}>{i.description}</td>
+                    <td style={{ padding: '0.75rem 0' }}>
+                      <span className={`badge ${i.status === 'resolved' ? 'success' : 'warning'}`}>
+                        {i.status === 'resolved' ? 'Çözüldü' : 'Bekliyor'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.75rem 0' }}>
+                      {i.status === 'pending' && (
+                        <button 
+                          onClick={async () => {
+                            try {
+                              await axios.put(`${host}/api/dijital/company/incidents/${i.id}/resolve`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                              fetchCompanyData();
+                              toast.success('Çözüldü olarak işaretlendi.');
+                            } catch (e) { toast.error('Hata oluştu'); }
+                          }}
+                          className="btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                        >
+                          Çözüldü İşaretle
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* SPARE PARTS TAB */}
+      {activeTab === 'spareParts' && (
+        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+          <div className="glass-card" style={{ padding: '1.5rem', flex: '1 1 300px' }}>
+            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Yeni Yedek Parça Tanımla</h2>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                await axios.post(`${host}/api/dijital/spare-parts`, { part_name: newPartName, stock_quantity: parseInt(newPartStock)||0 }, { headers: { Authorization: `Bearer ${token}` } });
+                setNewPartName(''); setNewPartStock('');
+                fetchCompanyData();
+                toast.success('Parça stoklara eklendi');
+              } catch(e) { toast.error('Hata oluştu'); }
+            }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Parça Adı</label>
+                <input required style={inputStyle} value={newPartName} onChange={e => setNewPartName(e.target.value)} placeholder="Örn: 500W Güç Kaynağı" />
+              </div>
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Başlangıç Stoğu</label>
+                <input type="number" required style={inputStyle} value={newPartStock} onChange={e => setNewPartStock(e.target.value)} placeholder="Adet" />
+              </div>
+              <button type="submit" className="btn-primary">Stoğa Ekle</button>
+            </form>
+          </div>
+
+          <div className="glass-card" style={{ padding: '1.5rem', flex: '2 1 500px' }}>
+            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Stok Durumu</h2>
+            {spareParts.length === 0 ? (
+              <p className="text-muted">Kayıtlı yedek parça bulunamadı.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '0.75rem 0' }}>Parça Adı</th>
+                    <th style={{ padding: '0.75rem 0' }}>Mevcut Stok</th>
+                    <th style={{ padding: '0.75rem 0' }}>Stok Ekle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {spareParts.map(p => (
+                    <tr key={p.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                      <td style={{ padding: '0.75rem 0', fontWeight: 600 }}>{p.part_name}</td>
+                      <td style={{ padding: '0.75rem 0' }}>
+                        <span className={`badge ${p.stock_quantity > 5 ? 'success' : p.stock_quantity > 0 ? 'warning' : 'error'}`}>{p.stock_quantity} Adet</span>
+                      </td>
+                      <td style={{ padding: '0.75rem 0' }}>
+                        <button onClick={async () => {
+                          const qty = prompt("Eklenecek stok miktarını girin:");
+                          if (qty && !isNaN(qty)) {
+                            try {
+                              await axios.put(`${host}/api/dijital/spare-parts/${p.id}/add-stock`, { quantity: parseInt(qty) }, { headers: { Authorization: `Bearer ${token}` } });
+                              fetchCompanyData();
+                              toast.success('Stok güncellendi.');
+                            } catch(e) { toast.error('Hata oluştu'); }
+                          }
+                        }} className="btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>+ Stok Ekle</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Command Palette */}
       {showCmd && (
@@ -408,9 +627,58 @@ export default function Dashboard({ user }) {
                 </div>
               </div>
               <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Periyodik Bakım Süresi (Gün - Opsiyonel)</label>
+                <input type="number" id="maintInterval" style={inputStyle} placeholder="Örn: 180" />
+              </div>
+              <div>
                 <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Bulunduğu Konum</label>
                 <input style={inputStyle} value={location} onChange={e => setLocation(e.target.value)} placeholder="Örn: B Blok Kat -2 Jeneratör Odası" />
               </div>
+              
+              <div style={{ background: 'rgba(15,23,42,0.02)', padding: '1rem', borderRadius: 8, border: '1px dashed var(--glass-border)' }}>
+                <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem' }}>Konum Doğrulaması (Opsiyonel)</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <input type="checkbox" checked={requireLoc} onChange={e => setRequireLoc(e.target.checked)} id="requireLocCheck" style={{ width: 16, height: 16 }} />
+                    <label htmlFor="requireLocCheck" style={{ fontSize: '0.85rem', cursor: 'pointer' }}>Bakım formunda teknisyenin GPS konumunu doğrula</label>
+                </div>
+                
+                {requireLoc && (
+                  <>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Enlem (Lat)</label>
+                        <input type="number" step="any" style={{...inputStyle, padding: '0.5rem'}} value={gpsLat} onChange={e => setGpsLat(e.target.value)} placeholder="Örn: 41.0082" required />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Boylam (Lng)</label>
+                        <input type="number" step="any" style={{...inputStyle, padding: '0.5rem'}} value={gpsLng} onChange={e => setGpsLng(e.target.value)} placeholder="Örn: 28.9784" required />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+                      <div style={{ flex: 1 }}>
+                        <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Maks. Sapma Yarıçapı (Metre)</label>
+                        <input type="number" style={{...inputStyle, padding: '0.5rem'}} value={radius} onChange={e => setRadius(e.target.value)} required />
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(
+                              pos => { setGpsLat(pos.coords.latitude); setGpsLng(pos.coords.longitude); },
+                              err => alert('Konum alınamadı: ' + err.message)
+                            );
+                          }
+                        }}
+                        className="btn-outline" 
+                        style={{ padding: '0.5rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                      >
+                        📍 Şu Anki Konumumu Al
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <div>
                 <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Atanacak Kontrol Şablonu</label>
                 <select required style={selectStyle} value={formId} onChange={e => setFormId(e.target.value)}>

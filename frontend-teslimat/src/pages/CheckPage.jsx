@@ -141,7 +141,7 @@ export default function CheckPage({ user }) {
           >
             <ArrowLeft size={16} /> Paneli Aç
           </button>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>v1.7.5</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>v1.7.10</span>
         </div>
 
         {/* Location Info Header */}

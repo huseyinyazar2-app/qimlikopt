@@ -46,6 +46,26 @@ router.post('/company/register', async (req, res) => {
     }
 });
 
+
+// --- NEW: UPDATE COMPANY SETTINGS ---
+router.put('/company/settings', companyAuth, async (req, res) => {
+    const { shift_type, shift_start_time, shift_end_time, tolerance_minutes, deduct_break_time } = req.body;
+    try {
+        await db.query(
+            'UPDATE mesai_companies SET shift_type = ?, shift_start_time = ?, shift_end_time = ?, tolerance_minutes = ?, deduct_break_time = ? WHERE id = ?',
+            [shift_type, shift_start_time, shift_end_time, parseInt(tolerance_minutes) || 0, deduct_break_time === undefined ? 1 : (deduct_break_time ? 1 : 0), req.company.id]
+        );
+        res.json({ message: 'Şirket mesai ayarları güncellendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- NEW: GET COMPANY SETTINGS ---
+router.get('/company/settings', companyAuth, async (req, res) => {
+    res.json(req.company);
+});
+
 router.post('/company/login', async (req, res) => {
     const { phone_number, password } = req.body;
     if (!phone_number || !password) {
@@ -71,14 +91,14 @@ router.post('/company/login', async (req, res) => {
 
 // --- 2. EMPLOYEES MANAGEMENT (COMPANY ACCESS) ---
 router.post('/employees', companyAuth, async (req, res) => {
-    const { name, surname, phone_number, photo_base64 } = req.body;
+    const { name, surname, phone_number, photo_base64, hourly_wage } = req.body;
     if (!name || !surname || !phone_number) {
         return res.status(400).json({ error: 'Ad, soyad ve telefon zorunludur.' });
     }
     try {
         await db.query(
-            'INSERT INTO mesai_employees (company_id, name, surname, phone_number, photo_base64) VALUES (?, ?, ?, ?, ?)',
-            [req.company.id, name, surname, phone_number, photo_base64 || null]
+            'INSERT INTO mesai_employees (company_id, name, surname, phone_number, photo_base64, hourly_wage) VALUES (?, ?, ?, ?, ?, ?)',
+            [req.company.id, name, surname, phone_number, photo_base64 || null, parseFloat(hourly_wage) || 0]
         );
         res.status(201).json({ message: 'Personel başarıyla eklendi.' });
     } catch (err) {
@@ -98,6 +118,17 @@ router.get('/employees', companyAuth, async (req, res) => {
     }
 });
 
+
+router.put('/employees/:id', companyAuth, async (req, res) => {
+    const { hourly_wage } = req.body;
+    try {
+        await db.query('UPDATE mesai_employees SET hourly_wage = ? WHERE id = ? AND company_id = ?', [parseFloat(hourly_wage)||0, req.params.id, req.company.id]);
+        res.json({ message: 'Personel bilgileri güncellendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.put('/employees/:id/toggle', companyAuth, async (req, res) => {
     const { id } = req.params;
     const { is_active } = req.body;
@@ -111,16 +142,28 @@ router.put('/employees/:id/toggle', companyAuth, async (req, res) => {
 
 // --- 3. LOCATIONS/WORK SITES (COMPANY ACCESS) ---
 router.post('/locations', companyAuth, async (req, res) => {
-    const { location_name, latitude, longitude, allowed_radius } = req.body;
+    const { location_name, latitude, longitude, allowed_radius, shift_start_time, shift_end_time } = req.body;
     if (!location_name || !latitude || !longitude) {
         return res.status(400).json({ error: 'Lokasyon adı ve koordinatlar zorunludur.' });
     }
     try {
         await db.query(
-            'INSERT INTO mesai_locations (company_id, location_name, latitude, longitude, allowed_radius) VALUES (?, ?, ?, ?, ?)',
-            [req.company.id, location_name, parseFloat(latitude), parseFloat(longitude), parseInt(allowed_radius) || 50]
+            'INSERT INTO mesai_locations (company_id, location_name, latitude, longitude, allowed_radius, shift_start_time, shift_end_time) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [req.company.id, location_name, parseFloat(latitude), parseFloat(longitude), parseInt(allowed_radius) || 50, shift_start_time || '09:00', shift_end_time || '18:00']
         );
         res.status(201).json({ message: 'Çalışma alanı başarıyla eklendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+router.put('/locations/:id', companyAuth, async (req, res) => {
+    const { id } = req.params;
+    const { shift_start_time, shift_end_time } = req.body;
+    try {
+        await db.query('UPDATE mesai_locations SET shift_start_time = ?, shift_end_time = ? WHERE id = ? AND company_id = ?', [shift_start_time, shift_end_time, id, req.company.id]);
+        res.json({ message: 'Lokasyon mesai saatleri güncellendi.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -209,7 +252,7 @@ router.get('/employee/login/status', async (req, res) => {
     try {
         const targetMessage = `MSAI ${code}`;
         const { rows } = await db.query(
-            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? LIMIT 1",
+            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? AND created_at >= datetime('now', '-5 minutes') LIMIT 1",
             [targetMessage]
         );
 
@@ -271,21 +314,21 @@ router.post('/check', async (req, res) => {
             location.longitude
         );
 
-        if (distance > location.allowed_radius) {
-            return res.status(400).json({
-                error: `Hedef alandan çok uzaktasınız. İzin verilen yarıçap: ${location.allowed_radius}m, Sizin mesafeniz: ${Math.round(distance)}m`
-            });
-        }
-
-        // Insert log
+        // Insert log anyway
         await db.query(
             'INSERT INTO mesai_logs (employee_id, location_id, log_type, gps_latitude, gps_longitude, calculated_distance) VALUES (?, ?, ?, ?, ?, ?)',
             [employee_id, location_id, log_type, parseFloat(gps_latitude), parseFloat(gps_longitude), distance]
         );
 
+        const isWithin = distance <= location.allowed_radius;
+        const msg = log_type === 'check_in'
+            ? (isWithin ? 'Mesai başarıyla başlatıldı.' : `Mesai başlatıldı (Şantiye dışında! Sapma: ${Math.round(distance)}m)`)
+            : (isWithin ? 'Mesai başarıyla sonlandırıldı.' : `Mesai sonlandırıldı (Şantiye dışında! Sapma: ${Math.round(distance)}m)`);
+
         res.status(201).json({
-            message: log_type === 'check_in' ? 'Mesai başarıyla başlatıldı.' : 'Mesai başarıyla sonlandırıldı.',
-            distance: Math.round(distance)
+            message: msg,
+            distance: Math.round(distance),
+            warning: !isWithin
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -313,9 +356,18 @@ router.get('/company/logs', companyAuth, async (req, res) => {
 
 // Helper to calculate retrospective daily & monthly hours
 async function calculateEmployeeReport(id) {
+    // Fetch employee to get company_id
+    const { rows: empRows } = await db.query('SELECT company_id, hourly_wage FROM mesai_employees WHERE id = ?', [id]);
+    if (empRows.length === 0) return { daily: [], monthly: [] };
+    const hourly_wage = empRows[0].hourly_wage || 0;
+    
+    // Fetch company settings
+    const { rows: compRows } = await db.query('SELECT shift_type, shift_start_time, shift_end_time, tolerance_minutes, deduct_break_time FROM mesai_companies WHERE id = ?', [empRows[0].company_id]);
+    const company = compRows[0];
+    
     // Fetch all logs for this employee
     const { rows: logs } = await db.query(
-        `SELECT l.*, loc.location_name 
+        `SELECT l.*, loc.location_name, loc.shift_start_time as loc_start, loc.shift_end_time as loc_end 
          FROM mesai_logs l
          JOIN mesai_locations loc ON l.location_id = loc.id
          WHERE l.employee_id = ? ORDER BY l.created_at ASC`,
@@ -325,7 +377,6 @@ async function calculateEmployeeReport(id) {
     // Calculate hours worked per day
     const dailyLogs = {};
 
-    // Parse check-ins and check-outs chronologically to calculate working durations
     for (let i = 0; i < logs.length; i++) {
         const log = logs[i];
         const dateStr = new Date(log.created_at).toLocaleDateString('tr-TR');
@@ -337,14 +388,45 @@ async function calculateEmployeeReport(id) {
                 check_in: '-',
                 check_out: '-',
                 hours: 0,
+                break_hours: 0,
+                wage: 0,
                 location: log.location_name,
-                raw_check_in: null
+                raw_check_in: null,
+                raw_break_start: null,
+                late_minutes: 0,
+                early_minutes: 0
             };
         }
 
+        // Determine applicable shift
+        let targetStart = company.shift_start_time;
+        let targetEnd = company.shift_end_time;
+        if (company.shift_type === 'location_based') {
+            targetStart = log.loc_start || '09:00';
+            targetEnd = log.loc_end || '18:00';
+        }
+        
+        // helper to compare "HH:mm" with Date obj
+        const getMinutesDiff = (dObj, timeStr2) => {
+            if(!timeStr2) return 0;
+            const [h, m] = timeStr2.split(':').map(Number);
+            const targetTime = new Date(dObj);
+            targetTime.setHours(h, m, 0, 0);
+            return (dObj - targetTime) / 60000; // positive if dObj is later
+        };
+
         if (log.log_type === 'check_in') {
-            dailyLogs[dateStr].check_in = timeStr;
-            dailyLogs[dateStr].raw_check_in = new Date(log.created_at);
+            if (dailyLogs[dateStr].check_in === '-') {
+                dailyLogs[dateStr].check_in = timeStr;
+                dailyLogs[dateStr].raw_check_in = new Date(log.created_at);
+                
+                if (company.shift_type !== 'flexible') {
+                    let diff = getMinutesDiff(new Date(log.created_at), targetStart);
+                    if (diff > (company.tolerance_minutes || 0)) {
+                        dailyLogs[dateStr].late_minutes = Math.round(diff);
+                    }
+                }
+            }
         } else if (log.log_type === 'check_out' && dailyLogs[dateStr].raw_check_in) {
             dailyLogs[dateStr].check_out = timeStr;
             const checkInTime = dailyLogs[dateStr].raw_check_in;
@@ -352,8 +434,35 @@ async function calculateEmployeeReport(id) {
             const diffMs = checkOutTime - checkInTime;
             const diffHours = parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2));
             dailyLogs[dateStr].hours = diffHours;
+            
+            if (company.shift_type !== 'flexible') {
+                let diff = getMinutesDiff(checkOutTime, targetEnd);
+                if (diff < 0) { // check out before end
+                    dailyLogs[dateStr].early_minutes = Math.round(Math.abs(diff));
+                }
+            }
+        } else if (log.log_type === 'break_start') {
+            dailyLogs[dateStr].raw_break_start = new Date(log.created_at);
+        } else if (log.log_type === 'break_end' && dailyLogs[dateStr].raw_break_start) {
+            const breakInTime = dailyLogs[dateStr].raw_break_start;
+            const breakOutTime = new Date(log.created_at);
+            const diffMs = breakOutTime - breakInTime;
+            dailyLogs[dateStr].break_hours += parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2));
+            dailyLogs[dateStr].raw_break_start = null; // reset for next break
         }
     }
+    
+    // Finalize daily hours and wages
+    Object.values(dailyLogs).forEach(day => {
+        if (company.deduct_break_time) {
+            day.hours = Math.max(0, day.hours - day.break_hours);
+        }
+        day.wage = parseFloat((day.hours * hourly_wage).toFixed(2));
+    });
+    
+    // Fetch approved leaves and merge into monthly logic
+    const { rows: leaves } = await db.query("SELECT start_date, end_date, leave_type FROM mesai_leaves WHERE employee_id = ? AND status = 'approved'", [id]);
+
 
     const daily = Object.values(dailyLogs).reverse();
 
@@ -369,20 +478,40 @@ async function calculateEmployeeReport(id) {
                 monthlyLogs[monthYear] = {
                     month: monthYear,
                     hours: 0,
-                    days_present: 0
+                    break_hours: 0,
+                    wage: 0,
+                    days_present: 0,
+                    days_leave: 0
                 };
             }
             monthlyLogs[monthYear].hours += day.hours;
+            monthlyLogs[monthYear].break_hours += day.break_hours;
+            monthlyLogs[monthYear].wage += day.wage;
             if (day.check_in !== '-') {
                 monthlyLogs[monthYear].days_present += 1;
             }
+        }
+    });
+    
+    // Add leave days logic
+    leaves.forEach(lv => {
+        let s = new Date(lv.start_date);
+        let e = new Date(lv.end_date);
+        for(let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+            const monthYear = d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
+            if (!monthlyLogs[monthYear]) {
+                monthlyLogs[monthYear] = { month: monthYear, hours: 0, break_hours: 0, wage: 0, days_present: 0, days_leave: 0 };
+            }
+            monthlyLogs[monthYear].days_leave += 1;
         }
     });
 
     // Format monthly details to round hours
     const monthly = Object.values(monthlyLogs).map(m => ({
         ...m,
-        hours: parseFloat(m.hours.toFixed(2))
+        hours: parseFloat(m.hours.toFixed(2)),
+        break_hours: parseFloat(m.break_hours.toFixed(2)),
+        wage: parseFloat(m.wage.toFixed(2))
     }));
 
     return { daily, monthly };
@@ -410,5 +539,48 @@ router.get('/public/employees/:id/report', async (req, res) => {
     }
 });
 
+
+
+// --- 7. LEAVE MANAGEMENT (İZİN SİSTEMİ) ---
+router.post('/public/leaves', async (req, res) => {
+    const { employee_id, start_date, end_date, leave_type } = req.body;
+    if (!employee_id || !start_date || !end_date || !leave_type) {
+        return res.status(400).json({ error: 'Eksik bilgi.' });
+    }
+    try {
+        await db.query(
+            'INSERT INTO mesai_leaves (employee_id, start_date, end_date, leave_type) VALUES (?, ?, ?, ?)',
+            [employee_id, start_date, end_date, leave_type]
+        );
+        res.status(201).json({ message: 'İzin talebiniz başarıyla oluşturuldu.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/company/leaves', companyAuth, async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT l.*, e.name || ' ' || e.surname as employee_name 
+             FROM mesai_leaves l 
+             JOIN mesai_employees e ON l.employee_id = e.id 
+             WHERE e.company_id = ? ORDER BY l.created_at DESC`,
+            [req.company.id]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/company/leaves/:id', companyAuth, async (req, res) => {
+    const { status } = req.body;
+    try {
+        await db.query('UPDATE mesai_leaves SET status = ? WHERE id = ? AND employee_id IN (SELECT id FROM mesai_employees WHERE company_id = ?)', [status, req.params.id, req.company.id]);
+        res.json({ message: 'İzin durumu güncellendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 module.exports = router;

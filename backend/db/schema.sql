@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS clients (
     phone_number VARCHAR(50),
     contact_name VARCHAR(100),
     contact_surname VARCHAR(100),
+    hourly_wage REAL DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS gateway_devices (
     device_name VARCHAR(255),
     battery_level INTEGER,
     network_status VARCHAR(50),
+    hourly_wage REAL DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -58,6 +60,7 @@ CREATE TABLE IF NOT EXISTS dijital_companies (
     contact_surname VARCHAR(100),
     phone_number VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
+    hourly_wage REAL DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -68,6 +71,7 @@ CREATE TABLE IF NOT EXISTS dijital_technicians (
     name VARCHAR(100) NOT NULL,
     surname VARCHAR(100) NOT NULL,
     phone_number VARCHAR(50) NOT NULL,
+    hourly_wage REAL DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -88,6 +92,12 @@ CREATE TABLE IF NOT EXISTS dijital_machines (
     model VARCHAR(255),
     serial_number VARCHAR(100),
     location VARCHAR(255),
+    gps_latitude REAL,
+    gps_longitude REAL,
+    require_location_match BOOLEAN DEFAULT 0,
+    allowed_radius INTEGER DEFAULT 50,
+    maintenance_interval_days INTEGER,
+    last_maintenance_date TIMESTAMP,
     form_template_id INTEGER REFERENCES dijital_forms(id),
     status VARCHAR(50) DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -101,9 +111,39 @@ CREATE TABLE IF NOT EXISTS dijital_maintenance_logs (
     status_after VARCHAR(50) NOT NULL,
     notes TEXT,
     photo_base64 TEXT,
+    technician_latitude REAL,
+    technician_longitude REAL,
+    calculated_distance REAL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+
+
+CREATE TABLE IF NOT EXISTS dijital_incidents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    machine_id INTEGER REFERENCES dijital_machines(id),
+    reporter_name VARCHAR(255) NOT NULL,
+    reporter_phone VARCHAR(50) NOT NULL,
+    description TEXT NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dijital_spare_parts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER REFERENCES dijital_companies(id),
+    part_name VARCHAR(255) NOT NULL,
+    stock_quantity INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dijital_maintenance_parts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    log_id INTEGER REFERENCES dijital_maintenance_logs(id),
+    part_id INTEGER REFERENCES dijital_spare_parts(id),
+    quantity_used INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- --- MESAİ.QIMLIK.COM TABLES ---
 CREATE TABLE IF NOT EXISTS mesai_companies (
@@ -113,7 +153,13 @@ CREATE TABLE IF NOT EXISTS mesai_companies (
     contact_surname VARCHAR(100),
     phone_number VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
+    hourly_wage REAL DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
+    shift_type VARCHAR(50) DEFAULT 'company_wide',
+    shift_start_time VARCHAR(10) DEFAULT '09:00',
+    shift_end_time VARCHAR(10) DEFAULT '18:00',
+    tolerance_minutes INTEGER DEFAULT 15,
+    deduct_break_time BOOLEAN DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -124,6 +170,7 @@ CREATE TABLE IF NOT EXISTS mesai_employees (
     surname VARCHAR(100) NOT NULL,
     phone_number VARCHAR(50) NOT NULL,
     photo_base64 TEXT, -- Storing compressed base64 profile photo
+    hourly_wage REAL DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -134,7 +181,11 @@ CREATE TABLE IF NOT EXISTS mesai_locations (
     location_name VARCHAR(255) NOT NULL,
     latitude REAL NOT NULL,
     longitude REAL NOT NULL,
-    allowed_radius INTEGER DEFAULT 50, -- in meters
+    allowed_radius INTEGER DEFAULT 50,
+    maintenance_interval_days INTEGER,
+    last_maintenance_date TIMESTAMP, -- in meters
+    shift_start_time VARCHAR(10) DEFAULT '09:00',
+    shift_end_time VARCHAR(10) DEFAULT '18:00',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -150,6 +201,17 @@ CREATE TABLE IF NOT EXISTS mesai_logs (
 );
 
 
+
+CREATE TABLE IF NOT EXISTS mesai_leaves (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id INTEGER REFERENCES mesai_employees(id),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    leave_type VARCHAR(50) NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- --- TESLİMAT.QIMLIK.COM TABLES ---
 CREATE TABLE IF NOT EXISTS teslimat_companies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,6 +220,7 @@ CREATE TABLE IF NOT EXISTS teslimat_companies (
     contact_surname VARCHAR(100),
     phone_number VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
+    hourly_wage REAL DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -168,6 +231,7 @@ CREATE TABLE IF NOT EXISTS teslimat_couriers (
     name VARCHAR(100) NOT NULL,
     surname VARCHAR(100) NOT NULL,
     phone_number VARCHAR(50) NOT NULL,
+    hourly_wage REAL DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -181,6 +245,7 @@ CREATE TABLE IF NOT EXISTS teslimat_packages (
     delivery_address TEXT NOT NULL,
     status VARCHAR(50) DEFAULT 'created', -- 'created', 'in_transit', 'delivered', 'failed'
     courier_id INTEGER REFERENCES teslimat_couriers(id),
+    return_reason TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

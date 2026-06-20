@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Package, Plus, Clipboard, User, MapPin, Phone, Search, HelpCircle, Truck, ExternalLink } from 'lucide-react';
+import { Package, Plus, Clipboard, User, MapPin, Phone, Search, HelpCircle, Truck, ExternalLink, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export default function Packages({ user }) {
   const [packages, setPackages] = useState([]);
@@ -88,6 +89,23 @@ export default function Packages({ user }) {
     }
   };
 
+
+  const exportExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(packages.map(p => ({
+      'Kodu': p.package_code,
+      'Alıcı': p.recipient_name,
+      'Telefon': p.recipient_phone,
+      'Adres': p.delivery_address,
+      'Kurye': p.courier_name || 'Atanmamış',
+      'Durum': p.status === 'delivered' ? 'Tam Teslim' : p.status === 'partial' ? 'Kısmi Teslim' : p.status === 'returned' ? 'İade' : p.status === 'in_transit' ? 'Dağıtımda' : 'Zimmet Bekliyor',
+      'İade Nedeni': p.return_reason || '',
+      'Tarih': new Date(p.created_at).toLocaleString('tr-TR')
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Paketler");
+    XLSX.writeFile(wb, "Paket_Listesi.xlsx");
+  };
+
   const generateDummyTrackingCode = () => {
     const num = Math.floor(100000 + Math.random() * 900000);
     setCode(`PKG-${num}`);
@@ -106,13 +124,18 @@ export default function Packages({ user }) {
           <h1 className="gradient-text">Gönderi & Paket Yönetimi</h1>
           <p className="text-muted">Dağıtılacak gönderileri kaydedin, kuryeleri atayın ve barkod etiketleri oluşturun.</p>
         </div>
-        <button 
-          onClick={() => { setShowAddModal(true); generateDummyTrackingCode(); }} 
-          className="btn-primary" 
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
-        >
-          <Plus size={18} /> Yeni Gönderi Oluştur
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={exportExcel} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}>
+            <Download size={16} /> Excel İndir
+          </button>
+          <button 
+            onClick={() => { setShowAddModal(true); generateDummyTrackingCode(); }} 
+            className="btn-primary" 
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+          >
+            <Plus size={18} /> Yeni Gönderi Oluştur
+          </button>
+        </div>
       </header>
 
       {/* Search Bar */}
@@ -141,8 +164,8 @@ export default function Packages({ user }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                   <div>
                     <span className="badge" style={{ background: 'rgba(15,23,42,0.05)', marginRight: '0.5rem', fontFamily: 'monospace' }}>{p.package_code}</span>
-                    <span className={`badge ${p.status === 'delivered' ? 'success' : p.status === 'in_transit' ? 'warning' : p.status === 'failed' ? 'error' : 'secondary'}`}>
-                      {p.status === 'delivered' ? 'Teslim Edildi' : p.status === 'in_transit' ? 'Dağıtımda' : p.status === 'failed' ? 'Hata' : 'Zimmet Bekliyor'}
+                    <span className={`badge ${p.status === 'delivered' ? 'success' : p.status === 'partial' ? 'warning' : p.status === 'returned' ? 'error' : p.status === 'in_transit' ? 'primary' : 'secondary'}`}>
+                      {p.status === 'delivered' ? 'Tam Teslim' : p.status === 'partial' ? 'Kısmi Teslim' : p.status === 'returned' ? 'İade' : p.status === 'in_transit' ? 'Dağıtımda' : 'Zimmet Bekliyor'}
                     </span>
                   </div>
                   
@@ -167,6 +190,11 @@ export default function Packages({ user }) {
                     <Truck size={14} className="text-muted" />
                     <span>Zimmetli Kurye: <strong>{p.courier_name || 'Atanmamış'}</strong></span>
                   </div>
+                  {p.return_reason && (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.5rem', borderRadius: 6, color: '#ef4444', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                      <strong>Not/Açıklama:</strong> {p.return_reason}
+                    </div>
+                  )}
                 </div>
               </div>
 

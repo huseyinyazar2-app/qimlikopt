@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { MapPin, ShieldCheck, Navigation, LogIn, LogOut, RefreshCw, AlertTriangle, UserCheck, ArrowLeft } from 'lucide-react';
+import { MapPin, ShieldCheck, Navigation, LogIn, LogOut, RefreshCw, AlertTriangle, UserCheck, ArrowLeft, Coffee, CheckCircle } from 'lucide-react';
 
 export default function CheckPage({ user }) {
   const { locationId } = useParams();
@@ -141,7 +141,7 @@ export default function CheckPage({ user }) {
           >
             <ArrowLeft size={16} /> Paneli Aç
           </button>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>v1.7.5</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>v1.7.10</span>
         </div>
 
         {/* Location Info Header */}
@@ -247,8 +247,8 @@ export default function CheckPage({ user }) {
 
               {/* Status Badge */}
               <div style={{ marginTop: '0.5rem', textAlign: 'center' }}>
-                <span className={`badge ${isWithinRadius ? 'success' : 'error'}`} style={{ width: '100%', boxSizing: 'border-box', display: 'block', padding: '0.4rem', fontSize: '0.8rem' }}>
-                  {isWithinRadius ? 'Sınırlar Dahilindesiniz' : 'Sınır Dışındasınız'}
+                <span className={`badge ${isWithinRadius ? 'success' : 'warning'}`} style={{ width: '100%', boxSizing: 'border-box', display: 'block', padding: '0.4rem', fontSize: '0.8rem' }}>
+                  {isWithinRadius ? 'Sınırlar Dahilindesiniz' : 'Sınır Dışındasınız (Giriş/Çıkış Yapılabilir, Sapma Kaydedilir)'}
                 </span>
               </div>
             </div>
@@ -260,22 +260,38 @@ export default function CheckPage({ user }) {
         </div>
 
         {/* Check In / Out Buttons */}
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
           <button 
             onClick={() => handleCheck('check_in')} 
-            disabled={actionLoading || !user || user.role !== 'employee' || !isWithinRadius}
+            disabled={actionLoading || !user || user.role !== 'employee'}
             className="btn-primary"
-            style={{ flex: 1, padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.9rem' }}
+            style={{ padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.9rem' }}
           >
-            <LogIn size={18} /> Mesaiye Başla
+            <LogIn size={18} /> Başla
+          </button>
+          <button 
+            onClick={() => handleCheck('break_start')} 
+            disabled={actionLoading || !user || user.role !== 'employee'}
+            className="btn-outline"
+            style={{ padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.9rem', border: '1px solid var(--brand-secondary)', color: 'var(--brand-secondary)' }}
+          >
+            <Coffee size={18} /> Mola Çıkışı
+          </button>
+          <button 
+            onClick={() => handleCheck('break_end')} 
+            disabled={actionLoading || !user || user.role !== 'employee'}
+            className="btn-outline"
+            style={{ padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.9rem', border: '1px solid var(--brand-primary)', color: 'var(--brand-primary)' }}
+          >
+            <CheckCircle size={18} /> Mola Dönüşü
           </button>
           <button 
             onClick={() => handleCheck('check_out')} 
-            disabled={actionLoading || !user || user.role !== 'employee' || !isWithinRadius}
+            disabled={actionLoading || !user || user.role !== 'employee'}
             className="btn-outline"
-            style={{ flex: 1, padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.9rem', border: '1px solid var(--status-warning)', color: 'var(--text-primary)', background: 'rgba(245, 158, 11, 0.05)' }}
+            style={{ padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.9rem', border: '1px solid var(--status-warning)', color: 'var(--status-warning)' }}
           >
-            <LogOut size={18} color="var(--status-warning)" /> Mesaiyi Bitir
+            <LogOut size={18} /> Bitir
           </button>
         </div>
 

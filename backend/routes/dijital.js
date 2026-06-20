@@ -1,7 +1,25 @@
 const express = require('express');
 const db = require('../db');
 
+
+// Haversine formula for distance calculation (in meters)
+function getDistance(lat1, lon1, lat2, lon2) {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    const R = 6371e3; // metres
+    const p1 = lat1 * Math.PI/180;
+    const p2 = lat2 * Math.PI/180;
+    const dp = (lat2-lat1) * Math.PI/180;
+    const dl = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(dp/2) * Math.sin(dp/2) +
+              Math.cos(p1) * Math.cos(p2) *
+              Math.sin(dl/2) * Math.sin(dl/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
 const router = express.Router();
+
 
 // --- COMPANY AUTH MIDDLEWARE ---
 const companyAuth = async (req, res, next) => {
@@ -175,7 +193,7 @@ router.delete('/forms/:id', companyAuth, async (req, res) => {
 
 // --- 4. MACHINES MANAGEMENT (COMPANY ACCESS) ---
 router.post('/machines', companyAuth, async (req, res) => {
-    const { machine_code, machine_name, model, serial_number, location, form_template_id } = req.body;
+    const { machine_code, machine_name, model, serial_number, location, form_template_id, gps_latitude, gps_longitude, require_location_match, allowed_radius, maintenance_interval_days } = req.body;
     if (!machine_code || !machine_name || !form_template_id) {
         return res.status(400).json({ error: 'Makine kodu, adı ve atanacak form zorunludur.' });
     }
@@ -186,8 +204,8 @@ router.post('/machines', companyAuth, async (req, res) => {
         }
 
         await db.query(
-            'INSERT INTO dijital_machines (company_id, machine_code, machine_name, model, serial_number, location, form_template_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [req.company.id, machine_code.toUpperCase(), machine_name, model || '', serial_number || '', location || '', form_template_id]
+            'INSERT INTO dijital_machines (company_id, machine_code, machine_name, model, serial_number, location, form_template_id, gps_latitude, gps_longitude, require_location_match, allowed_radius, maintenance_interval_days) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [req.company.id, machine_code.toUpperCase(), machine_name, model || '', serial_number || '', location || '', form_template_id, gps_latitude || null, gps_longitude || null, require_location_match ? 1 : 0, allowed_radius || 50, maintenance_interval_days || null]
         );
         res.status(201).json({ message: 'Makine başarıyla eklendi.' });
     } catch (err) {
@@ -249,6 +267,8 @@ router.get('/public/machine/:code', async (req, res) => {
             return res.status(404).json({ error: 'Makine bulunamadı.' });
         }
 
+        const { rows: parts } = await db.query('SELECT * FROM dijital_spare_parts WHERE company_id = ? AND stock_quantity > 0', [machineRows[0].company_id]);
+        
         res.json({
             machine: {
                 id: machine.id,
@@ -258,13 +278,18 @@ router.get('/public/machine/:code', async (req, res) => {
                 serial_number: machine.serial_number,
                 location: machine.location,
                 status: machine.status,
-                company_name: machine.company_name
+                company_name: machine.company_name,
+                gps_latitude: machine.gps_latitude,
+                gps_longitude: machine.gps_longitude,
+                require_location_match: !!machine.require_location_match,
+                allowed_radius: machine.allowed_radius
             },
             form: {
                 id: machine.form_template_id,
                 title: machine.form_title,
                 fields: JSON.parse(machine.fields_json)
-            }
+            },
+            spare_parts: parts
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -346,7 +371,7 @@ router.get('/technician/login/status', async (req, res) => {
     try {
         const targetMessage = `DJTL ${code}`;
         const { rows } = await db.query(
-            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? LIMIT 1",
+            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? AND created_at >= datetime('now', '-5 minutes') LIMIT 1",
             [targetMessage]
         );
 
@@ -376,21 +401,42 @@ router.get('/technician/login/status', async (req, res) => {
 
 // --- 7. MAINTENANCE LOG SUBMIT (TECHNICIAN AUTHORIZED) ---
 router.post('/maintenance/submit', async (req, res) => {
-    const { machine_id, technician_id, form_data, status_after, notes, photo_base64 } = req.body;
+    const { machine_id, technician_id, form_data, status_after, notes, photo_base64, technician_latitude, technician_longitude, used_parts } = req.body;
     if (!machine_id || !technician_id || !form_data || !status_after) {
         return res.status(400).json({ error: 'Makine, teknisyen, form verisi ve durum bilgileri zorunludur.' });
     }
 
     try {
-        // Insert report
-        await db.query(
-            `INSERT INTO dijital_maintenance_logs (machine_id, technician_id, form_data_json, status_after, notes, photo_base64) 
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [machine_id, technician_id, JSON.stringify(form_data), status_after, notes || '', photo_base64 || null]
-        );
+        // Get machine gps coordinates to calculate distance
+        const machineCheck = await db.query('SELECT gps_latitude, gps_longitude FROM dijital_machines WHERE id = ?', [machine_id]);
+        let calc_distance = null;
+        if (machineCheck.rows.length > 0) {
+            const m = machineCheck.rows[0];
+            if (technician_latitude && technician_longitude && m.gps_latitude && m.gps_longitude) {
+                calc_distance = getDistance(technician_latitude, technician_longitude, m.gps_latitude, m.gps_longitude);
+            }
+        }
 
-        // Update current machine status
-        await db.query('UPDATE dijital_machines SET status = ? WHERE id = ?', [status_after, machine_id]);
+        // Insert report
+        const logRes = await db.query(
+            `INSERT INTO dijital_maintenance_logs (machine_id, technician_id, form_data_json, status_after, notes, photo_base64, technician_latitude, technician_longitude, calculated_distance) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+            [machine_id, technician_id, JSON.stringify(form_data), status_after, notes || '', photo_base64 || null, technician_latitude || null, technician_longitude || null, calc_distance]
+        );
+        const logId = logRes.rows[0].id;
+
+        // Process used parts if any
+        if (used_parts && Array.isArray(used_parts) && used_parts.length > 0) {
+            for (let part of used_parts) {
+                if (part.part_id && part.quantity > 0) {
+                    await db.query('INSERT INTO dijital_maintenance_parts (log_id, part_id, quantity_used) VALUES (?, ?, ?)', [logId, part.part_id, part.quantity]);
+                    await db.query('UPDATE dijital_spare_parts SET stock_quantity = stock_quantity - ? WHERE id = ?', [part.quantity, part.part_id]);
+                }
+            }
+        }
+
+        // Update current machine status and last_maintenance_date
+        await db.query('UPDATE dijital_machines SET status = ?, last_maintenance_date = CURRENT_TIMESTAMP WHERE id = ?', [status_after, machine_id]);
 
         res.status(201).json({ message: 'Bakım/arıza raporu başarıyla kaydedildi.' });
     } catch (err) {
@@ -414,6 +460,87 @@ router.get('/technician/:id/logs', async (req, res) => {
             form_data: JSON.parse(r.form_data_json)
         }));
         res.json(parsed);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// --- 8. INCIDENTS (ARIZA BİLDİRİMLERİ) ---
+router.post('/public/incident', async (req, res) => {
+    const { machine_code, reporter_name, reporter_phone, description } = req.body;
+    if (!machine_code || !reporter_name || !reporter_phone || !description) {
+        return res.status(400).json({ error: 'Makine kodu, ad, telefon ve arıza detayı zorunludur.' });
+    }
+    try {
+        const check = await db.query('SELECT id FROM dijital_machines WHERE machine_code = ?', [machine_code.toUpperCase()]);
+        if (check.rows.length === 0) {
+            return res.status(404).json({ error: 'Makine bulunamadı.' });
+        }
+        await db.query(
+            'INSERT INTO dijital_incidents (machine_id, reporter_name, reporter_phone, description) VALUES (?, ?, ?, ?)',
+            [check.rows[0].id, reporter_name, reporter_phone, description]
+        );
+        res.status(201).json({ message: 'Arıza bildiriminiz başarıyla alındı. Teşekkür ederiz.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/company/incidents', companyAuth, async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT i.*, m.machine_name, m.machine_code 
+             FROM dijital_incidents i
+             JOIN dijital_machines m ON i.machine_id = m.id
+             WHERE m.company_id = ? ORDER BY i.created_at DESC`,
+            [req.company.id]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/company/incidents/:id/resolve', companyAuth, async (req, res) => {
+    try {
+        // verify ownership implicitly by checking machine
+        await db.query(`UPDATE dijital_incidents SET status = 'resolved' WHERE id = ? AND machine_id IN (SELECT id FROM dijital_machines WHERE company_id = ?)`, [req.params.id, req.company.id]);
+        res.json({ message: 'Arıza çözüldü olarak işaretlendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// --- 9. SPARE PARTS (YEDEK PARÇA STOK) ---
+router.get('/spare-parts', companyAuth, async (req, res) => {
+    try {
+        const { rows } = await db.query('SELECT * FROM dijital_spare_parts WHERE company_id = ? ORDER BY part_name ASC', [req.company.id]);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/spare-parts', companyAuth, async (req, res) => {
+    const { part_name, stock_quantity } = req.body;
+    try {
+        await db.query(
+            'INSERT INTO dijital_spare_parts (company_id, part_name, stock_quantity) VALUES (?, ?, ?)',
+            [req.company.id, part_name, stock_quantity || 0]
+        );
+        res.status(201).json({ message: 'Yedek parça eklendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/spare-parts/:id/add-stock', companyAuth, async (req, res) => {
+    const { quantity } = req.body;
+    try {
+        await db.query('UPDATE dijital_spare_parts SET stock_quantity = stock_quantity + ? WHERE id = ? AND company_id = ?', [quantity, req.params.id, req.company.id]);
+        res.json({ message: 'Stok güncellendi.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

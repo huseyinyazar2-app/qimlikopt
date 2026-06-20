@@ -9,7 +9,7 @@ export default function Layout() {
           <Link to="/" className="brand-logo" style={{ display: 'flex', alignItems: 'center' }}>
             <ShieldCheck color="var(--brand-primary)" size={28} />
             qimlik
-            <span className="version-badge">v1.0.4</span>
+            <span className="version-badge">v1.0.8</span>
           </Link>
           <div className="nav-links">
             <a href="#cozumler" className="nav-link">Çözümlerimiz</a>
@@ -30,7 +30,7 @@ export default function Layout() {
             <Link to="/" className="brand-logo" style={{ color: 'white', marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
               <ShieldCheck color="var(--brand-primary)" size={28} />
               qimlik
-              <span className="version-badge">v1.0.4</span>
+              <span className="version-badge">v1.0.8</span>
             </Link>
             <p>Saha operasyonları, mesai takibi, lojistik teslimatları ve OTP doğrulama süreçleri için yeni nesil SaaS platformu.</p>
           </div>

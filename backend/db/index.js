@@ -1,10 +1,13 @@
 const { createClient } = require('@libsql/client');
+const path = require('path');
 require('dotenv').config();
+
+const dbPath = process.env.TURSO_DATABASE_URL || `file:${path.resolve(__dirname, '../local.db')}`;
 
 // For local SQLite, TURSO_DATABASE_URL can be "file:local.db"
 // For remote Turso, it will be "libsql://..." and require TURSO_AUTH_TOKEN
 const db = createClient({
-  url: process.env.TURSO_DATABASE_URL || 'file:local.db',
+  url: dbPath,
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 

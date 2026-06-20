@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Settings } from 'lucide-react';
 
 export default function Layout({ user, onLogout }) {
   const isCompany = user?.role === 'company';
@@ -8,6 +8,7 @@ export default function Layout({ user, onLogout }) {
     { path: '/dashboard', name: 'Şantiyeler', icon: <MapPin size={20} /> },
     { path: '/employees', name: 'Çalışanlar', icon: <Users size={20} /> },
     { path: '/logs', name: 'Mesai Kayıtları', icon: <FileText size={20} /> },
+    { path: '/settings', name: 'Ayarlar', icon: <Settings size={20} /> },
   ];
 
   const employeeMenuItems = [
@@ -23,7 +24,7 @@ export default function Layout({ user, onLogout }) {
       <aside className="sidebar">
         <div style={{ padding: '1rem 0 2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--brand-gradient)' }}></div>
-          <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>Mesai v1.7.6</span></h2>
+          <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>Mesai v1.7.10</span></h2>
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 4 }}>

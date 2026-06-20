@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Users, Plus, Phone, User, Camera, Calendar, Clock, Pause, Play, ChevronRight, X, Image } from 'lucide-react';
+import { Users, Plus, Phone, User, Camera, Calendar, Clock, Pause, Play, ChevronRight, X, Image, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export default function Employees({ user }) {
   const [employees, setEmployees] = useState([]);
@@ -12,6 +13,7 @@ export default function Employees({ user }) {
   const [name, setName] = useState('');
   const [surname, setSurname] = useState('');
   const [phone, setPhone] = useState('');
+  const [hourlyWage, setHourlyWage] = useState('');
   const [photo, setPhoto] = useState(null); // Base64 compressed profile image
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,7 +44,7 @@ export default function Employees({ user }) {
     try {
       await axios.post(
         `${host}/api/mesai/employees`,
-        { name, surname, phone_number: phone, photo_base64: photo },
+        { name, surname, phone_number: phone, photo_base64: photo, hourly_wage: hourlyWage },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setShowAddModal(false);
@@ -50,6 +52,7 @@ export default function Employees({ user }) {
       setSurname('');
       setPhone('');
       setPhoto(null);
+      setHourlyWage('');
       fetchEmployees();
     } catch (err) {
       setError(err.response?.data?.error || 'Personel eklenirken hata oluştu.');
@@ -111,6 +114,35 @@ export default function Employees({ user }) {
         setPhoto(compressedBase64);
       };
     };
+  };
+
+  const exportEmployeeExcel = () => {
+    if (!reportData || !selectedEmp) return;
+    
+    const wsDaily = XLSX.utils.json_to_sheet(reportData.daily.map(day => ({
+      'Tarih': day.date,
+      'Giriş': day.check_in,
+      'Çıkış': day.check_out,
+      'Net Süre (Saat)': day.hours,
+      'Mola Süresi (Saat)': day.break_hours,
+      'Günlük Kazanç': `₺${day.wage}`
+    })));
+    
+    const wsMonthly = XLSX.utils.json_to_sheet(reportData.monthly.map(m => ({
+      'Ay': m.month,
+      'Çalışılan Süre (Saat)': m.hours,
+      'Mola Süresi (Saat)': m.break_hours,
+      'Çalışılan Gün Sayısı': m.days_present,
+      'İzinli Gün Sayısı': m.days_leave,
+      'Toplam Kazanç': `₺${m.wage}`
+    })));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsDaily, "Günlük Rapor");
+    XLSX.utils.book_append_sheet(wb, wsMonthly, "Aylık Özet");
+    
+    const filename = `${selectedEmp.name}_${selectedEmp.surname}_Mesai_Raporu.xlsx`;
+    XLSX.writeFile(wb, filename);
   };
 
   const viewReport = async (emp) => {
@@ -218,6 +250,15 @@ export default function Employees({ user }) {
             </div>
             
             <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {reportData && (
+                <button 
+                  onClick={exportEmployeeExcel}
+                  className="btn-outline"
+                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4, borderColor: 'var(--brand-primary)', color: 'var(--brand-primary)' }}
+                >
+                  <Download size={14} /> Excel Raporu
+                </button>
+              )}
               <button 
                 onClick={() => toggleStatus(selectedEmp.id, selectedEmp.is_active)}
                 className={selectedEmp.is_active ? "btn-outline" : "btn-primary"}
@@ -246,7 +287,8 @@ export default function Employees({ user }) {
                     <div key={idx} style={{ background: 'rgba(255,255,255,0.8)', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{m.month}</div>
                       <div style={{ fontSize: '1.3rem', fontWeight: 700, margin: '0.25rem 0', color: 'var(--text-primary)' }}>{m.hours} Saat</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Toplam: {m.days_present} Gün Çalışıldı</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--status-success)' }}>₺{m.wage}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Gün: {m.days_present} | İzin: {m.days_leave} | Mola: {m.break_hours}s</div>
                     </div>
                   ))}
                   {reportData.monthly.length === 0 && (
@@ -265,8 +307,9 @@ export default function Employees({ user }) {
                         <th style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>Tarih</th>
                         <th style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>Giriş</th>
                         <th style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>Çıkış</th>
-                        <th style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>Süre (Saat)</th>
-                        <th style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>Lokasyon</th>
+                        <th style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>Süre (S)</th>
+                        <th style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>Mola (S)</th>
+                        <th style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>Kazanç (₺)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -276,14 +319,13 @@ export default function Employees({ user }) {
                           <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: 'var(--status-success)' }}>{day.check_in}</td>
                           <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: 'var(--status-warning)' }}>{day.check_out}</td>
                           <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600 }}>{day.hours}</td>
-                          <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={day.location}>
-                            {day.location}
-                          </td>
+                          <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>{day.break_hours}</td>
+                          <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--status-success)' }}>₺{day.wage}</td>
                         </tr>
                       ))}
                       {reportData.daily.length === 0 && (
                         <tr>
-                          <td colSpan="5" style={{ textAlign: 'center', padding: '1rem', fontSize: '0.85rem' }} className="text-muted">
+                          <td colSpan="6" style={{ textAlign: 'center', padding: '1rem', fontSize: '0.85rem' }} className="text-muted">
                             Bu personele ait çalışma kaydı bulunamadı.
                           </td>
                         </tr>
@@ -348,6 +390,13 @@ export default function Employees({ user }) {
                 <div style={{ position: 'relative' }}>
                   <Phone size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input required style={inputStyle} value={phone} onChange={e => setPhone(e.target.value)} placeholder="Örn: +905XXXXXXXXX" />
+                </div>
+              </div>
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Saatlik Ücret (₺)</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 600 }}>₺</span>
+                  <input type="number" step="0.01" style={inputStyle} value={hourlyWage} onChange={e => setHourlyWage(e.target.value)} placeholder="Örn: 250" />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
