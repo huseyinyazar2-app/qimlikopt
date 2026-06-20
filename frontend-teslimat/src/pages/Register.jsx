@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useState } from 'react';
 import axios from 'axios';
 import { KeyRound, Phone, Building2, User, ShieldCheck } from 'lucide-react';
@@ -31,7 +32,7 @@ export default function Register({ onLogin }) {
       onLogin({ ...res.data.company, role: 'company' });
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Kayıt sırasında bir hata oluştu. Bilgilerinizi kontrol edin.');
+      toast.error(err.response?.data?.error || 'Kayıt sırasında bir hata oluştu. Bilgilerinizi kontrol edin.');
     } finally {
       setLoading(false);
     }
@@ -50,7 +51,7 @@ export default function Register({ onLogin }) {
           <p className="text-muted">Firma hesabınızı hemen oluşturun</p>
         </div>
 
-        {error && (
+        {false && (
           <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: 8, fontSize: '0.9rem', textAlign: 'center', marginBottom: '1rem' }}>
             {error}
           </div>

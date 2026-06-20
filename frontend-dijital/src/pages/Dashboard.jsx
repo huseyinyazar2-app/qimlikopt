@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, Calendar, MapPin } from 'lucide-react';
+import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, Calendar, MapPin, Box, Command } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard({ user }) {
   const isCompany = user?.role === 'company';
@@ -19,6 +21,11 @@ export default function Dashboard({ user }) {
   const [formId, setFormId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+
+  // Command Palette
+  const [showCmd, setShowCmd] = useState(false);
+  const [cmdSearch, setCmdSearch] = useState('');
 
   // Technician states
   const [scanCode, setScanCode] = useState('');
@@ -28,6 +35,7 @@ export default function Dashboard({ user }) {
   const token = user?.password;
 
   const fetchCompanyData = async () => {
+    setLoadingData(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const resM = await axios.get(`${host}/api/dijital/machines`, { headers });
@@ -35,7 +43,9 @@ export default function Dashboard({ user }) {
       const resF = await axios.get(`${host}/api/dijital/forms`, { headers });
       setForms(resF.data);
     } catch (err) {
-      console.error('Veriler yüklenirken hata oluştu:', err);
+      toast.error('Veriler yüklenirken hata oluştu');
+    } finally {
+      setLoadingData(false);
     }
   };
 
@@ -54,6 +64,16 @@ export default function Dashboard({ user }) {
     } else {
       fetchTechData();
     }
+
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCmd(true);
+      }
+      if (e.key === 'Escape') setShowCmd(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleAddMachine = async (e) => {
@@ -82,8 +102,9 @@ export default function Dashboard({ user }) {
       setLocation('');
       setFormId('');
       fetchCompanyData();
+      toast.success('Makine başarıyla eklendi!');
     } catch (err) {
-      setError(err.response?.data?.error || 'Makine eklenirken bir hata oluştu.');
+      toast.error(err.response?.data?.error || 'Makine eklenirken bir hata oluştu.');
     } finally {
       setLoading(false);
     }
@@ -208,23 +229,80 @@ export default function Dashboard({ user }) {
         </div>
       </div>
 
+      {/* Stats Dashboard */}
+      {machines.length > 0 && !loadingData && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+          <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+             <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               <CheckCircle size={24} />
+             </div>
+             <div>
+               <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{machines.filter(m => m.status === 'active').length}</div>
+               <div className="text-muted" style={{ fontSize: '0.85rem' }}>Aktif Cihazlar</div>
+             </div>
+          </div>
+          <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+             <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               <AlertCircle size={24} />
+             </div>
+             <div>
+               <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{machines.filter(m => m.status === 'error').length}</div>
+               <div className="text-muted" style={{ fontSize: '0.85rem' }}>Arızalı Cihazlar</div>
+             </div>
+          </div>
+          <div className="glass-card" style={{ padding: '1.5rem', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+             <ResponsiveContainer width="100%" height="100%">
+               <PieChart>
+                 <Pie data={[
+                     { name: 'Aktif', value: machines.filter(m => m.status === 'active').length, color: '#10b981' },
+                     { name: 'Arızalı', value: machines.filter(m => m.status === 'error').length, color: '#ef4444' },
+                     { name: 'Bakımda', value: machines.filter(m => m.status === 'maintenance').length, color: '#f59e0b' }
+                   ]} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={25} outerRadius={40}>
+                   {
+                     [
+                       { name: 'Aktif', value: machines.filter(m => m.status === 'active').length, color: '#10b981' },
+                       { name: 'Arızalı', value: machines.filter(m => m.status === 'error').length, color: '#ef4444' },
+                       { name: 'Bakımda', value: machines.filter(m => m.status === 'maintenance').length, color: '#f59e0b' }
+                     ].map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)
+                   }
+                 </Pie>
+                 <Tooltip />
+               </PieChart>
+             </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       {/* Grid of machines */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-        {filteredMachines.map(m => {
+        {loadingData ? (
+          // Skeleton Loaders
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="glass-card" style={{ height: 280, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="skeleton-box" style={{ height: 24, width: '40%' }}></div>
+              <div className="skeleton-box" style={{ height: 20, width: '80%' }}></div>
+              <div className="skeleton-box" style={{ height: 16, width: '60%' }}></div>
+              <div style={{ marginTop: 'auto', display: 'flex', gap: '1rem' }}>
+                <div className="skeleton-box" style={{ height: 64, width: 64 }}></div>
+                <div className="skeleton-box" style={{ height: 64, flex: 1 }}></div>
+              </div>
+            </div>
+          ))
+        ) : filteredMachines.map(m => {
           const qrLink = `${window.location.protocol}//${window.location.host}/m/${m.machine_code}`;
           const qrImage = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrLink)}`;
 
           return (
-            <div key={m.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%' }}>
+            <div key={m.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', transition: 'transform 0.2s, box-shadow 0.2s', cursor: 'default' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)'; }} onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                   <div>
                     <span className="badge" style={{ background: 'rgba(15,23,42,0.05)', marginRight: '0.5rem', fontFamily: 'monospace' }}>{m.machine_code}</span>
-                    <span className={`badge ${m.status === 'active' ? 'success' : m.status === 'maintenance' ? 'warning' : 'error'}`}>
+                    <span className={`badge ${m.status === 'active' ? 'success pulse-badge' : m.status === 'maintenance' ? 'warning pulse-badge' : 'error'}`}>
                       {m.status === 'active' ? 'Aktif' : m.status === 'maintenance' ? 'Bakımda' : 'Arızalı'}
                     </span>
                   </div>
-                  <a href={`/m/${m.machine_code}`} target="_blank" rel="noreferrer" title="Detay Ekranını Aç" style={{ color: 'var(--brand-primary)' }}>
+                  <a href={`/m/${m.machine_code}`} target="_blank" rel="noreferrer" title="Detay Ekranını Aç" style={{ color: 'var(--brand-primary)', padding: '0.25rem', borderRadius: 4, background: 'rgba(2,132,199,0.1)' }}>
                     <ExternalLink size={18} />
                   </a>
                 </div>
@@ -244,7 +322,7 @@ export default function Dashboard({ user }) {
               </div>
 
               {/* QR Image Download Area */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--glass-border)', borderRadius: 8, padding: '0.75rem', textAlign: 'center', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--glass-border)', borderRadius: 8, padding: '0.75rem', textAlign: 'center', display: 'flex', alignItems: 'center', gap: '1rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.1)'} onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.02)'}>
                 <img src={qrImage} alt="Machine QR" style={{ width: 64, height: 64, display: 'block', borderRadius: 4, background: 'white', padding: 2 }} />
                 <div style={{ textAlign: 'left', flex: 1 }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>Etiket QR Kodu</div>
@@ -257,13 +335,47 @@ export default function Dashboard({ user }) {
           );
         })}
 
-        {filteredMachines.length === 0 && (
-          <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 1rem' }}>
-            <AlertCircle size={48} className="text-muted" style={{ margin: '0 auto 1rem auto' }} />
-            <p className="text-muted">Kayıtlı makine/ekipman bulunamadı.</p>
+        {filteredMachines.length === 0 && !loadingData && (
+          <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(2, 132, 199, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
+              <Box size={40} color="var(--brand-primary)" />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Henüz Envanteriniz Boş</h3>
+            <p className="text-muted" style={{ maxWidth: 400, margin: '0 auto 1.5rem auto' }}>
+              Sisteme kayıtlı hiçbir makine veya ekipman bulunmuyor. Yeni bir kayıt oluşturarak hemen QR kodlu takibe başlayabilirsiniz.
+            </p>
+            <button onClick={() => setShowAddModal(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
+              <Plus size={18} /> İlk Ekipmanı Ekle
+            </button>
           </div>
         )}
       </div>
+
+      {/* Command Palette */}
+      {showCmd && (
+        <div className="cmd-palette-overlay" onClick={(e) => e.target === e.currentTarget && setShowCmd(false)}>
+          <div className="cmd-palette">
+            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', padding: '0 1rem' }}>
+               <Search size={20} color="var(--text-muted)" />
+               <input autoFocus value={cmdSearch} onChange={e => setCmdSearch(e.target.value)} placeholder="Bir makine ara veya komut girin..." />
+               <div style={{ fontSize: '0.75rem', background: 'rgba(0,0,0,0.05)', padding: '0.2rem 0.5rem', borderRadius: 4, color: 'var(--text-muted)' }}>ESC</div>
+            </div>
+            <div className="cmd-palette-list">
+               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', padding: '0.5rem 1rem' }}>Hızlı İşlemler</div>
+               <div className="cmd-palette-item" onClick={() => { setShowCmd(false); setShowAddModal(true); }}>
+                 <Plus size={16} /> Yeni Makine Ekle
+               </div>
+               
+               {cmdSearch && <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', padding: '1rem 1rem 0.5rem 1rem', borderTop: '1px solid var(--glass-border)', marginTop: '0.5rem' }}>Arama Sonuçları</div>}
+               {machines.filter(m => m.machine_name.toLowerCase().includes(cmdSearch.toLowerCase()) || m.machine_code.toLowerCase().includes(cmdSearch.toLowerCase())).slice(0, 5).map(m => (
+                 <div key={m.id} className="cmd-palette-item" onClick={() => { setShowCmd(false); window.open(`/m/${m.machine_code}`, '_blank'); }}>
+                   <Box size={16} /> {m.machine_name} <span style={{ opacity: 0.5, fontSize: '0.8rem' }}>({m.machine_code})</span>
+                 </div>
+               ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Machine Modal */}
       {showAddModal && (

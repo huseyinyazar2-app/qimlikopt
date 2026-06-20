@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useState } from 'react';
 import axios from 'axios';
 import { ShieldAlert, User, KeyRound } from 'lucide-react';
@@ -18,7 +19,7 @@ export default function Login({ onLogin }) {
       const res = await axios.post(`${getApiUrl()}/api/admin/login`, { username, password });
       onLogin(res.data.token, res.data.username);
     } catch (err) {
-      setError(err.response?.data?.error || 'Giriş başarısız. Kullanıcı adı veya şifre hatalı.');
+      toast.error(err.response?.data?.error || 'Giriş başarısız. Kullanıcı adı veya şifre hatalı.');
     } finally {
       setLoading(false);
     }
@@ -36,7 +37,7 @@ export default function Login({ onLogin }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {error && (
+          {false && (
             <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: 8, fontSize: '0.9rem', textAlign: 'center' }}>
               {error}
             </div>

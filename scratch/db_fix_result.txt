@@ -1,0 +1,13 @@
+STDOUT: ◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+URL used: file:local.db
+Error or Skipped: ALTER TABLE dijital_companies ADD COLUMN contact_name VARCHAR(100); - SQLITE_ERROR: duplicate column name: contact_name
+Error or Skipped: ALTER TABLE dijital_companies ADD COLUMN contact_surname VARCHAR(100); - SQLITE_ERROR: duplicate column name: contact_surname
+Error or Skipped: ALTER TABLE mesai_companies ADD COLUMN contact_name VARCHAR(100); - SQLITE_ERROR: duplicate column name: contact_name
+Error or Skipped: ALTER TABLE mesai_companies ADD COLUMN contact_surname VARCHAR(100); - SQLITE_ERROR: duplicate column name: contact_surname
+Error or Skipped: ALTER TABLE teslimat_companies ADD COLUMN contact_name VARCHAR(100); - SQLITE_ERROR: duplicate column name: contact_name
+Error or Skipped: ALTER TABLE teslimat_companies ADD COLUMN contact_surname VARCHAR(100); - SQLITE_ERROR: duplicate column name: contact_surname
+Error or Skipped: ALTER TABLE clients ADD COLUMN contact_name VARCHAR(100); - SQLITE_ERROR: duplicate column name: contact_name
+Error or Skipped: ALTER TABLE clients ADD COLUMN contact_surname VARCHAR(100); - SQLITE_ERROR: duplicate column name: contact_surname
+Done!
+
+STDERR: 

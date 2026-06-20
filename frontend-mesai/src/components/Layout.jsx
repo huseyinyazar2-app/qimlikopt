@@ -23,7 +23,7 @@ export default function Layout({ user, onLogout }) {
       <aside className="sidebar">
         <div style={{ padding: '1rem 0 2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--brand-gradient)' }}></div>
-          <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>Mesai v1.7.5</span></h2>
+          <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>Mesai v1.7.6</span></h2>
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 4 }}>

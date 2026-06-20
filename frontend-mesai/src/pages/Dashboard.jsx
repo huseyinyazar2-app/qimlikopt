@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   MapPin, 
+  Search,
+  Command,
+  Box,
   Users, 
   Clock, 
   Activity, 
@@ -23,6 +28,9 @@ export default function Dashboard({ user }) {
   
   // Employee stats states
   const [employeeReport, setEmployeeReport] = useState(null);
+  const [loadingData, setLoadingData] = useState(true);
+  const [showCmd, setShowCmd] = useState(false);
+  const [cmdSearch, setCmdSearch] = useState('');
   
   // Simulation states
   const [selectedLocId, setSelectedLocId] = useState('');
@@ -32,6 +40,7 @@ export default function Dashboard({ user }) {
   const token = user?.password;
 
   const fetchCompanyData = async () => {
+    setLoadingData(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const resLoc = await axios.get(`${host}/api/mesai/locations`, { headers });
@@ -44,7 +53,9 @@ export default function Dashboard({ user }) {
       const resLogs = await axios.get(`${host}/api/mesai/company/logs`, { headers });
       setLogs(resLogs.data);
     } catch (err) {
-      console.error('Firma verileri yüklenirken hata:', err);
+      toast.error('Firma verileri yüklenirken hata');
+    } finally {
+      setLoadingData(false);
     }
   };
 
@@ -57,7 +68,9 @@ export default function Dashboard({ user }) {
       const resLocs = await axios.get(`${host}/api/mesai/company/login`); // wait, we don't have public locations route. Let's see if we can get locations.
       // Actually we can query them or employee knows location. We will fetch locations from a public endpoint if available, but let's mock or fetch from public route if needed.
     } catch (err) {
-      console.error('Personel verileri yüklenirken hata:', err);
+      toast.error('Personel verileri yüklenirken hata');
+    } finally {
+      setLoadingData(false);
     }
   };
 
@@ -85,6 +98,16 @@ export default function Dashboard({ user }) {
       fetchEmployeeData();
       fetchEmployeeLocations();
     }
+
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCmd(true);
+      }
+      if (e.key === 'Escape') setShowCmd(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleSimulateScan = (e) => {
@@ -263,6 +286,27 @@ export default function Dashboard({ user }) {
             <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>{getTodayActiveCount()} Personel</div>
           </div>
         </div>
+        
+        {employees.length > 0 && !loadingData && (
+          <div className="glass-card" style={{ height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+             <ResponsiveContainer width="100%" height="100%">
+               <PieChart>
+                 <Pie data={[
+                     { name: 'Sahada', value: getTodayActiveCount(), color: '#f59e0b' },
+                     { name: 'Değil', value: employees.length - getTodayActiveCount(), color: '#94a3b8' }
+                   ]} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={25} outerRadius={40}>
+                   {
+                     [
+                       { name: 'Sahada', value: getTodayActiveCount(), color: '#f59e0b' },
+                       { name: 'Değil', value: employees.length - getTodayActiveCount(), color: '#94a3b8' }
+                     ].map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)
+                   }
+                 </Pie>
+                 <Tooltip />
+               </PieChart>
+             </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
@@ -379,6 +423,27 @@ export default function Dashboard({ user }) {
         </div>
 
       </div>
+
+      {/* Command Palette */}
+      {showCmd && (
+        <div className="cmd-palette-overlay" onClick={(e) => e.target === e.currentTarget && setShowCmd(false)}>
+          <div className="cmd-palette">
+            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', padding: '0 1rem' }}>
+               <Search size={20} color="var(--text-muted)" />
+               <input autoFocus value={cmdSearch} onChange={e => setCmdSearch(e.target.value)} placeholder="Personel veya lokasyon ara..." />
+               <div style={{ fontSize: '0.75rem', background: 'rgba(0,0,0,0.05)', padding: '0.2rem 0.5rem', borderRadius: 4, color: 'var(--text-muted)' }}>ESC</div>
+            </div>
+            <div className="cmd-palette-list">
+               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', padding: '0.5rem 1rem' }}>Hızlı Arama Sonuçları</div>
+               {cmdSearch && [...employees.map(e=>({...e, type:'Personel'})), ...locations.map(l=>({...l, type:'Şantiye'}))].filter(item => (item.name && item.name.toLowerCase().includes(cmdSearch.toLowerCase())) || (item.location_name && item.location_name.toLowerCase().includes(cmdSearch.toLowerCase()))).slice(0, 5).map((item, idx) => (
+                 <div key={idx} className="cmd-palette-item" onClick={() => setShowCmd(false)}>
+                   <Box size={16} /> {item.name ? `${item.name} ${item.surname}` : item.location_name} <span style={{ opacity: 0.5, fontSize: '0.8rem' }}>({item.type})</span>
+                 </div>
+               ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

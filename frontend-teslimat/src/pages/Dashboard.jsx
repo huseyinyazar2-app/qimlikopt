@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   Package, 
+  Search,
+  Command,
+  Box,
   Truck, 
   CheckCircle2, 
   MapPin, 
@@ -19,6 +24,9 @@ export default function Dashboard({ user }) {
   const [packages, setPackages] = useState([]);
   const [couriers, setCouriers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [showCmd, setShowCmd] = useState(false);
+  const [cmdSearch, setCmdSearch] = useState('');
 
   // Simulation states
   const [selectedPackId, setSelectedPackId] = useState('');
@@ -41,7 +49,7 @@ export default function Dashboard({ user }) {
       if (pendingPacks.length > 0) setSelectedPackId(pendingPacks[0].id.toString());
       if (resC.data.length > 0) setSelectedCourierId(resC.data[0].id.toString());
     } catch (err) {
-      console.error('Firma verileri yüklenemedi:', err);
+      toast.error('Firma verileri yüklenemedi');
     } finally {
       setLoading(false);
     }
@@ -54,7 +62,7 @@ export default function Dashboard({ user }) {
       });
       setPackages(res.data);
     } catch (err) {
-      console.error('Kurye paketleri yüklenemedi:', err);
+      toast.error('Kurye paketleri yüklenemedi');
     } finally {
       setLoading(false);
     }
@@ -66,6 +74,16 @@ export default function Dashboard({ user }) {
     } else {
       fetchCourierData();
     }
+
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCmd(true);
+      }
+      if (e.key === 'Escape') setShowCmd(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleSimulateScan = (e) => {
@@ -224,6 +242,29 @@ export default function Dashboard({ user }) {
             <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>{deliveredCount} Paket</div>
           </div>
         </div>
+        
+        {packages.length > 0 && (
+          <div className="glass-card" style={{ height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+             <ResponsiveContainer width="100%" height="100%">
+               <PieChart>
+                 <Pie data={[
+                     { name: 'Teslim Edildi', value: deliveredCount, color: '#10b981' },
+                     { name: 'Yolda', value: inTransitCount, color: '#f59e0b' },
+                     { name: 'Bekliyor', value: packages.length - deliveredCount - inTransitCount, color: '#64748b' }
+                   ]} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={25} outerRadius={40}>
+                   {
+                     [
+                       { name: 'Teslim Edildi', value: deliveredCount, color: '#10b981' },
+                       { name: 'Yolda', value: inTransitCount, color: '#f59e0b' },
+                       { name: 'Bekliyor', value: packages.length - deliveredCount - inTransitCount, color: '#64748b' }
+                     ].map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)
+                   }
+                 </Pie>
+                 <Tooltip />
+               </PieChart>
+             </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '1.5rem', alignItems: 'start', flexWrap: 'wrap' }}>
@@ -331,6 +372,27 @@ export default function Dashboard({ user }) {
         </div>
 
       </div>
+
+      {/* Command Palette */}
+      {showCmd && (
+        <div className="cmd-palette-overlay" onClick={(e) => e.target === e.currentTarget && setShowCmd(false)}>
+          <div className="cmd-palette">
+            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', padding: '0 1rem' }}>
+               <Search size={20} color="var(--text-muted)" />
+               <input autoFocus value={cmdSearch} onChange={e => setCmdSearch(e.target.value)} placeholder="Paket, Kurye veya Alıcı ara..." />
+               <div style={{ fontSize: '0.75rem', background: 'rgba(0,0,0,0.05)', padding: '0.2rem 0.5rem', borderRadius: 4, color: 'var(--text-muted)' }}>ESC</div>
+            </div>
+            <div className="cmd-palette-list">
+               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', padding: '0.5rem 1rem' }}>Hızlı Arama Sonuçları</div>
+               {cmdSearch && packages.filter(item => (item.package_code && item.package_code.toLowerCase().includes(cmdSearch.toLowerCase())) || (item.recipient_name && item.recipient_name.toLowerCase().includes(cmdSearch.toLowerCase()))).slice(0, 5).map((item, idx) => (
+                 <div key={idx} className="cmd-palette-item" onClick={() => setShowCmd(false)}>
+                   <Box size={16} /> {item.recipient_name} <span style={{ opacity: 0.5, fontSize: '0.8rem' }}>({item.package_code})</span>
+                 </div>
+               ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

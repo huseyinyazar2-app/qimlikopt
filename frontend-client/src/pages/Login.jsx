@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useState } from 'react';
 import axios from 'axios';
 import { KeyRound, Phone } from 'lucide-react';
@@ -19,7 +20,7 @@ export default function Login({ onLogin }) {
       const res = await axios.post(`${getApiUrl()}/api/client/login`, { phone_number: phoneNumber, api_key: apiKey });
       onLogin(res.data.client);
     } catch (err) {
-      setError(err.response?.data?.error || 'Giriş yapılamadı. Bilgilerinizi kontrol edin.');
+      toast.error(err.response?.data?.error || 'Giriş yapılamadı. Bilgilerinizi kontrol edin.');
     } finally {
       setLoading(false);
     }
@@ -35,7 +36,7 @@ export default function Login({ onLogin }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {error && (
+          {false && (
             <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: 8, fontSize: '0.9rem', textAlign: 'center' }}>
               {error}
             </div>

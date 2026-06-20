@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { KeyRound, Phone, Building2, User, QrCode, MessageSquare, Clock, ShieldCheck } from 'lucide-react';
@@ -30,7 +31,7 @@ export default function Login({ onLogin }) {
         if (prev <= 1) {
           clearInterval(timer);
           setEmpStatus('idle');
-          setError('Doğrulama süresi doldu. Lütfen tekrar deneyin.');
+          toast.error('Doğrulama süresi doldu. Lütfen tekrar deneyin.');
           return 0;
         }
         return prev - 1;
@@ -77,7 +78,7 @@ export default function Login({ onLogin }) {
         setTimeLeft(180);
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Bir hata oluştu. Bilgilerinizi kontrol edin.');
+      toast.error(err.response?.data?.error || 'Bir hata oluştu. Bilgilerinizi kontrol edin.');
     } finally {
       setLoading(false);
     }
@@ -125,7 +126,7 @@ export default function Login({ onLogin }) {
           </div>
         )}
 
-        {error && (
+        {false && (
           <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: 8, fontSize: '0.9rem', textAlign: 'center', marginBottom: '1rem' }}>
             {error}
           </div>
