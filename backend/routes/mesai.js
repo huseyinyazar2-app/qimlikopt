@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard } = require('../auth');
+const { createOtp, verifyOtp } = require('../otp');
 
 const router = express.Router();
 
@@ -204,7 +205,7 @@ router.post('/employee/login/request', async (req, res) => {
             );
         }
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const code = await createOtp('mesai', 'login', phone_number);
         res.json({
             prefix: 'MSAI',
             code,
@@ -221,24 +222,8 @@ router.get('/employee/login/status', async (req, res) => {
         return res.status(400).json({ error: 'Telefon ve kod zorunludur.' });
     }
     try {
-        const targetMessage = `MSAI ${code}`;
-        const { rows } = await db.query(
-            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? AND created_at >= datetime('now', '-5 minutes') LIMIT 1",
-            [targetMessage]
-        );
-
-        if (rows.length === 0) {
-            return res.json({ verified: false });
-        }
-
-        const logPhone = rows[0].phone_number.replace(/\D/g, '');
-        const cleanInputPhone = phone_number.replace(/\D/g, '');
-
-        const isMatched = cleanInputPhone.length >= 9 && logPhone.length >= 9
-            ? logPhone.endsWith(cleanInputPhone.slice(-9)) || cleanInputPhone.endsWith(logPhone.slice(-9))
-            : logPhone === cleanInputPhone;
-
-        if (!isMatched) {
+        const result = await verifyOtp('mesai', 'login', phone_number, code, 'MSAI');
+        if (!result.verified) {
             return res.json({ verified: false });
         }
 

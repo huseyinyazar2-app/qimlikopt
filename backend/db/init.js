@@ -8,12 +8,12 @@ async function initDb() {
         const schemaPath = path.join(__dirname, 'schema.sql');
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
 
-        // Split by semicolon, filter empty, and execute each statement
-        const statements = schemaSql.split(';').filter(stmt => stmt.trim() !== '');
+        // Tüm şemayı tek seferde çalıştır (naif ';' bölme yerine).
+        // Böylece string/yorum içindeki ';' karakterleri ifadeleri bölmez.
+        await db.client.executeMultiple(schemaSql);
 
-        for (const stmt of statements) {
-            await db.client.execute(stmt);
-        }
+        // Yabancı anahtar (foreign key) zorlamasını aç
+        await db.client.execute('PRAGMA foreign_keys = ON');
 
         // Varsayılan/düz metin admin şifresini bir kez hash'le (DB'de düz metin bırakma)
         const { rows } = await db.client.execute("SELECT value FROM global_settings WHERE key = 'ADMIN_PASSWORD'");

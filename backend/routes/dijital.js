@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard } = require('../auth');
+const { createOtp, verifyOtp } = require('../otp');
 
 // Haversine formula for distance calculation (in meters)
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -336,7 +337,7 @@ router.post('/technician/login/request', async (req, res) => {
             );
         }
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const code = await createOtp('dijital', 'login', phone_number);
         res.json({
             prefix: 'DJTL',
             code,
@@ -354,24 +355,8 @@ router.get('/technician/login/status', async (req, res) => {
     }
 
     try {
-        const targetMessage = `DJTL ${code}`;
-        const { rows } = await db.query(
-            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? AND created_at >= datetime('now', '-5 minutes') LIMIT 1",
-            [targetMessage]
-        );
-
-        if (rows.length === 0) {
-            return res.json({ verified: false });
-        }
-
-        const logPhone = rows[0].phone_number.replace(/\D/g, '');
-        const cleanInputPhone = phone_number.replace(/\D/g, '');
-
-        const isMatched = cleanInputPhone.length >= 9 && logPhone.length >= 9
-            ? logPhone.endsWith(cleanInputPhone.slice(-9)) || cleanInputPhone.endsWith(logPhone.slice(-9))
-            : logPhone === cleanInputPhone;
-
-        if (!isMatched) {
+        const result = await verifyOtp('dijital', 'login', phone_number, code, 'DJTL');
+        if (!result.verified) {
             return res.json({ verified: false });
         }
 

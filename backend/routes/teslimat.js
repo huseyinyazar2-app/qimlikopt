@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard } = require('../auth');
+const { createOtp, verifyOtp } = require('../otp');
 
 const router = express.Router();
 
@@ -185,7 +186,7 @@ router.post('/courier/login/request', async (req, res) => {
             );
         }
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const code = await createOtp('teslimat', 'login', phone_number);
         res.json({
             prefix: 'TSLM',
             code,
@@ -202,24 +203,8 @@ router.get('/courier/login/status', async (req, res) => {
         return res.status(400).json({ error: 'Telefon ve kod zorunludur.' });
     }
     try {
-        const targetMessage = `TSLM ${code}`;
-        const { rows } = await db.query(
-            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? AND created_at >= datetime('now', '-5 minutes') LIMIT 1",
-            [targetMessage]
-        );
-
-        if (rows.length === 0) {
-            return res.json({ verified: false });
-        }
-
-        const logPhone = rows[0].phone_number.replace(/\D/g, '');
-        const cleanInputPhone = phone_number.replace(/\D/g, '');
-
-        const isMatched = cleanInputPhone.length >= 9 && logPhone.length >= 9
-            ? logPhone.endsWith(cleanInputPhone.slice(-9)) || cleanInputPhone.endsWith(logPhone.slice(-9))
-            : logPhone === cleanInputPhone;
-
-        if (!isMatched) {
+        const result = await verifyOtp('teslimat', 'login', phone_number, code, 'TSLM');
+        if (!result.verified) {
             return res.json({ verified: false });
         }
 
@@ -249,30 +234,36 @@ router.get('/courier/packages', courierAuth, async (req, res) => {
 });
 
 // --- 5. RECIPIENT DELIVERY VERIFICATION (REVERSE OTP) ---
+// Kurye, alıcıya gönderilecek teslimat kodunu sunucudan ister (tarayıcıda üretilmez).
+router.post('/deliver/request', courierAuth, async (req, res) => {
+    const { package_id } = req.body;
+    if (!package_id) {
+        return res.status(400).json({ error: 'Paket ID zorunludur.' });
+    }
+    try {
+        const { rows } = await db.query(
+            'SELECT recipient_phone FROM teslimat_packages WHERE id = ? AND courier_id = ?',
+            [package_id, req.worker.id]
+        );
+        if (rows.length === 0) {
+            return res.status(403).json({ error: 'Bu paket size zimmetli değil.' });
+        }
+        const recipientPhone = rows[0].recipient_phone;
+        const code = await createOtp('teslimat', 'delivery', recipientPhone, package_id);
+        res.json({ prefix: 'TSLM', code, gateway_phone: '905303700589', recipient_phone: recipientPhone });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.get('/deliver/status', courierAuth, async (req, res) => {
     const { phone_number, code } = req.query;
     if (!phone_number || !code) {
         return res.status(400).json({ error: 'Telefon ve OTP kodu zorunludur.' });
     }
     try {
-        const targetMessage = `TSLM ${code}`;
-        const { rows } = await db.query(
-            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? AND created_at >= datetime('now', '-5 minutes') LIMIT 1",
-            [targetMessage]
-        );
-
-        if (rows.length === 0) {
-            return res.json({ verified: false });
-        }
-
-        const logPhone = rows[0].phone_number.replace(/\D/g, '');
-        const cleanInputPhone = phone_number.replace(/\D/g, '');
-
-        const isMatched = cleanInputPhone.length >= 9 && logPhone.length >= 9
-            ? logPhone.endsWith(cleanInputPhone.slice(-9)) || cleanInputPhone.endsWith(logPhone.slice(-9))
-            : logPhone === cleanInputPhone;
-
-        res.json({ verified: isMatched });
+        const result = await verifyOtp('teslimat', 'delivery', phone_number, code, 'TSLM');
+        res.json({ verified: result.verified });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -290,6 +281,17 @@ router.post('/deliver/confirm', courierAuth, async (req, res) => {
         const { rows: pkgRows } = await db.query('SELECT id FROM teslimat_packages WHERE id = ? AND courier_id = ?', [package_id, req.worker.id]);
         if (pkgRows.length === 0) {
             return res.status(403).json({ error: 'Bu paket size zimmetli değil.' });
+        }
+
+        // Başarılı teslim/kısmi teslim için doğrulanmış alıcı OTP'si zorunlu (iade hariç)
+        if (finalStatus === 'delivered' || finalStatus === 'partial') {
+            const { rows: otpRows } = await db.query(
+                "SELECT id FROM otp_codes WHERE module = 'teslimat' AND purpose = 'delivery' AND package_id = ? AND used = 1 AND created_at >= datetime('now', '-10 minutes') ORDER BY id DESC LIMIT 1",
+                [package_id]
+            );
+            if (otpRows.length === 0) {
+                return res.status(400).json({ error: 'Teslimat, alıcı doğrulaması (OTP) tamamlanmadan onaylanamaz.' });
+            }
         }
 
         await db.query(

@@ -132,13 +132,21 @@ export default function DeliverPage({ user }) {
     return () => clearInterval(poll);
   }, [verifyStatus, otpCode, pack]);
 
-  const startVerification = () => {
+  const startVerification = async () => {
     setError('');
-    // Generate 6 digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setOtpCode(code);
-    setVerifyStatus('verifying');
-    setTimeLeft(180);
+    try {
+      // Kod sunucuda üretilir (tarayıcıda değil); alıcının telefonuna bağlanır
+      const res = await axios.post(`${host}/api/teslimat/deliver/request`, {
+        package_id: pack.id
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOtpCode(res.data.code);
+      setVerifyStatus('verifying');
+      setTimeLeft(180);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Doğrulama kodu oluşturulamadı.');
+    }
   };
 
   // Canvas drawing handlers

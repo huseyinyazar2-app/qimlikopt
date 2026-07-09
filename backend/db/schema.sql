@@ -42,6 +42,21 @@ CREATE TABLE IF NOT EXISTS global_settings (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Sunucu tarafinda uretilen tek kullanimlik OTP kodlari.
+-- module + purpose izolasyonu login/delivery kodlarini ve modulleri ayirir.
+-- used=1 ile tek kullanimlik olur.
+CREATE TABLE IF NOT EXISTS otp_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    module VARCHAR(20) NOT NULL,
+    purpose VARCHAR(20) NOT NULL,     -- 'login' | 'delivery'
+    phone_number VARCHAR(50) NOT NULL,
+    code VARCHAR(10) NOT NULL,
+    package_id INTEGER,               -- delivery için ilgili paket
+    used BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_otp_lookup ON otp_codes (module, purpose, code, used);
+
 -- Default settings
 INSERT INTO global_settings (key, value, description)
 VALUES 
