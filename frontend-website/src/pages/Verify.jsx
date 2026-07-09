@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { ShieldCheck, MessageSquare, CheckCircle, AlertTriangle, Clock, RefreshCw, XCircle } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function Verify() {
   const [searchParams] = useSearchParams();
@@ -44,9 +45,7 @@ export default function Verify() {
   useEffect(() => {
     if (status !== 'waiting') return;
 
-    const host = window.location.hostname.endsWith('qimlik.com')
-      ? 'https://api.qimlik.com'
-      : `http://${window.location.hostname}:3303`;
+    const host = getApiUrl();
 
     const pollInterval = setInterval(async () => {
       try {

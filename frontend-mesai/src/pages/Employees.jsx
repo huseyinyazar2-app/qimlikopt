@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../config';
 import { Users, Plus, Phone, User, Camera, Calendar, Clock, Pause, Play, ChevronRight, X, Image, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -18,7 +19,7 @@ export default function Employees({ user }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
 
   const fetchEmployees = async () => {

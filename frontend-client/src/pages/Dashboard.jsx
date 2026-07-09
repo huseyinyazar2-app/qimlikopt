@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MessageSquare, CheckCircle, XCircle, RefreshCw, Smartphone, QrCode, ArrowRight } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function Dashboard({ user }) {
-  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [stats, setStats] = useState({ total: 0, successful: 0, failed: 0 });
 
   // WhatsApp Simulator State

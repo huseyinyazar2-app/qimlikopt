@@ -20,6 +20,7 @@ import {
   ClipboardList, 
   CheckSquare 
 } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function Home() {
   const [companyName, setCompanyName] = useState('');
@@ -44,7 +45,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const res = await axios.post(`${window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`}/api/client/register`, {
+      const res = await axios.post(`${getApiUrl()}/api/client/register`, {
         company_name: companyName,
         password: password,
         phone_number: phoneNumber,

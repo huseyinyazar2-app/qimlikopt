@@ -17,6 +17,7 @@ import {
   AlertCircle, 
   RefreshCw 
 } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function Dashboard({ user }) {
   const isCompany = user?.role === 'company';
@@ -32,7 +33,7 @@ export default function Dashboard({ user }) {
   const [selectedPackId, setSelectedPackId] = useState('');
   const [selectedCourierId, setSelectedCourierId] = useState('');
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
 
   const fetchCompanyData = async () => {

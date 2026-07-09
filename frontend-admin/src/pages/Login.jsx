@@ -2,17 +2,15 @@ import toast from 'react-hot-toast';
 import { useState } from 'react';
 import axios from 'axios';
 import { ShieldAlert, User, KeyRound } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function Login({ onLogin }) {
-  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -37,12 +35,6 @@ export default function Login({ onLogin }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {false && (
-            <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: 8, fontSize: '0.9rem', textAlign: 'center' }}>
-              {error}
-            </div>
-          )}
-
           <div>
             <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>Kullanıcı Adı</label>
             <div style={{ position: 'relative' }}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ShieldCheck, MapPin, Wrench, Calendar, Camera, CheckCircle, ArrowLeft, LogIn, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function PublicMachine({ user }) {
   const { code } = useParams();
@@ -28,7 +29,7 @@ export default function PublicMachine({ user }) {
   const [techLng, setTechLng] = useState(null);
   const [locError, setLocError] = useState('');
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
   const isTechnician = user?.role === 'technician';
 

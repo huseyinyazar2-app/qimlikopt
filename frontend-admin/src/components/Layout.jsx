@@ -1,7 +1,32 @@
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, Smartphone, FileText, Settings, LogOut } from 'lucide-react';
+import axios from 'axios';
+import { getApiUrl } from '../config';
 
 export default function Layout({ username, onLogout }) {
+  const [systemOnline, setSystemOnline] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const checkHealth = async () => {
+      try {
+        const res = await axios.get(`${getApiUrl()}/health`);
+        if (!cancelled) setSystemOnline(res.data?.status === 'UP');
+      } catch {
+        if (!cancelled) setSystemOnline(false);
+      }
+    };
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  const statusColor = systemOnline ? 'var(--status-success)' : 'var(--status-error)';
+  const statusText = systemOnline === null
+    ? 'Kontrol ediliyor...'
+    : (systemOnline ? 'Sistem Çalışıyor' : 'Bağlantı Yok');
+
   const menuItems = [
     { path: '/dashboard', name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { path: '/clients', name: 'Müşteriler', icon: <Users size={20} /> },
@@ -45,10 +70,10 @@ export default function Layout({ username, onLogout }) {
           </div>
 
           <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.1)', borderRadius: 8 }}>
-            <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: 4 }}>System Status</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: 'var(--status-success)', fontWeight: 500 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--status-success)', boxShadow: '0 0 10px var(--status-success)' }}></div>
-              All Systems Operational
+            <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: 4 }}>Sistem Durumu</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', color: statusColor, fontWeight: 500 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, boxShadow: `0 0 10px ${statusColor}` }}></div>
+              {statusText}
             </div>
           </div>
         </div>

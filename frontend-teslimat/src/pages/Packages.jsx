@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Package, Plus, Clipboard, User, MapPin, Phone, Search, HelpCircle, Truck, ExternalLink, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { getApiUrl } from '../config';
 
 export default function Packages({ user }) {
   const [packages, setPackages] = useState([]);
@@ -20,7 +21,7 @@ export default function Packages({ user }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
 
   const fetchData = async () => {

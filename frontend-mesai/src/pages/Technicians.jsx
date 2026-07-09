@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../config';
 import { Users, Plus, Phone, User, CheckCircle, Pause, Play } from 'lucide-react';
 
 export default function Technicians({ user }) {
@@ -13,7 +14,7 @@ export default function Technicians({ user }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
 
   const fetchTechs = async () => {

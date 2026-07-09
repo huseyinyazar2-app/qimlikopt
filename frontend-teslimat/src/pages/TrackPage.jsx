@@ -11,6 +11,7 @@ import {
   AlertTriangle, 
   RefreshCw 
 } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function TrackPage() {
   const { packageCode } = useParams();
@@ -18,7 +19,7 @@ export default function TrackPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
 
   const fetchTrackingData = async () => {
     setLoading(true);

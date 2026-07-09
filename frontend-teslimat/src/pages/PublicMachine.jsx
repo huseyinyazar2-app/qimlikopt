@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ShieldCheck, MapPin, Wrench, Calendar, Camera, CheckCircle, ArrowLeft, LogIn } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function PublicMachine({ user }) {
   const { code } = useParams();
@@ -19,7 +20,7 @@ export default function PublicMachine({ user }) {
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState(null); // Base64 compressed image
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const isTechnician = user?.role === 'technician';
 
   const fetchMachineDetails = async () => {

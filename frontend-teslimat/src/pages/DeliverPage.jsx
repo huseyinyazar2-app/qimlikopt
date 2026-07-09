@@ -16,6 +16,7 @@ import {
   CheckCircle2, 
   AlertTriangle 
 } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function DeliverPage({ user }) {
   const { packageId } = useParams();
@@ -42,7 +43,7 @@ export default function DeliverPage({ user }) {
   const [deliveryStatus, setDeliveryStatus] = useState('delivered'); // delivered, partial, returned
   const [returnReason, setReturnReason] = useState('');
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
 
   // Fetch package details (requires courier auth token)

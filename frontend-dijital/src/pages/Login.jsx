@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { KeyRound, Phone, Building2, User, QrCode, MessageSquare, Clock, ShieldCheck } from 'lucide-react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { getApiUrl } from '../config';
 
 export default function Login({ onLogin }) {
   const [searchParams] = useSearchParams();
@@ -13,7 +14,6 @@ export default function Login({ onLogin }) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Tech verification states
@@ -21,7 +21,7 @@ export default function Login({ onLogin }) {
   const [verifyDetails, setVerifyDetails] = useState(null); // { prefix, code, gateway_phone }
   const [timeLeft, setTimeLeft] = useState(180);
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
 
   // Countdown timer for technician WhatsApp verification
   useEffect(() => {
@@ -64,7 +64,6 @@ export default function Login({ onLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -111,24 +110,18 @@ export default function Login({ onLogin }) {
           <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.3)', padding: 4, borderRadius: 8, marginBottom: '1.5rem' }}>
             <button 
               type="button" 
-              onClick={() => { setActiveTab('company_login'); setError(''); }}
+              onClick={() => { setActiveTab('company_login'); }}
               style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'company_login' ? 'var(--brand-gradient)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
             >
               Firma Girişi
             </button>
             <button 
               type="button" 
-              onClick={() => { setActiveTab('tech_login'); setError(''); }}
+              onClick={() => { setActiveTab('tech_login'); }}
               style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'tech_login' ? 'var(--brand-gradient)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
             >
               Teknisyen Girişi
             </button>
-          </div>
-        )}
-
-        {false && (
-          <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: 8, fontSize: '0.9rem', textAlign: 'center', marginBottom: '1rem' }}>
-            {error}
           </div>
         )}
 

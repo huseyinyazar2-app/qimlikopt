@@ -4,6 +4,7 @@ import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, C
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { getApiUrl } from '../config';
 
 export default function Dashboard({ user }) {
   const isCompany = user?.role === 'company';
@@ -42,7 +43,7 @@ export default function Dashboard({ user }) {
   const [scanCode, setScanCode] = useState('');
   const [techLogs, setTechLogs] = useState([]);
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
 
   const fetchCompanyData = async () => {

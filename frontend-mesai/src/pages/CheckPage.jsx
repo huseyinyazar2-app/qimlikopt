@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config';
 import { MapPin, ShieldCheck, Navigation, LogIn, LogOut, RefreshCw, AlertTriangle, UserCheck, ArrowLeft, Coffee, CheckCircle } from 'lucide-react';
 
 export default function CheckPage({ user }) {
@@ -17,7 +18,7 @@ export default function CheckPage({ user }) {
   const [successMsg, setSuccessMsg] = useState('');
   const [gpsError, setGpsError] = useState('');
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
 
   // Fetch location details.
   // Single-location endpoint removed; fetch all worker locations (auth) and match by id.

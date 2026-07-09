@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Battery, Wifi } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function Devices() {
-  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [devices, setDevices] = useState([]);
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export default function Devices() {
     };
     fetchDevices();
     // Poll every 30s
-    const interval = setInterval(fetchDevices, 33030);
+    const interval = setInterval(fetchDevices, 30000);
     return () => clearInterval(interval);
   }, []);
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { MapPin, ShieldCheck, Navigation, LogIn, LogOut, RefreshCw, AlertTriangle, UserCheck, ArrowLeft } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function CheckPage({ user }) {
   const { locationId } = useParams();
@@ -17,7 +18,7 @@ export default function CheckPage({ user }) {
   const [successMsg, setSuccessMsg] = useState('');
   const [gpsError, setGpsError] = useState('');
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
 
   // Fetch location details
   const fetchLocation = async () => {

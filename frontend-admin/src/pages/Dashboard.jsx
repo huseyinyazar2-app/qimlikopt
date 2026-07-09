@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Activity, Users, Smartphone, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
+import { getApiUrl } from '../config';
 
 export default function Dashboard() {
-  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [stats, setStats] = useState({ clients: 0, devices: 0, logs: 0 });
   const [devicesList, setDevicesList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +124,7 @@ export default function Dashboard() {
             <Activity size={32} />
           </div>
           <div>
-            <div className="text-muted">İşlenen SMS (Son 24s)</div>
+            <div className="text-muted">Toplam İşlenen SMS</div>
             <div style={{ fontSize: '2rem', fontWeight: 700 }}>{stats.logs}</div>
           </div>
         </div>

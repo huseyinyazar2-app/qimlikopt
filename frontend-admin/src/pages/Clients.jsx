@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Plus, Pause, Play } from 'lucide-react';
 import axios from 'axios';
+import { getApiUrl } from '../config';
 
 export default function Clients() {
-  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [clients, setClients] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [newClient, setNewClient] = useState({ company_name: '', prefix: '', webhook_url: '', api_key: '', phone_number: '', contact_name: '', contact_surname: '' });
@@ -98,7 +98,7 @@ export default function Clients() {
               ))}
               {clients.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">Kayıtlı müşteri bulunamadı.</td>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">Kayıtlı müşteri bulunamadı.</td>
                 </tr>
               )}
             </tbody>

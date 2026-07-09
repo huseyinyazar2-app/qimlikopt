@@ -3,6 +3,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { KeyRound, Phone, Building2, User, ShieldCheck } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import { getApiUrl } from '../config';
 
 export default function Register({ onLogin }) {
   const [companyName, setCompanyName] = useState('');
@@ -10,15 +11,13 @@ export default function Register({ onLogin }) {
   const [contactSurname, setContactSurname] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -50,12 +49,6 @@ export default function Register({ onLogin }) {
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Ücretsiz Kayıt Olun</h2>
           <p className="text-muted">Firma hesabınızı hemen oluşturun</p>
         </div>
-
-        {false && (
-          <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: 8, fontSize: '0.9rem', textAlign: 'center', marginBottom: '1rem' }}>
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div>

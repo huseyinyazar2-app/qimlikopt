@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../config';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -41,7 +42,7 @@ export default function Logs({ user }) {
   const [leaveEnd, setLeaveEnd] = useState('');
   const [leaveType, setLeaveType] = useState('annual');
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
   const isCompany = user?.role === 'company';
 

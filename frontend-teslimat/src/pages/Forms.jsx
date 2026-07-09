@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ClipboardList, Plus, Trash, Check, HelpCircle } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function Forms({ user }) {
   const [forms, setForms] = useState([]);
@@ -14,7 +15,7 @@ export default function Forms({ user }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
 
   const fetchForms = async () => {

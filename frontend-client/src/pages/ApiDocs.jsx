@@ -1,9 +1,9 @@
 import { Copy, CheckCircle, Eye, EyeOff, Save, Lock } from 'lucide-react';
 import { useState } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../config';
 
 export default function ApiDocs({ user, onLogout }) {
-  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [copied, setCopied] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');

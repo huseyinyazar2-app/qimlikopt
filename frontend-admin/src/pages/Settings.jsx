@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Save, Lock, User } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function Settings() {
-  const getApiUrl = () => window.location.hostname.endsWith('qimlik.com') ? 'https://api.qimlik.com' : `http://${window.location.hostname}:3303`;
   const [settings, setSettings] = useState([]);
   const [adminUser, setAdminUser] = useState(localStorage.getItem('qimlik_admin_username') || 'admin');
   const [newPassword, setNewPassword] = useState('');

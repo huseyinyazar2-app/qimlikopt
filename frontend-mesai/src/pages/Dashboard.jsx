@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../config';
 import toast from 'react-hot-toast';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
@@ -36,7 +37,7 @@ export default function Dashboard({ user }) {
   const [selectedLocId, setSelectedLocId] = useState('');
   const [selectedEmpId, setSelectedEmpId] = useState(user?.role === 'employee' ? user.id : '');
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
 
   const fetchCompanyData = async () => {

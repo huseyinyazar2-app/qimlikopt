@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../config';
 import toast from 'react-hot-toast';
 import { Settings as SettingsIcon, Save, Info } from 'lucide-react';
 
@@ -10,7 +11,7 @@ export default function Settings({ user }) {
   const [tolerance, setTolerance] = useState(15);
   const [deductBreakTime, setDeductBreakTime] = useState(true);
   const [loading, setLoading] = useState(false);
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
 
   useEffect(() => {
     // Fetch current settings

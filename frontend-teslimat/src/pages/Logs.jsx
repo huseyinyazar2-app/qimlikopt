@@ -10,12 +10,13 @@ import {
   Navigation, 
   RefreshCw 
 } from 'lucide-react';
+import { getApiUrl } from '../config';
 
 export default function Logs({ user }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const host = `http://${window.location.hostname}:3303`;
+  const host = getApiUrl();
   const token = user?.token;
   const isCompany = user?.role === 'company';
 
