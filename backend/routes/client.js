@@ -1,25 +1,28 @@
 const express = require('express');
 const db = require('../db');
+const { signToken, companyGuard } = require('../auth');
 
 const router = express.Router();
 
-// --- CLIENT AUTHENTICATION ---
-// Real applications should return a JWT here. 
-// For this prototype, we'll return the client data if Prefix and API Key match.
+// Not: client.api_key hem panel girişinde hem de gateway webhook imzasında (x-qimlik-key)
+// kullanılan paylaşılan bir sırdır; webhook tarafı düz metne ihtiyaç duyduğu için hash'lenmez.
+// Panel erişimi girişten sonra ayrı bir JWT ile korunur; api_key her istekte gönderilmez.
+
+// --- CLIENT LOGIN ---
 router.post('/login', async (req, res) => {
     const { phone_number } = req.body;
     const apiKey = req.body.api_key || req.body.password;
-    
+
     if (!phone_number || !apiKey) {
         return res.status(400).json({ error: 'Telefon numarası ve şifre zorunludur.' });
     }
 
     try {
         const { rows } = await db.query(
-            'SELECT id, company_name, prefix, webhook_url, api_key, phone_number, is_active FROM clients WHERE api_key = ?', 
+            'SELECT id, company_name, prefix, webhook_url, api_key, phone_number, is_active FROM clients WHERE api_key = ?',
             [apiKey]
         );
-        
+
         const cleanInputPhone = phone_number.replace(/\D/g, '');
         const client = rows.find(r => {
             const cleanDbPhone = (r.phone_number || '').replace(/\D/g, '');
@@ -28,16 +31,17 @@ router.post('/login', async (req, res) => {
             }
             return cleanDbPhone === cleanInputPhone || r.phone_number === phone_number;
         });
-        
+
         if (!client) {
             return res.status(401).json({ error: 'Hatalı telefon numarası veya şifre.' });
         }
-        
+
         if (!client.is_active) {
             return res.status(403).json({ error: 'Hesap askıya alınmıştır.' });
         }
 
-        res.json({ message: 'Login successful', client });
+        const token = signToken({ role: 'company', module: 'client', id: client.id });
+        res.json({ message: 'Login successful', client, token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -51,7 +55,6 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: 'Şirket adı ve şifre zorunludur.' });
     }
 
-    // Auto-generate prefix from company name
     let cleanName = company_name.replace(/[^a-zA-Z]/g, '').toUpperCase();
     let prefix = cleanName.substring(0, 4);
     if (prefix.length < 3) {
@@ -62,7 +65,7 @@ router.post('/register', async (req, res) => {
         let finalPrefix = prefix;
         let isUnique = false;
         let attempts = 0;
-        
+
         while (!isUnique && attempts < 10) {
             const { rows } = await db.query('SELECT id FROM clients WHERE prefix = ?', [finalPrefix]);
             if (rows.length === 0) {
@@ -95,7 +98,9 @@ router.post('/register', async (req, res) => {
             [finalPrefix]
         );
 
-        res.status(201).json({ message: 'Registration successful', client: rows[0] });
+        const client = rows[0];
+        const token = signToken({ role: 'company', module: 'client', id: client.id });
+        res.status(201).json({ message: 'Registration successful', client, token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -124,9 +129,9 @@ router.get('/verify-status', async (req, res) => {
 
     try {
         const targetMessage = `${prefix.trim().toUpperCase()} ${code.trim()}`;
-        
+
         const { rows } = await db.query(
-            "SELECT id FROM logs WHERE UPPER(message_body) = ? AND status = 'success' LIMIT 1",
+            "SELECT id FROM logs WHERE UPPER(message_body) = ? AND status = 'success' AND created_at >= datetime('now', '-5 minutes') LIMIT 1",
             [targetMessage]
         );
 
@@ -137,36 +142,19 @@ router.get('/verify-status', async (req, res) => {
 });
 
 
-// --- CLIENT AUTH MIDDLEWARE ---
+// --- CLIENT AUTH MIDDLEWARE (JWT) ---
+const clientGuard = companyGuard('client', 'clients');
+
+// clientId param'ının token'daki id ile eşleştiğini de doğrula
 const authMiddleware = async (req, res, next) => {
-    const { clientId } = req.params;
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Yetkisiz erişim. Şifre doğrulaması yapılamadı.' });
-    }
-
-    const token = authHeader.split(' ')[1];
-
-    try {
-        const { rows } = await db.query('SELECT api_key, is_active FROM clients WHERE id = ?', [clientId]);
-        const client = rows[0];
-
-        if (!client || client.api_key !== token) {
-            return res.status(401).json({ error: 'Yetkisiz erişim. Geçersiz şifre.' });
+    clientGuard(req, res, () => {
+        if (String(req.company.id) !== String(req.params.clientId)) {
+            return res.status(403).json({ error: 'Yetkisiz erişim.' });
         }
-
-        if (!client.is_active) {
-            return res.status(403).json({ error: 'Hesap askıya alınmıştır.' });
-        }
-
         next();
-    } catch (err) {
-        return res.status(500).json({ error: 'Veritabanı hatası' });
-    }
+    });
 };
 
-// Apply auth middleware to all routes starting with /:clientId
 router.use('/:clientId', authMiddleware);
 
 // --- CLIENT PASSWORD / API KEY UPDATE ---
@@ -192,7 +180,6 @@ router.put('/:clientId/api-key', async (req, res) => {
 });
 
 // --- CLIENT LOGS ---
-// Fetch logs specifically for this client
 router.get('/:clientId/logs', async (req, res) => {
     const { clientId } = req.params;
     try {
@@ -207,7 +194,6 @@ router.get('/:clientId/logs', async (req, res) => {
 });
 
 // --- CLIENT STATS ---
-// Fetch Dashboard stats for this client
 router.get('/:clientId/stats', async (req, res) => {
     const { clientId } = req.params;
     try {
@@ -215,7 +201,7 @@ router.get('/:clientId/stats', async (req, res) => {
             'SELECT status FROM logs WHERE client_id = ?',
             [clientId]
         );
-        
+
         const total = logs.length;
         const successful = logs.filter(l => l.status === 'success').length;
         const failed = total - successful;
@@ -227,4 +213,3 @@ router.get('/:clientId/stats', async (req, res) => {
 });
 
 module.exports = router;
-

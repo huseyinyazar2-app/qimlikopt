@@ -43,11 +43,19 @@ export default function DeliverPage({ user }) {
   const [returnReason, setReturnReason] = useState('');
 
   const host = `http://${window.location.hostname}:3303`;
+  const token = user?.token;
 
-  // Fetch package details
+  // Fetch package details (requires courier auth token)
   const fetchPackage = async () => {
+    if (!token) {
+      setError('Teslimat işlemleri için önce kurye panelinden giriş yapmalısınız.');
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await axios.get(`${host}/api/teslimat/public/packages/by-id/${packageId}`);
+      const res = await axios.get(`${host}/api/teslimat/courier/packages/${packageId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setPack(res.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Paket bilgileri yüklenemedi.');
@@ -110,7 +118,8 @@ export default function DeliverPage({ user }) {
     const poll = setInterval(async () => {
       try {
         const res = await axios.get(`${host}/api/teslimat/deliver/status`, {
-          params: { phone_number: pack.recipient_phone, code: otpCode }
+          params: { phone_number: pack.recipient_phone, code: otpCode },
+          headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.verified) {
           clearInterval(poll);
@@ -218,6 +227,8 @@ export default function DeliverPage({ user }) {
         recipient_signature_base64: signatureBase64,
         status: deliveryStatus,
         return_reason: deliveryStatus !== 'delivered' ? returnReason : null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       setSuccessMsg(res.data.message);
       setSignatureSaved(true);

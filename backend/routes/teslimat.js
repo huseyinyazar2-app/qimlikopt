@@ -1,26 +1,17 @@
 const express = require('express');
 const db = require('../db');
+const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard } = require('../auth');
 
 const router = express.Router();
 
-// --- COMPANY AUTH MIDDLEWARE ---
-const companyAuth = async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Yetkisiz erişim. Token bulunamadı.' });
-    }
-    const token = authHeader.split(' ')[1];
-    try {
-        const { rows } = await db.query('SELECT * FROM teslimat_companies WHERE password = ? AND is_active = TRUE', [token]);
-        if (rows.length === 0) {
-            return res.status(401).json({ error: 'Yetkisiz erişim. Geçersiz token.' });
-        }
-        req.company = rows[0];
-        next();
-    } catch (err) {
-        res.status(500).json({ error: 'Sunucu hatası.' });
-    }
-};
+const companyAuth = companyGuard('teslimat', 'teslimat_companies');
+const courierAuth = workerGuard('teslimat');
+
+function sanitizeCompany(company) {
+    if (!company) return company;
+    const { password, ...safe } = company;
+    return safe;
+}
 
 // --- 1. COMPANY REGISTER & LOGIN ---
 router.post('/company/register', async (req, res) => {
@@ -34,13 +25,16 @@ router.post('/company/register', async (req, res) => {
             return res.status(400).json({ error: 'Bu telefon numarası zaten kayıtlı.' });
         }
 
+        const hashed = await hashPassword(password);
         await db.query(
             'INSERT INTO teslimat_companies (company_name, contact_name, contact_surname, phone_number, password) VALUES (?, ?, ?, ?, ?)',
-            [company_name, contact_name, contact_surname, phone_number, password]
+            [company_name, contact_name, contact_surname, phone_number, hashed]
         );
 
         const { rows } = await db.query('SELECT * FROM teslimat_companies WHERE phone_number = ?', [phone_number]);
-        res.status(201).json({ message: 'Şirket başarıyla oluşturuldu.', company: rows[0] });
+        const company = rows[0];
+        const token = signToken({ role: 'company', module: 'teslimat', id: company.id });
+        res.status(201).json({ message: 'Şirket başarıyla oluşturuldu.', company: sanitizeCompany(company), token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -52,18 +46,16 @@ router.post('/company/login', async (req, res) => {
         return res.status(400).json({ error: 'Telefon numarası ve şifre zorunludur.' });
     }
     try {
-        const { rows } = await db.query(
-            'SELECT * FROM teslimat_companies WHERE phone_number = ? AND password = ?',
-            [phone_number, password]
-        );
+        const { rows } = await db.query('SELECT * FROM teslimat_companies WHERE phone_number = ?', [phone_number]);
         const company = rows[0];
-        if (!company) {
+        if (!company || !(await verifyPassword(password, company.password))) {
             return res.status(401).json({ error: 'Hatalı telefon numarası veya şifre.' });
         }
         if (!company.is_active) {
             return res.status(403).json({ error: 'Hesap askıya alınmıştır.' });
         }
-        res.json({ message: 'Giriş başarılı.', company });
+        const token = signToken({ role: 'company', module: 'teslimat', id: company.id });
+        res.json({ message: 'Giriş başarılı.', company: sanitizeCompany(company), token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -102,7 +94,7 @@ router.put('/couriers/:id/toggle', companyAuth, async (req, res) => {
     const { id } = req.params;
     const { is_active } = req.body;
     try {
-        await db.query('UPDATE teslimat_couriers SET is_active = ? WHERE id = ? AND company_id = ?', [is_active, id, req.company.id]);
+        await db.query('UPDATE teslimat_couriers SET is_active = ? WHERE id = ? AND company_id = ?', [is_active ? 1 : 0, id, req.company.id]);
         res.json({ message: 'Kurye durumu güncellendi.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -139,7 +131,7 @@ router.get('/packages', companyAuth, async (req, res) => {
              FROM teslimat_packages p
              LEFT JOIN teslimat_couriers c ON p.courier_id = c.id
              LEFT JOIN teslimat_logs l ON l.id = (
-                 SELECT max(id) FROM teslimat_logs 
+                 SELECT max(id) FROM teslimat_logs
                  WHERE package_id = p.id AND log_type IN ('delivered_success', 'delivered_partial', 'returned')
              )
              WHERE p.company_id = ? ORDER BY p.created_at DESC`,
@@ -158,6 +150,11 @@ router.put('/packages/:id/assign', companyAuth, async (req, res) => {
         return res.status(400).json({ error: 'Kurye ataması zorunludur.' });
     }
     try {
+        // Kurye de aynı firmaya ait olmalı
+        const { rows: cr } = await db.query('SELECT id FROM teslimat_couriers WHERE id = ? AND company_id = ?', [courier_id, req.company.id]);
+        if (cr.length === 0) {
+            return res.status(400).json({ error: 'Geçersiz kurye.' });
+        }
         await db.query(
             "UPDATE teslimat_packages SET courier_id = ?, status = 'in_transit' WHERE id = ? AND company_id = ?",
             [courier_id, id, req.company.id]
@@ -180,7 +177,6 @@ router.post('/courier/login/request', async (req, res) => {
             return res.status(404).json({ error: 'Sistemde kayıtlı veya aktif böyle bir kurye bulunamadı.' });
         }
 
-        // Register TSLM prefix in clients table if missing
         const checkClient = await db.query("SELECT id FROM clients WHERE prefix = 'TSLM'");
         if (checkClient.rows.length === 0) {
             await db.query(
@@ -227,23 +223,24 @@ router.get('/courier/login/status', async (req, res) => {
             return res.json({ verified: false });
         }
 
-        const { rows: courierRows } = await db.query('SELECT * FROM teslimat_couriers WHERE phone_number = ?', [phone_number]);
-        res.json({ verified: true, courier: courierRows[0] });
+        const { rows: courierRows } = await db.query('SELECT * FROM teslimat_couriers WHERE phone_number = ? AND is_active = TRUE', [phone_number]);
+        const courier = courierRows[0];
+        if (!courier) {
+            return res.json({ verified: false });
+        }
+        const token = signToken({ role: 'worker', module: 'teslimat', id: courier.id, company_id: courier.company_id });
+        res.json({ verified: true, courier, token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// Courier assigned packages
-router.get('/courier/packages', async (req, res) => {
-    const { courier_id } = req.query;
-    if (!courier_id) {
-        return res.status(400).json({ error: 'Kurye ID zorunludur.' });
-    }
+// Courier assigned packages (COURIER AUTH — kendi paketleri)
+router.get('/courier/packages', courierAuth, async (req, res) => {
     try {
         const { rows } = await db.query(
             "SELECT * FROM teslimat_packages WHERE courier_id = ? ORDER BY created_at DESC",
-            [courier_id]
+            [req.worker.id]
         );
         res.json(rows);
     } catch (err) {
@@ -252,7 +249,7 @@ router.get('/courier/packages', async (req, res) => {
 });
 
 // --- 5. RECIPIENT DELIVERY VERIFICATION (REVERSE OTP) ---
-router.get('/deliver/status', async (req, res) => {
+router.get('/deliver/status', courierAuth, async (req, res) => {
     const { phone_number, code } = req.query;
     if (!phone_number || !code) {
         return res.status(400).json({ error: 'Telefon ve OTP kodu zorunludur.' });
@@ -281,15 +278,20 @@ router.get('/deliver/status', async (req, res) => {
     }
 });
 
-// Confirm delivery with signature and GPS
-router.post('/deliver/confirm', async (req, res) => {
+// Confirm delivery with signature and GPS (COURIER AUTH — yalnızca kendi paketi)
+router.post('/deliver/confirm', courierAuth, async (req, res) => {
     const { package_id, gps_latitude, gps_longitude, recipient_signature_base64, status, return_reason } = req.body;
     if (!package_id || gps_latitude === undefined || gps_longitude === undefined) {
         return res.status(400).json({ error: 'Paket ID ve GPS konum verisi zorunludur.' });
     }
-    const finalStatus = status || 'delivered'; // delivered, partial, returned
+    const finalStatus = status || 'delivered';
     try {
-        // Update package status
+        // Paket bu kuryeye zimmetli olmalı
+        const { rows: pkgRows } = await db.query('SELECT id FROM teslimat_packages WHERE id = ? AND courier_id = ?', [package_id, req.worker.id]);
+        if (pkgRows.length === 0) {
+            return res.status(403).json({ error: 'Bu paket size zimmetli değil.' });
+        }
+
         await db.query(
             "UPDATE teslimat_packages SET status = ?, return_reason = ? WHERE id = ?",
             [finalStatus, return_reason || null, package_id]
@@ -305,7 +307,6 @@ router.post('/deliver/confirm', async (req, res) => {
             msg = 'Paket iade olarak işaretlendi.';
         }
 
-        // Insert delivery log
         await db.query(
             "INSERT INTO teslimat_logs (package_id, log_type, gps_latitude, gps_longitude, recipient_signature_base64) VALUES (?, ?, ?, ?, ?)",
             [package_id, logType, parseFloat(gps_latitude), parseFloat(gps_longitude), recipient_signature_base64 || null]
@@ -317,8 +318,8 @@ router.post('/deliver/confirm', async (req, res) => {
     }
 });
 
-// GET package by ID for courier mobile delivery verification screen
-router.get('/public/packages/by-id/:id', async (req, res) => {
+// Kurye teslimat ekranı için paket detayı (COURIER AUTH — yalnızca kendi paketi)
+router.get('/courier/packages/:id', courierAuth, async (req, res) => {
     const { id } = req.params;
     try {
         const { rows } = await db.query(
@@ -326,8 +327,8 @@ router.get('/public/packages/by-id/:id', async (req, res) => {
                     c.company_name
              FROM teslimat_packages p
              JOIN teslimat_companies c ON p.company_id = c.id
-             WHERE p.id = ?`,
-            [id]
+             WHERE p.id = ? AND p.courier_id = ?`,
+            [id, req.worker.id]
         );
         if (rows.length === 0) {
             return res.status(404).json({ error: 'Paket bulunamadı.' });
@@ -338,14 +339,14 @@ router.get('/public/packages/by-id/:id', async (req, res) => {
     }
 });
 
-// --- 6. PUBLIC SHIPMENT TRACKING ---
+// --- 6. PUBLIC SHIPMENT TRACKING (alıcı için, kod ile) ---
 router.get('/public/packages/:code', async (req, res) => {
     const { code } = req.params;
     try {
         const { rows } = await db.query(
-            `SELECT p.package_code, p.recipient_name, p.status, p.delivery_address, p.created_at,
+            `SELECT p.package_code, p.recipient_name, p.status, p.created_at,
                     c.company_name,
-                    l.gps_latitude, l.gps_longitude, l.created_at as delivered_at
+                    l.created_at as delivered_at
              FROM teslimat_packages p
              JOIN teslimat_companies c ON p.company_id = c.id
              LEFT JOIN teslimat_logs l ON p.id = l.package_id AND l.log_type = 'delivered_success'

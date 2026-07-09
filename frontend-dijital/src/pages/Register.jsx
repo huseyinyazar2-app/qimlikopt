@@ -29,7 +29,7 @@ export default function Register({ onLogin }) {
         phone_number: phone, 
         password 
       });
-      onLogin({ ...res.data.company, role: 'company' });
+      onLogin({ ...res.data.company, token: res.data.token, role: 'company' });
       navigate('/dashboard');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Kayıt sırasında bir hata oluştu. Bilgilerinizi kontrol edin.');

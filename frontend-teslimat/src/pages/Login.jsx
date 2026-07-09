@@ -52,7 +52,7 @@ export default function Login({ onLogin }) {
           clearInterval(poll);
           setCourierStatus('success');
           setTimeout(() => {
-            onLogin({ ...res.data.courier, role: 'courier' });
+            onLogin({ ...res.data.courier, token: res.data.token, role: 'courier' });
           }, 1500);
         }
       } catch (err) {
@@ -70,7 +70,7 @@ export default function Login({ onLogin }) {
     try {
       if (activeTab === 'company_login') {
         const res = await axios.post(`${host}/api/teslimat/company/login`, { phone_number: phone, password });
-        onLogin({ ...res.data.company, role: 'company' });
+        onLogin({ ...res.data.company, token: res.data.token, role: 'company' });
       } else if (activeTab === 'courier_login') {
         const res = await axios.post(`${host}/api/teslimat/courier/login/request`, { phone_number: phone });
         setVerifyDetails(res.data);

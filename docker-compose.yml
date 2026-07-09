@@ -12,7 +12,11 @@ services:
       - coolify
     environment:
       - PORT=3303
-      - GATEWAY_API_KEY=8|236Ogs9nZVd34TBewgHndQ3MYsznRR8DNDhVpflFde5fd007
+      # Sırlar ortam değişkeninden gelir (Coolify panel/.env). Depoya asla yazılmaz.
+      - GATEWAY_API_KEY=${GATEWAY_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - TURSO_DATABASE_URL=${TURSO_DATABASE_URL}
+      - TURSO_AUTH_TOKEN=${TURSO_AUTH_TOKEN}
       - NODE_ENV=production
     labels:
       - "traefik.enable=true"

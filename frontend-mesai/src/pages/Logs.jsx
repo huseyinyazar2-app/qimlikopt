@@ -42,7 +42,7 @@ export default function Logs({ user }) {
   const [leaveType, setLeaveType] = useState('annual');
 
   const host = `http://${window.location.hostname}:3303`;
-  const token = user?.password;
+  const token = user?.token;
   const isCompany = user?.role === 'company';
 
   const fetchLogs = async () => {
@@ -59,7 +59,9 @@ export default function Logs({ user }) {
         setLogs(res.data);
       } else {
         // For employee, fetch their personal report
-        const res = await axios.get(`${host}/api/mesai/public/employees/${user.id}/report`);
+        const res = await axios.get(`${host}/api/mesai/worker/report`, {
+          headers: { Authorization: `Bearer ${user.token}` }
+        });
         setLogs(res.data.daily);
       }
     } catch (err) {
@@ -73,11 +75,12 @@ export default function Logs({ user }) {
   const handleLeaveSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${host}/api/mesai/public/leaves`, {
-        employee_id: user.id,
+      await axios.post(`${host}/api/mesai/worker/leaves`, {
         start_date: leaveStart,
         end_date: leaveEnd,
         leave_type: leaveType
+      }, {
+        headers: { Authorization: `Bearer ${user.token}` }
       });
       setShowLeaveModal(false);
       setLeaveStart(''); setLeaveEnd('');

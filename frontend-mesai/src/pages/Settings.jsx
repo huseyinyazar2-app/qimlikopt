@@ -16,7 +16,7 @@ export default function Settings({ user }) {
     // Fetch current settings
     const fetchSettings = async () => {
       try {
-        const headers = { Authorization: `Bearer ${user.password}` };
+        const headers = { Authorization: `Bearer ${user.token}` };
         const res = await axios.get(`${host}/api/mesai/company/settings`, { headers });
         const comp = res.data;
         if (comp) {
@@ -37,7 +37,7 @@ export default function Settings({ user }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const headers = { Authorization: `Bearer ${user.password}` };
+      const headers = { Authorization: `Bearer ${user.token}` };
       await axios.put(`${host}/api/mesai/company/settings`, {
         shift_type: shiftType,
         shift_start_time: shiftStart,

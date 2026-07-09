@@ -1,44 +1,33 @@
 const express = require('express');
 const db = require('../db');
-
+const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard } = require('../auth');
 
 // Haversine formula for distance calculation (in meters)
 function getDistance(lat1, lon1, lat2, lon2) {
     if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-    const R = 6371e3; // metres
-    const p1 = lat1 * Math.PI/180;
-    const p2 = lat2 * Math.PI/180;
-    const dp = (lat2-lat1) * Math.PI/180;
-    const dl = (lon2-lon1) * Math.PI/180;
+    const R = 6371e3;
+    const p1 = lat1 * Math.PI / 180;
+    const p2 = lat2 * Math.PI / 180;
+    const dp = (lat2 - lat1) * Math.PI / 180;
+    const dl = (lon2 - lon1) * Math.PI / 180;
 
-    const a = Math.sin(dp/2) * Math.sin(dp/2) +
+    const a = Math.sin(dp / 2) * Math.sin(dp / 2) +
               Math.cos(p1) * Math.cos(p2) *
-              Math.sin(dl/2) * Math.sin(dl/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+              Math.sin(dl / 2) * Math.sin(dl / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
 
 const router = express.Router();
 
+const companyAuth = companyGuard('dijital', 'dijital_companies');
+const technicianAuth = workerGuard('dijital');
 
-// --- COMPANY AUTH MIDDLEWARE ---
-const companyAuth = async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Yetkisiz erişim. Token bulunamadı.' });
-    }
-    const token = authHeader.split(' ')[1];
-    try {
-        const { rows } = await db.query('SELECT * FROM dijital_companies WHERE password = ? AND is_active = TRUE', [token]);
-        if (rows.length === 0) {
-            return res.status(401).json({ error: 'Yetkisiz erişim. Geçersiz token.' });
-        }
-        req.company = rows[0];
-        next();
-    } catch (err) {
-        res.status(500).json({ error: 'Sunucu hatası.' });
-    }
-};
+function sanitizeCompany(company) {
+    if (!company) return company;
+    const { password, ...safe } = company;
+    return safe;
+}
 
 // --- 1. COMPANY REGISTER & LOGIN ---
 router.post('/company/register', async (req, res) => {
@@ -47,19 +36,21 @@ router.post('/company/register', async (req, res) => {
         return res.status(400).json({ error: 'Tüm alanlar zorunludur.' });
     }
     try {
-        // Check if phone_number is already registered
         const check = await db.query('SELECT id FROM dijital_companies WHERE phone_number = ?', [phone_number]);
         if (check.rows.length > 0) {
             return res.status(400).json({ error: 'Bu telefon numarası zaten kayıtlı.' });
         }
 
+        const hashed = await hashPassword(password);
         await db.query(
             'INSERT INTO dijital_companies (company_name, contact_name, contact_surname, phone_number, password) VALUES (?, ?, ?, ?, ?)',
-            [company_name, contact_name, contact_surname, phone_number, password]
+            [company_name, contact_name, contact_surname, phone_number, hashed]
         );
 
         const { rows } = await db.query('SELECT * FROM dijital_companies WHERE phone_number = ?', [phone_number]);
-        res.status(201).json({ message: 'Şirket başarıyla oluşturuldu.', company: rows[0] });
+        const company = rows[0];
+        const token = signToken({ role: 'company', module: 'dijital', id: company.id });
+        res.status(201).json({ message: 'Şirket başarıyla oluşturuldu.', company: sanitizeCompany(company), token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -71,18 +62,16 @@ router.post('/company/login', async (req, res) => {
         return res.status(400).json({ error: 'Telefon numarası ve şifre zorunludur.' });
     }
     try {
-        const { rows } = await db.query(
-            'SELECT * FROM dijital_companies WHERE phone_number = ? AND password = ?',
-            [phone_number, password]
-        );
+        const { rows } = await db.query('SELECT * FROM dijital_companies WHERE phone_number = ?', [phone_number]);
         const company = rows[0];
-        if (!company) {
+        if (!company || !(await verifyPassword(password, company.password))) {
             return res.status(401).json({ error: 'Hatalı telefon numarası veya şifre.' });
         }
         if (!company.is_active) {
             return res.status(403).json({ error: 'Hesap askıya alınmıştır.' });
         }
-        res.json({ message: 'Giriş başarılı.', company });
+        const token = signToken({ role: 'company', module: 'dijital', id: company.id });
+        res.json({ message: 'Giriş başarılı.', company: sanitizeCompany(company), token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -117,12 +106,11 @@ router.get('/technicians', companyAuth, async (req, res) => {
     }
 });
 
-// Toggle technician status (Suspend/Activate)
 router.put('/technicians/:id/toggle', companyAuth, async (req, res) => {
     const { id } = req.params;
     const { is_active } = req.body;
     try {
-        await db.query('UPDATE dijital_technicians SET is_active = ? WHERE id = ? AND company_id = ?', [is_active, id, req.company.id]);
+        await db.query('UPDATE dijital_technicians SET is_active = ? WHERE id = ? AND company_id = ?', [is_active ? 1 : 0, id, req.company.id]);
         res.json({ message: 'Teknisyen durumu güncellendi.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -131,7 +119,7 @@ router.put('/technicians/:id/toggle', companyAuth, async (req, res) => {
 
 // --- 3. DYNAMIC FORMS MANAGEMENT (COMPANY ACCESS) ---
 router.post('/forms', companyAuth, async (req, res) => {
-    const { title, fields } = req.body; // fields is an array of objects
+    const { title, fields } = req.body;
     if (!title || !fields) {
         return res.status(400).json({ error: 'Başlık ve dinamik alanlar zorunludur.' });
     }
@@ -152,7 +140,6 @@ router.get('/forms', companyAuth, async (req, res) => {
             'SELECT * FROM dijital_forms WHERE company_id = ? ORDER BY created_at DESC',
             [req.company.id]
         );
-        // Parse JSON for safety
         const parsed = rows.map(r => ({
             ...r,
             fields: JSON.parse(r.fields_json)
@@ -183,7 +170,6 @@ router.put('/forms/:id', companyAuth, async (req, res) => {
 router.delete('/forms/:id', companyAuth, async (req, res) => {
     const { id } = req.params;
     try {
-        // Form kullanımda mı diye kontrol edilebilir, ama basit tutalım
         await db.query('DELETE FROM dijital_forms WHERE id = ? AND company_id = ?', [id, req.company.id]);
         res.json({ message: 'Şablon silindi.' });
     } catch (err) {
@@ -198,9 +184,14 @@ router.post('/machines', companyAuth, async (req, res) => {
         return res.status(400).json({ error: 'Makine kodu, adı ve atanacak form zorunludur.' });
     }
     try {
-        const check = await db.query('SELECT id FROM dijital_machines WHERE machine_code = ?', [machine_code]);
+        const check = await db.query('SELECT id FROM dijital_machines WHERE machine_code = ?', [machine_code.toUpperCase()]);
         if (check.rows.length > 0) {
             return res.status(400).json({ error: 'Bu makine kodu zaten kullanılıyor.' });
+        }
+        // Form da bu firmaya ait olmalı
+        const { rows: fr } = await db.query('SELECT id FROM dijital_forms WHERE id = ? AND company_id = ?', [form_template_id, req.company.id]);
+        if (fr.length === 0) {
+            return res.status(400).json({ error: 'Geçersiz form şablonu.' });
         }
 
         await db.query(
@@ -216,7 +207,7 @@ router.post('/machines', companyAuth, async (req, res) => {
 router.get('/machines', companyAuth, async (req, res) => {
     try {
         const { rows } = await db.query(
-            `SELECT m.*, f.title as form_title 
+            `SELECT m.*, f.title as form_title
              FROM dijital_machines m
              LEFT JOIN dijital_forms f ON m.form_template_id = f.id
              WHERE m.company_id = ? ORDER BY m.created_at DESC`,
@@ -241,7 +232,7 @@ router.get('/company/logs', companyAuth, async (req, res) => {
         );
         const parsed = rows.map(r => ({
             ...r,
-            form_data: JSON.parse(r.form_data_json)
+            form_data: r.form_data_json ? JSON.parse(r.form_data_json) : {}
         }));
         res.json(parsed);
     } catch (err) {
@@ -249,8 +240,8 @@ router.get('/company/logs', companyAuth, async (req, res) => {
     }
 });
 
-// --- 5. PUBLIC & TECHNICIAN MACHINE DETAILS (SCANNING QR) ---
-router.get('/public/machine/:code', async (req, res) => {
+// --- 5. TECHNICIAN MACHINE DETAILS (SCANNING QR) — TECHNICIAN AUTH ---
+router.get('/machine/:code', technicianAuth, async (req, res) => {
     const { code } = req.params;
     try {
         const { rows: machineRows } = await db.query(
@@ -258,17 +249,17 @@ router.get('/public/machine/:code', async (req, res) => {
              FROM dijital_machines m
              JOIN dijital_forms f ON m.form_template_id = f.id
              JOIN dijital_companies c ON m.company_id = c.id
-             WHERE m.machine_code = ?`,
-            [code.toUpperCase()]
+             WHERE m.machine_code = ? AND m.company_id = ?`,
+            [code.toUpperCase(), req.worker.company_id]
         );
-        
+
         const machine = machineRows[0];
         if (!machine) {
             return res.status(404).json({ error: 'Makine bulunamadı.' });
         }
 
-        const { rows: parts } = await db.query('SELECT * FROM dijital_spare_parts WHERE company_id = ? AND stock_quantity > 0', [machineRows[0].company_id]);
-        
+        const { rows: parts } = await db.query('SELECT * FROM dijital_spare_parts WHERE company_id = ? AND stock_quantity > 0', [machine.company_id]);
+
         res.json({
             machine: {
                 id: machine.id,
@@ -296,10 +287,10 @@ router.get('/public/machine/:code', async (req, res) => {
     }
 });
 
-router.get('/public/machine/:code/history', async (req, res) => {
+router.get('/machine/:code/history', technicianAuth, async (req, res) => {
     const { code } = req.params;
     try {
-        const { rows: machineRows } = await db.query('SELECT id FROM dijital_machines WHERE machine_code = ?', [code.toUpperCase()]);
+        const { rows: machineRows } = await db.query('SELECT id FROM dijital_machines WHERE machine_code = ? AND company_id = ?', [code.toUpperCase(), req.worker.company_id]);
         const machine = machineRows[0];
         if (!machine) {
             return res.status(404).json({ error: 'Makine bulunamadı.' });
@@ -315,7 +306,7 @@ router.get('/public/machine/:code/history', async (req, res) => {
 
         const parsed = logs.map(l => ({
             ...l,
-            form_data: JSON.parse(l.form_data_json)
+            form_data: l.form_data_json ? JSON.parse(l.form_data_json) : {}
         }));
 
         res.json(parsed);
@@ -332,30 +323,24 @@ router.post('/technician/login/request', async (req, res) => {
     }
 
     try {
-        // Verify technician exists and is active
         const { rows } = await db.query('SELECT * FROM dijital_technicians WHERE phone_number = ? AND is_active = TRUE', [phone_number]);
         if (rows.length === 0) {
             return res.status(404).json({ error: 'Sistemde kayıtlı veya aktif böyle bir teknisyen bulunamadı.' });
         }
 
-        // Ensure "DJTL" prefix is registered in system clients so gateway logs messages correctly
         const checkClient = await db.query("SELECT id FROM clients WHERE prefix = 'DJTL'");
         if (checkClient.rows.length === 0) {
-            // Register DJTL system client
             await db.query(
                 "INSERT INTO clients (company_name, prefix, webhook_url, api_key, phone_number, is_active) VALUES (?, ?, ?, ?, ?, ?)",
                 ['Qimlik Digital System', 'DJTL', 'http://localhost:3303/api/client/webhook', 'djtlsystemkey123', '905303700589', 1]
             );
         }
 
-        // Generate a random 6-digit login code
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        // Return verification link details
         res.json({
             prefix: 'DJTL',
             code,
-            gateway_phone: '905303700589' // Active simulator/gateway phone
+            gateway_phone: '905303700589'
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -382,7 +367,6 @@ router.get('/technician/login/status', async (req, res) => {
         const logPhone = rows[0].phone_number.replace(/\D/g, '');
         const cleanInputPhone = phone_number.replace(/\D/g, '');
 
-        // Verify if it ends with same digits
         const isMatched = cleanInputPhone.length >= 9 && logPhone.length >= 9
             ? logPhone.endsWith(cleanInputPhone.slice(-9)) || cleanInputPhone.endsWith(logPhone.slice(-9))
             : logPhone === cleanInputPhone;
@@ -391,51 +375,58 @@ router.get('/technician/login/status', async (req, res) => {
             return res.json({ verified: false });
         }
 
-        // Retrieve technician details
-        const { rows: techRows } = await db.query('SELECT * FROM dijital_technicians WHERE phone_number = ?', [phone_number]);
-        res.json({ verified: true, technician: techRows[0] });
+        const { rows: techRows } = await db.query('SELECT * FROM dijital_technicians WHERE phone_number = ? AND is_active = TRUE', [phone_number]);
+        const technician = techRows[0];
+        if (!technician) {
+            return res.json({ verified: false });
+        }
+        const token = signToken({ role: 'worker', module: 'dijital', id: technician.id, company_id: technician.company_id });
+        res.json({ verified: true, technician, token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// --- 7. MAINTENANCE LOG SUBMIT (TECHNICIAN AUTHORIZED) ---
-router.post('/maintenance/submit', async (req, res) => {
-    const { machine_id, technician_id, form_data, status_after, notes, photo_base64, technician_latitude, technician_longitude, used_parts } = req.body;
-    if (!machine_id || !technician_id || !form_data || !status_after) {
-        return res.status(400).json({ error: 'Makine, teknisyen, form verisi ve durum bilgileri zorunludur.' });
+// --- 7. MAINTENANCE LOG SUBMIT (TECHNICIAN AUTH) ---
+router.post('/maintenance/submit', technicianAuth, async (req, res) => {
+    const { machine_id, form_data, status_after, notes, photo_base64, technician_latitude, technician_longitude, used_parts } = req.body;
+    if (!machine_id || !form_data || !status_after) {
+        return res.status(400).json({ error: 'Makine, form verisi ve durum bilgileri zorunludur.' });
     }
 
     try {
-        // Get machine gps coordinates to calculate distance
-        const machineCheck = await db.query('SELECT gps_latitude, gps_longitude FROM dijital_machines WHERE id = ?', [machine_id]);
-        let calc_distance = null;
-        if (machineCheck.rows.length > 0) {
-            const m = machineCheck.rows[0];
-            if (technician_latitude && technician_longitude && m.gps_latitude && m.gps_longitude) {
-                calc_distance = getDistance(technician_latitude, technician_longitude, m.gps_latitude, m.gps_longitude);
-            }
+        // Makine teknisyenin firmasına ait olmalı
+        const machineCheck = await db.query('SELECT gps_latitude, gps_longitude, company_id FROM dijital_machines WHERE id = ?', [machine_id]);
+        const machine = machineCheck.rows[0];
+        if (!machine || machine.company_id !== req.worker.company_id) {
+            return res.status(403).json({ error: 'Bu makineye işlem yapma yetkiniz yok.' });
         }
 
-        // Insert report
+        let calc_distance = null;
+        if (technician_latitude && technician_longitude && machine.gps_latitude && machine.gps_longitude) {
+            calc_distance = getDistance(technician_latitude, technician_longitude, machine.gps_latitude, machine.gps_longitude);
+        }
+
         const logRes = await db.query(
-            `INSERT INTO dijital_maintenance_logs (machine_id, technician_id, form_data_json, status_after, notes, photo_base64, technician_latitude, technician_longitude, calculated_distance) 
+            `INSERT INTO dijital_maintenance_logs (machine_id, technician_id, form_data_json, status_after, notes, photo_base64, technician_latitude, technician_longitude, calculated_distance)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-            [machine_id, technician_id, JSON.stringify(form_data), status_after, notes || '', photo_base64 || null, technician_latitude || null, technician_longitude || null, calc_distance]
+            [machine_id, req.worker.id, JSON.stringify(form_data), status_after, notes || '', photo_base64 || null, technician_latitude || null, technician_longitude || null, calc_distance]
         );
         const logId = logRes.rows[0].id;
 
-        // Process used parts if any
         if (used_parts && Array.isArray(used_parts) && used_parts.length > 0) {
             for (let part of used_parts) {
                 if (part.part_id && part.quantity > 0) {
-                    await db.query('INSERT INTO dijital_maintenance_parts (log_id, part_id, quantity_used) VALUES (?, ?, ?)', [logId, part.part_id, part.quantity]);
-                    await db.query('UPDATE dijital_spare_parts SET stock_quantity = stock_quantity - ? WHERE id = ?', [part.quantity, part.part_id]);
+                    // Parça da aynı firmaya ait olmalı
+                    const { rows: pr } = await db.query('SELECT id FROM dijital_spare_parts WHERE id = ? AND company_id = ?', [part.part_id, req.worker.company_id]);
+                    if (pr.length > 0) {
+                        await db.query('INSERT INTO dijital_maintenance_parts (log_id, part_id, quantity_used) VALUES (?, ?, ?)', [logId, part.part_id, part.quantity]);
+                        await db.query('UPDATE dijital_spare_parts SET stock_quantity = stock_quantity - ? WHERE id = ?', [part.quantity, part.part_id]);
+                    }
                 }
             }
         }
 
-        // Update current machine status and last_maintenance_date
         await db.query('UPDATE dijital_machines SET status = ?, last_maintenance_date = CURRENT_TIMESTAMP WHERE id = ?', [status_after, machine_id]);
 
         res.status(201).json({ message: 'Bakım/arıza raporu başarıyla kaydedildi.' });
@@ -444,20 +435,19 @@ router.post('/maintenance/submit', async (req, res) => {
     }
 });
 
-// --- GET ALL LOGS FOR TECHNICIAN ---
-router.get('/technician/:id/logs', async (req, res) => {
-    const { id } = req.params;
+// --- TECHNICIAN OWN LOGS (TECHNICIAN AUTH) ---
+router.get('/technician/logs', technicianAuth, async (req, res) => {
     try {
         const { rows } = await db.query(
             `SELECT l.*, m.machine_name, m.machine_code
              FROM dijital_maintenance_logs l
              JOIN dijital_machines m ON l.machine_id = m.id
              WHERE l.technician_id = ? ORDER BY l.created_at DESC LIMIT 100`,
-            [id]
+            [req.worker.id]
         );
         const parsed = rows.map(r => ({
             ...r,
-            form_data: JSON.parse(r.form_data_json)
+            form_data: r.form_data_json ? JSON.parse(r.form_data_json) : {}
         }));
         res.json(parsed);
     } catch (err) {
@@ -465,8 +455,7 @@ router.get('/technician/:id/logs', async (req, res) => {
     }
 });
 
-
-// --- 8. INCIDENTS (ARIZA BİLDİRİMLERİ) ---
+// --- 8. INCIDENTS (ARIZA BİLDİRİMLERİ) — genel public arıza formu ---
 router.post('/public/incident', async (req, res) => {
     const { machine_code, reporter_name, reporter_phone, description } = req.body;
     if (!machine_code || !reporter_name || !reporter_phone || !description) {
@@ -490,7 +479,7 @@ router.post('/public/incident', async (req, res) => {
 router.get('/company/incidents', companyAuth, async (req, res) => {
     try {
         const { rows } = await db.query(
-            `SELECT i.*, m.machine_name, m.machine_code 
+            `SELECT i.*, m.machine_name, m.machine_code
              FROM dijital_incidents i
              JOIN dijital_machines m ON i.machine_id = m.id
              WHERE m.company_id = ? ORDER BY i.created_at DESC`,
@@ -504,14 +493,12 @@ router.get('/company/incidents', companyAuth, async (req, res) => {
 
 router.put('/company/incidents/:id/resolve', companyAuth, async (req, res) => {
     try {
-        // verify ownership implicitly by checking machine
         await db.query(`UPDATE dijital_incidents SET status = 'resolved' WHERE id = ? AND machine_id IN (SELECT id FROM dijital_machines WHERE company_id = ?)`, [req.params.id, req.company.id]);
         res.json({ message: 'Arıza çözüldü olarak işaretlendi.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
-
 
 // --- 9. SPARE PARTS (YEDEK PARÇA STOK) ---
 router.get('/spare-parts', companyAuth, async (req, res) => {

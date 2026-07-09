@@ -12,11 +12,11 @@ axios.interceptors.request.use((config) => {
     }
   }
   try {
-    const savedUser = localStorage.getItem('qimlik_client_user');
+    const savedUser = localStorage.getItem('qimlik_dijital_user');
     if (savedUser) {
       const user = JSON.parse(savedUser);
-      if (user && user.api_key) {
-        config.headers['Authorization'] = `Bearer ${user.api_key}`;
+      if (user && user.token) {
+        config.headers['Authorization'] = `Bearer ${user.token}`;
       }
     }
   } catch (e) {

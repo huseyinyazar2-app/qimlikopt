@@ -43,7 +43,7 @@ export default function Dashboard({ user }) {
   const [techLogs, setTechLogs] = useState([]);
 
   const host = `http://${window.location.hostname}:3303`;
-  const token = user?.password;
+  const token = user?.token;
 
   const fetchCompanyData = async () => {
     setLoadingData(true);
@@ -68,7 +68,9 @@ export default function Dashboard({ user }) {
 
   const fetchTechData = async () => {
     try {
-      const res = await axios.get(`${host}/api/dijital/technician/${user.id}/logs`);
+      const res = await axios.get(`${host}/api/dijital/technician/logs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setTechLogs(res.data);
     } catch (err) {
       console.error('Son işlemler yüklenemedi:', err);

@@ -1,31 +1,27 @@
 const express = require('express');
 const db = require('../db');
+const { signToken, verifyPassword, hashPassword, readBearer, JWT_SECRET } = require('../auth');
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
-// Auth middleware for admin routes
-const authMiddleware = async (req, res, next) => {
-    // Skip auth for /login
+// Admin token doğrulaması (login hariç)
+const authMiddleware = (req, res, next) => {
     if (req.path === '/login') {
         return next();
     }
-
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const token = readBearer(req);
+    if (!token) {
         return res.status(401).json({ error: 'Yetkisiz erişim. Token bulunamadı.' });
     }
-
-    const token = authHeader.split(' ')[1];
     try {
-        const { rows } = await db.query("SELECT value FROM global_settings WHERE key = 'ADMIN_PASSWORD'");
-        const adminPassword = rows[0]?.value || 'admin123';
-
-        if (token !== adminPassword) {
-            return res.status(401).json({ error: 'Yetkisiz erişim. Geçersiz token.' });
+        const payload = jwt.verify(token, JWT_SECRET);
+        if (payload.role !== 'admin') {
+            return res.status(403).json({ error: 'Yetkisiz erişim.' });
         }
         next();
     } catch (err) {
-        return res.status(500).json({ error: 'Veritabanı hatası' });
+        return res.status(401).json({ error: 'Yetkisiz erişim. Geçersiz veya süresi dolmuş token.' });
     }
 };
 
@@ -34,7 +30,7 @@ router.use(authMiddleware);
 // Login endpoint
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    
+
     if (!username || !password) {
         return res.status(400).json({ error: 'Kullanıcı adı ve şifre zorunludur' });
     }
@@ -42,12 +38,16 @@ router.post('/login', async (req, res) => {
     try {
         const { rows: userRows } = await db.query("SELECT value FROM global_settings WHERE key = 'ADMIN_USERNAME'");
         const { rows: passRows } = await db.query("SELECT value FROM global_settings WHERE key = 'ADMIN_PASSWORD'");
-        
-        const dbUsername = userRows[0]?.value || 'admin';
-        const dbPassword = passRows[0]?.value || 'admin123';
 
-        if (username === dbUsername && password === dbPassword) {
-            res.json({ message: 'Login successful', token: dbPassword, username: dbUsername });
+        const dbUsername = userRows[0]?.value || 'admin';
+        const storedPassword = passRows[0]?.value || 'admin123';
+
+        const okUser = username === dbUsername;
+        const okPass = await verifyPassword(password, storedPassword);
+
+        if (okUser && okPass) {
+            const token = signToken({ role: 'admin', username: dbUsername });
+            res.json({ message: 'Login successful', token, username: dbUsername });
         } else {
             res.status(401).json({ error: 'Hatalı kullanıcı adı veya şifre' });
         }
@@ -62,7 +62,7 @@ router.post('/login', async (req, res) => {
 // Get all clients
 router.get('/clients', async (req, res) => {
     try {
-        const { rows } = await db.query('SELECT * FROM clients ORDER BY created_at DESC');
+        const { rows } = await db.query('SELECT id, company_name, prefix, webhook_url, phone_number, contact_name, contact_surname, hourly_wage, is_active, created_at FROM clients ORDER BY created_at DESC');
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -88,7 +88,7 @@ router.put('/clients/:id/toggle', async (req, res) => {
     const { id } = req.params;
     const { is_active } = req.body;
     try {
-        await db.query('UPDATE clients SET is_active = ? WHERE id = ?', [is_active, id]);
+        await db.query('UPDATE clients SET is_active = ? WHERE id = ?', [is_active ? 1 : 0, id]);
         res.json({ message: 'Client status updated' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -100,13 +100,11 @@ router.put('/clients/:id/toggle', async (req, res) => {
 // Get all logs with client details
 router.get('/logs', async (req, res) => {
     try {
-        // Using JOIN to get company_name. 
-        // Turso/SQLite supports standard joins.
         const query = `
             SELECT logs.*, clients.company_name, clients.prefix
-            FROM logs 
-            LEFT JOIN clients ON logs.client_id = clients.id 
-            ORDER BY logs.created_at DESC 
+            FROM logs
+            LEFT JOIN clients ON logs.client_id = clients.id
+            ORDER BY logs.created_at DESC
             LIMIT 500
         `;
         const { rows } = await db.query(query);
@@ -143,8 +141,15 @@ router.get('/settings', async (req, res) => {
 // Update a setting
 router.put('/settings/:key', async (req, res) => {
     const { key } = req.params;
-    const { value } = req.body;
+    let { value } = req.body;
     try {
+        // Admin şifresi her zaman hash'lenerek saklanır
+        if (key === 'ADMIN_PASSWORD') {
+            if (!value || String(value).length < 4) {
+                return res.status(400).json({ error: 'Şifre en az 4 karakter olmalıdır.' });
+            }
+            value = await hashPassword(value);
+        }
         await db.query(
             'UPDATE global_settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?',
             [value, key]

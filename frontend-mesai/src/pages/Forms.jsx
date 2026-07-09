@@ -15,7 +15,7 @@ export default function Forms({ user }) {
   const [loading, setLoading] = useState(false);
 
   const host = `http://${window.location.hostname}:3303`;
-  const token = user?.password;
+  const token = user?.token;
 
   const fetchForms = async () => {
     try {

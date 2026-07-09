@@ -84,11 +84,13 @@ export default function TrackPage() {
                 <span style={{ fontWeight: 600 }}>Alıcı:</span>
                 <span>{censorName(pack.recipient_name)}</span>
               </div>
-              <div style={{ display: 'flex', gap: 6, fontSize: '0.85rem', alignItems: 'flex-start' }}>
-                <MapPin size={14} className="text-muted" style={{ marginTop: 2, flexShrink: 0 }} />
-                <span style={{ fontWeight: 600 }}>Teslim Adresi:</span>
-                <span>{pack.delivery_address}</span>
-              </div>
+              {pack.delivery_address && (
+                <div style={{ display: 'flex', gap: 6, fontSize: '0.85rem', alignItems: 'flex-start' }}>
+                  <MapPin size={14} className="text-muted" style={{ marginTop: 2, flexShrink: 0 }} />
+                  <span style={{ fontWeight: 600 }}>Teslim Adresi:</span>
+                  <span>{pack.delivery_address}</span>
+                </div>
+              )}
             </div>
 
             {/* Tracking Progress Steps */}

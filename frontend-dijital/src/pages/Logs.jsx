@@ -7,7 +7,7 @@ export default function Logs({ user }) {
   const [expandedLog, setExpandedLog] = useState(null);
 
   const host = `http://${window.location.hostname}:3303`;
-  const token = user?.password;
+  const token = user?.token;
   const isCompany = user?.role === 'company';
 
   const fetchLogs = async () => {
@@ -18,7 +18,9 @@ export default function Logs({ user }) {
           headers: { Authorization: `Bearer ${token}` }
         });
       } else {
-        res = await axios.get(`${host}/api/dijital/technician/${user.id}/logs`);
+        res = await axios.get(`${host}/api/dijital/technician/logs`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       }
       setLogs(res.data);
     } catch (err) {

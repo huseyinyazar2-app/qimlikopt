@@ -33,7 +33,7 @@ export default function Dashboard({ user }) {
   const [selectedCourierId, setSelectedCourierId] = useState('');
 
   const host = `http://${window.location.hostname}:3303`;
-  const token = user?.password;
+  const token = user?.token;
 
   const fetchCompanyData = async () => {
     try {
@@ -58,7 +58,7 @@ export default function Dashboard({ user }) {
   const fetchCourierData = async () => {
     try {
       const res = await axios.get(`${host}/api/teslimat/courier/packages`, {
-        params: { courier_id: user.id }
+        headers: { Authorization: `Bearer ${token}` }
       });
       setPackages(res.data);
     } catch (err) {

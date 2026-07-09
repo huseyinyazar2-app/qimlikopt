@@ -1,17 +1,45 @@
 require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3303;
 
-// Enable CORS
+// Proxy (nginx/traefik) arkasında doğru istemci IP'si için
+app.set('trust proxy', 1);
+
+// CORS
 const cors = require('cors');
 app.use(cors());
 
-// Middleware
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// Body limitleri: base64 foto/imza için makul üst sınır
+app.use(express.json({ limit: '12mb' }));
+app.use(express.urlencoded({ extended: true, limit: '12mb' }));
+
+// Genel hız sınırı (IP başına): gateway ve polling trafiğine yetecek kadar
+const globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Çok fazla istek. Lütfen biraz sonra tekrar deneyin.' },
+});
+app.use('/api', globalLimiter);
+
+// Kimlik doğrulama / kod deneme uçlarına sıkı sınır (brute-force koruması)
+const authLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 15,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Çok fazla deneme. Lütfen bir dakika sonra tekrar deneyin.' },
+});
+app.use((req, res, next) => {
+    if (/(\/login|\/register|\/login\/request|verify-status)$/.test(req.path)) {
+        return authLimiter(req, res, next);
+    }
+    next();
+});
 
 const gatewayRoutes = require('./routes/gateway');
 const adminRoutes = require('./routes/admin');

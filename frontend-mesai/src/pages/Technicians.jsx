@@ -14,7 +14,7 @@ export default function Technicians({ user }) {
   const [loading, setLoading] = useState(false);
 
   const host = `http://${window.location.hostname}:3303`;
-  const token = user?.password; // For prototype we use password as token
+  const token = user?.token;
 
   const fetchTechs = async () => {
     try {

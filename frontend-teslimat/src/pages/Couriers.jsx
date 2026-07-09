@@ -15,7 +15,7 @@ export default function Couriers({ user }) {
   const [loading, setLoading] = useState(false);
 
   const host = `http://${window.location.hostname}:3303`;
-  const token = user?.password;
+  const token = user?.token;
 
   const fetchCouriers = async () => {
     try {

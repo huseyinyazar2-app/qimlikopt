@@ -37,7 +37,7 @@ export default function Dashboard({ user }) {
   const [selectedEmpId, setSelectedEmpId] = useState(user?.role === 'employee' ? user.id : '');
 
   const host = `http://${window.location.hostname}:3303`;
-  const token = user?.password;
+  const token = user?.token;
 
   const fetchCompanyData = async () => {
     setLoadingData(true);
@@ -61,7 +61,9 @@ export default function Dashboard({ user }) {
 
   const fetchEmployeeData = async () => {
     try {
-      const resReport = await axios.get(`${host}/api/mesai/public/employees/${user.id}/report`);
+      const resReport = await axios.get(`${host}/api/mesai/worker/report`, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
       setEmployeeReport(resReport.data);
     } catch (err) {
       toast.error('Personel verileri yüklenirken hata');
@@ -79,7 +81,9 @@ export default function Dashboard({ user }) {
       // In this setup, we can fetch locations by calling `/api/mesai/company/logs` or since employee doesn't have companyAuth, let's retrieve them or let them choose.
       // Actually, since we want employee simulation to be super smooth, let's create a public locations listing or just list locations.
       // Let's check if we can make a public route `GET /api/mesai/public/locations` in `backend/routes/mesai.js` to list locations. That's very helpful!
-      const res = await axios.get(`${host}/api/mesai/public/locations/all`);
+      const res = await axios.get(`${host}/api/mesai/worker/locations`, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
       setLocations(res.data);
       if (res.data.length > 0) setSelectedLocId(res.data[0].id.toString());
     } catch (err) {

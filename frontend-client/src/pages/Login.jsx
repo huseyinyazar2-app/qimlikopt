@@ -18,7 +18,7 @@ export default function Login({ onLogin }) {
 
     try {
       const res = await axios.post(`${getApiUrl()}/api/client/login`, { phone_number: phoneNumber, api_key: apiKey });
-      onLogin(res.data.client);
+      onLogin({ ...res.data.client, token: res.data.token });
     } catch (err) {
       toast.error(err.response?.data?.error || 'Giriş yapılamadı. Bilgilerinizi kontrol edin.');
     } finally {

@@ -29,11 +29,17 @@ export default function PublicMachine({ user }) {
   const [locError, setLocError] = useState('');
 
   const host = `http://${window.location.hostname}:3303`;
+  const token = user?.token;
   const isTechnician = user?.role === 'technician';
 
   const fetchMachineDetails = async () => {
+    if (!token) {
+      setError('Bu sayfayı görüntülemek için teknisyen girişi yapmalısınız.');
+      return;
+    }
     try {
-      const res = await axios.get(`${host}/api/dijital/public/machine/${code}`);
+      const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.get(`${host}/api/dijital/machine/${code}`, authHeaders);
       setMachineData(res.data);
       setStatusAfter(res.data.machine.status);
 
@@ -48,7 +54,7 @@ export default function PublicMachine({ user }) {
       });
       setFormData(initialForm);
 
-      const historyRes = await axios.get(`${host}/api/dijital/public/machine/${code}/history`);
+      const historyRes = await axios.get(`${host}/api/dijital/machine/${code}/history`, authHeaders);
       setHistory(historyRes.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Ekipman bilgileri alınamadı.');
@@ -57,7 +63,7 @@ export default function PublicMachine({ user }) {
 
   useEffect(() => {
     fetchMachineDetails();
-  }, [code]);
+  }, [code, token]);
 
   useEffect(() => {
     if (isTechnician && navigator.geolocation) {
@@ -162,7 +168,6 @@ export default function PublicMachine({ user }) {
     try {
       await axios.post(`${host}/api/dijital/maintenance/submit`, {
         machine_id: machineData.machine.id,
-        technician_id: user.id,
         form_data: formData,
         status_after: statusAfter,
         notes,
@@ -170,6 +175,8 @@ export default function PublicMachine({ user }) {
         technician_latitude: techLat,
         technician_longitude: techLng,
         used_parts: usedParts
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       setSuccess(true);
       setNotes('');
@@ -189,6 +196,11 @@ export default function PublicMachine({ user }) {
         <div className="glass-card" style={{ maxWidth: '400px', textAlign: 'center' }}>
           <div style={{ color: '#ef4444', fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>Hata</div>
           <p className="text-muted">{error}</p>
+          {!token && (
+            <a href={`/login?tab=technician`} className="btn btn-primary" style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+              <LogIn size={18} /> Teknisyen Girişi
+            </a>
+          )}
         </div>
       </div>
     );

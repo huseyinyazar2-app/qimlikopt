@@ -16,7 +16,7 @@ export default function Logs({ user }) {
   const [loading, setLoading] = useState(true);
 
   const host = `http://${window.location.hostname}:3303`;
-  const token = user?.password;
+  const token = user?.token;
   const isCompany = user?.role === 'company';
 
   const fetchLogs = async () => {

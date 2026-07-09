@@ -19,11 +19,24 @@ export default function CheckPage({ user }) {
 
   const host = `http://${window.location.hostname}:3303`;
 
-  // Fetch location details
+  // Fetch location details.
+  // Single-location endpoint removed; fetch all worker locations (auth) and match by id.
   const fetchLocation = async () => {
+    if (!user?.token) {
+      // Employee not logged in: the auth-warning card below handles the redirect prompt.
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await axios.get(`${host}/api/mesai/public/locations/${locationId}`);
-      setLocation(res.data);
+      const res = await axios.get(`${host}/api/mesai/worker/locations`, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      const found = res.data.find((loc) => String(loc.id) === String(locationId));
+      if (found) {
+        setLocation(found);
+      } else {
+        setError('Çalışma alanı bulunamadı.');
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Çalışma alanı bilgileri yüklenemedi.');
     } finally {
@@ -65,7 +78,7 @@ export default function CheckPage({ user }) {
   useEffect(() => {
     fetchLocation();
     getGPSLocation();
-  }, [locationId]);
+  }, [locationId, user?.token]);
 
   // Calculate distance on client-side for immediate display
   useEffect(() => {
@@ -102,11 +115,12 @@ export default function CheckPage({ user }) {
 
     try {
       const res = await axios.post(`${host}/api/mesai/check`, {
-        employee_id: user.id,
         location_id: locationId,
         log_type: type,
         gps_latitude: coords.latitude,
         gps_longitude: coords.longitude
+      }, {
+        headers: { Authorization: `Bearer ${user.token}` }
       });
       setSuccessMsg(res.data.message);
     } catch (err) {
