@@ -38,8 +38,8 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun loadPreferences() {
         val prefs = getSharedPreferences("qimlik_gateway_prefs", Context.MODE_PRIVATE)
-        editServerUrl.setText(prefs.getString("server_url", "http://192.168.1.10:3303"))
-        editGatewayKey.setText(prefs.getString("gateway_key", "key"))
+        editServerUrl.setText(prefs.getString("server_url", "https://api.qimlik.com"))
+        editGatewayKey.setText(prefs.getString("gateway_key", ""))
         editDeviceName.setText(prefs.getString("device_name", Build.MODEL))
     }
 
