@@ -62,6 +62,7 @@ app.get('/health', (req, res) => {
 
 const initDb = require('./db/init');
 const { startWebhookProcessor } = require('./webhook');
+const { startNotificationJobs } = require('./notifications');
 
 // Start Server
 app.listen(PORT, async () => {
@@ -69,4 +70,6 @@ app.listen(PORT, async () => {
     await initDb();
     // Dis webhook teslim kuyrugu yeniden deneme islemcisi
     startWebhookProcessor(30000);
+    // Periyodik bildirim uretimi (SLA gecikmesi, yaklasan bakim)
+    startNotificationJobs(300000);
 });

@@ -1,6 +1,7 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Package, Truck, AlertTriangle, Award, Eye, UserCog } from 'lucide-react';
 import { getRole, isOwner, isReadOnly, roleLabel } from '../utils/role';
+import NotificationCenter from './NotificationCenter';
 
 export default function Layout({ user, onLogout }) {
   const isCompany = user?.role === 'company';
@@ -39,6 +40,13 @@ export default function Layout({ user, onLogout }) {
         {isCompany && readOnly && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.75rem', marginBottom: '0.75rem', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: 8, color: '#b45309', fontSize: '0.8rem', fontWeight: 600 }}>
             <Eye size={16} /> İzleyici — salt-okunur
+          </div>
+        )}
+
+        {/* Bildirim merkezi — sadece firma panelinde */}
+        {isCompany && (
+          <div style={{ marginBottom: '0.75rem' }}>
+            <NotificationCenter user={user} />
           </div>
         )}
 

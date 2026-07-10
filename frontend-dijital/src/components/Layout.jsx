@@ -1,6 +1,7 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { LayoutDashboard, FileText, ClipboardList, Users, Wrench, LogOut, ClipboardCheck, ShieldUser, Eye } from 'lucide-react';
 import { getRole, isOwner, isReadOnly, ROLE_LABELS, ROLE_BADGE } from '../utils/role';
+import NotificationBell from './NotificationBell';
 
 export default function Layout({ user, onLogout }) {
   const isCompany = user?.role === 'company';
@@ -33,6 +34,8 @@ export default function Layout({ user, onLogout }) {
         <div style={{ padding: '1rem 0 2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--brand-gradient)' }}></div>
           <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>Dijital v1.7.10</span></h2>
+          {/* Bildirim zili — sadece firma/panel görünümünde */}
+          {isCompany && <NotificationBell user={user} />}
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 4 }}>

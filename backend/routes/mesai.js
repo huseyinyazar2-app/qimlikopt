@@ -3,6 +3,7 @@ const db = require('../db');
 const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard, requireTier, panelWriteGuard } = require('../auth');
 const { createOtp, verifyOtp } = require('../otp');
 const { mountPanelUsers } = require('../panelUsers');
+const { notify, mountNotifications } = require('../notifications');
 
 const router = express.Router();
 
@@ -615,10 +616,22 @@ router.post('/worker/leaves', employeeAuth, async (req, res) => {
         return res.status(400).json({ error: 'Eksik bilgi.' });
     }
     try {
-        await db.query(
+        const ins = await db.query(
             'INSERT INTO mesai_leaves (employee_id, start_date, end_date, leave_type) VALUES (?, ?, ?, ?)',
             [req.worker.id, start_date, end_date, leave_type]
         );
+        const leaveId = ins.lastInsertRowid != null ? Number(ins.lastInsertRowid) : null;
+        // Yöneticilere bildirim (izin talebi onay bekliyor)
+        const { rows: emp } = await db.query('SELECT name, surname FROM mesai_employees WHERE id = ?', [req.worker.id]);
+        const empName = emp[0] ? `${emp[0].name} ${emp[0].surname}` : 'Personel';
+        const typeLabel = leave_type === 'annual' ? 'Yıllık izin' : leave_type === 'sick' ? 'Rapor' : 'İzin';
+        await notify({
+            module: 'mesai', company_id: req.worker.company_id, target_role: 'manager',
+            type: 'leave_request', title: 'Yeni izin talebi',
+            body: `${empName} — ${typeLabel} (${start_date} → ${end_date}) onayınızı bekliyor.`,
+            link: '/logs', entity_type: 'leave', entity_id: leaveId,
+            dedup_key: `leave_request:${leaveId}`,
+        });
         res.status(201).json({ message: 'İzin talebiniz başarıyla oluşturuldu.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -826,6 +839,8 @@ router.get('/worker/leave-balance', employeeAuth, async (req, res) => {
 
 // Faz 3: panel alt kullanıcı girişi + yönetimi (sahip)
 mountPanelUsers(router, { module: 'mesai', companyTable: 'mesai_companies', companyAuth });
+// Faz 4: bildirim merkezi uçları
+mountNotifications(router, { module: 'mesai', companyAuth });
 
 // Test amaçlı iç fonksiyon erişimi (bordro motoru doğrulaması)
 router._calculateEmployeeReport = calculateEmployeeReport;

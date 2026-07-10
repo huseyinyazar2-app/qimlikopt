@@ -3,6 +3,7 @@ const db = require('../db');
 const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard, panelWriteGuard } = require('../auth');
 const { createOtp, verifyOtp } = require('../otp');
 const { mountPanelUsers } = require('../panelUsers');
+const { notify, mountNotifications } = require('../notifications');
 
 // Haversine formula for distance calculation (in meters)
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -451,14 +452,24 @@ router.post('/public/incident', async (req, res) => {
         return res.status(400).json({ error: 'Makine kodu, ad, telefon ve arıza detayı zorunludur.' });
     }
     try {
-        const check = await db.query('SELECT id FROM dijital_machines WHERE machine_code = ?', [machine_code.toUpperCase()]);
+        const check = await db.query('SELECT id, company_id, machine_name FROM dijital_machines WHERE machine_code = ?', [machine_code.toUpperCase()]);
         if (check.rows.length === 0) {
             return res.status(404).json({ error: 'Makine bulunamadı.' });
         }
-        await db.query(
+        const machine = check.rows[0];
+        const ins = await db.query(
             'INSERT INTO dijital_incidents (machine_id, reporter_name, reporter_phone, description) VALUES (?, ?, ?, ?)',
-            [check.rows[0].id, reporter_name, reporter_phone, description]
+            [machine.id, reporter_name, reporter_phone, description]
         );
+        const incidentId = ins.lastInsertRowid != null ? Number(ins.lastInsertRowid) : null;
+        // Firmaya bildirim (yeni arıza)
+        await notify({
+            module: 'dijital', company_id: machine.company_id, type: 'incident',
+            title: 'Yeni arıza bildirimi',
+            body: `${machine.machine_name || 'Makine'}: ${String(description).slice(0, 120)}`,
+            link: '/dashboard', entity_type: 'incident', entity_id: incidentId,
+            dedup_key: `incident:${incidentId}`,
+        });
         res.status(201).json({ message: 'Arıza bildiriminiz başarıyla alındı. Teşekkür ederiz.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -792,5 +803,7 @@ router.put('/technician/work-orders/:id/status', technicianAuth, async (req, res
 
 // Faz 3: panel alt kullanıcı girişi + yönetimi (sahip)
 mountPanelUsers(router, { module: 'dijital', companyTable: 'dijital_companies', companyAuth });
+// Faz 4: bildirim merkezi uçları
+mountNotifications(router, { module: 'dijital', companyAuth });
 
 module.exports = router;

@@ -1,6 +1,7 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Settings, Calculator, UserCog, Eye } from 'lucide-react';
 import { getRole, ROLE_LABELS, ROLE_COLORS, canSeeSettings, canSeePayroll, canManageUsers, isReadOnly } from '../utils/role';
+import NotificationBell from './NotificationBell';
 
 export default function Layout({ user, onLogout }) {
   const isCompany = user?.role === 'company';
@@ -26,6 +27,9 @@ export default function Layout({ user, onLogout }) {
 
   return (
     <div className="admin-layout">
+      {/* Bildirim zili — sadece firma paneli görünümünde */}
+      {isCompany && <NotificationBell token={user?.token} />}
+
       {/* Sidebar */}
       <aside className="sidebar">
         <div style={{ padding: '1rem 0 2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

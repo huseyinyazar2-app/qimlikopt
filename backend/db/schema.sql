@@ -367,4 +367,33 @@ CREATE TABLE IF NOT EXISTS panel_users (
 );
 CREATE INDEX IF NOT EXISTS idx_panel_users_company ON panel_users (module, company_id);
 
+-- --- FAZ 4: Bildirimler (tarayici bazli) ---
+-- Sirket kapsamli bildirim. target_min_rank: 0=herkes, 2=manager+, 3=owner.
+-- dedup_key ayni olayin tekrar uretimini engeller (UNIQUE ile).
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    module VARCHAR(20) NOT NULL,
+    company_id INTEGER NOT NULL,
+    target_min_rank INTEGER DEFAULT 0,
+    type VARCHAR(40) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    body TEXT,
+    link VARCHAR(255),
+    entity_type VARCHAR(40),
+    entity_id INTEGER,
+    dedup_key VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (module, company_id, dedup_key)
+);
+CREATE INDEX IF NOT EXISTS idx_notif_company ON notifications (module, company_id, created_at);
+
+-- Okundu durumu kullanici bazli (her panel kullanicisi bagimsiz okur).
+-- reader = panel_users.id (metin) veya birincil sahip icin 'primary'.
+CREATE TABLE IF NOT EXISTS notification_reads (
+    notification_id INTEGER NOT NULL REFERENCES notifications(id),
+    reader VARCHAR(60) NOT NULL,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (notification_id, reader)
+);
+
 

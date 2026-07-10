@@ -3,6 +3,7 @@ const db = require('../db');
 const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard, panelWriteGuard } = require('../auth');
 const { createOtp, verifyOtp } = require('../otp');
 const { mountPanelUsers } = require('../panelUsers');
+const { notify, mountNotifications } = require('../notifications');
 
 const router = express.Router();
 
@@ -426,12 +427,13 @@ router.post('/courier/packages/:id/fail', courierAuth, async (req, res) => {
     try {
         // Paket bu kuryeye zimmetli olmalı
         const { rows: pkgRows } = await db.query(
-            'SELECT id FROM teslimat_packages WHERE id = ? AND courier_id = ?',
+            'SELECT id, company_id, package_code, recipient_name FROM teslimat_packages WHERE id = ? AND courier_id = ?',
             [id, req.worker.id]
         );
         if (pkgRows.length === 0) {
             return res.status(403).json({ error: 'Bu paket size zimmetli değil.' });
         }
+        const pkg = pkgRows[0];
 
         // Bu paket için mevcut deneme sayısı + 1
         const { rows: cntRows } = await db.query(
@@ -456,6 +458,16 @@ router.post('/courier/packages/:id/fail', courierAuth, async (req, res) => {
             "INSERT INTO teslimat_logs (package_id, log_type, gps_latitude, gps_longitude) VALUES (?, 'delivery_failed', ?, ?)",
             [id, parseFloat(gps_latitude), parseFloat(gps_longitude)]
         );
+
+        // Firmaya bildirim (başarısız teslim). Her deneme ayrı bildirim (dedup: attempt no).
+        const reasonLabel = { recipient_absent: 'Alıcı adreste yok', wrong_address: 'Yanlış adres', refused: 'Alıcı reddetti', other: 'Diğer' }[reason] || reason;
+        await notify({
+            module: 'teslimat', company_id: pkg.company_id, type: 'delivery_failed',
+            title: 'Başarısız teslim',
+            body: `${pkg.package_code} (${pkg.recipient_name}) teslim edilemedi — ${reasonLabel}. Deneme #${attemptNo}.`,
+            link: '/basarisiz', entity_type: 'package', entity_id: Number(id),
+            dedup_key: `delivery_failed:${id}:${attemptNo}`,
+        });
 
         res.json({ message: 'Başarısız teslim kaydı oluşturuldu.', attempt_no: attemptNo });
     } catch (err) {
@@ -590,5 +602,7 @@ router.get('/company/courier-scorecard', companyAuth, async (req, res) => {
 
 // Faz 3: panel alt kullanıcı girişi + yönetimi (sahip)
 mountPanelUsers(router, { module: 'teslimat', companyTable: 'teslimat_companies', companyAuth });
+// Faz 4: bildirim merkezi uçları
+mountNotifications(router, { module: 'teslimat', companyAuth });
 
 module.exports = router;
