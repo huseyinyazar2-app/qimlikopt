@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { 
   ShieldCheck, 
@@ -109,7 +110,7 @@ export default function Home() {
                   Geleneksel pahalı SMS onay kodlarına veda edin. Reverse OTP mimarisiyle kullanıcılarınız WhatsApp üzerinden kendilerini doğrulasın, SMS maliyetleriniz sıfırlansın.
                 </p>
               </div>
-              <a href="#cozum-otp" className="btn btn-outline" style={{ width: '100%', fontSize: '0.9rem', padding: '0.6rem' }}>Detayları İncele</a>
+              <Link to="/urunler/otp" className="btn btn-outline" style={{ width: '100%', fontSize: '0.9rem', padding: '0.6rem', textDecoration: 'none' }}>Detayları İncele</Link>
             </div>
 
             {/* DIJITAL CARD */}
@@ -123,7 +124,7 @@ export default function Home() {
                   Akıllı QR kod destekli makine bakım takip paneli. Dinamik form tasarımları, arıza kaydı yönetimi, teknisyen atamaları ve geriye dönük detaylı personel çalışma raporları.
                 </p>
               </div>
-              <a href="#cozum-dijital" className="btn btn-outline" style={{ width: '100%', fontSize: '0.9rem', padding: '0.6rem' }}>Detayları İncele</a>
+              <Link to="/urunler/dijital" className="btn btn-outline" style={{ width: '100%', fontSize: '0.9rem', padding: '0.6rem', textDecoration: 'none' }}>Detayları İncele</Link>
             </div>
 
             {/* MESAI CARD */}
@@ -137,7 +138,7 @@ export default function Home() {
                   Konum doğrulamalı saha sınır uyumlu, sahte GPS (Fake GPS) korumalı personel giriş-çıkış takibi. Şantiye veya ofis sınırlarına giren personelin mesaisini güvenle loglayın.
                 </p>
               </div>
-              <a href="#cozum-mesai" className="btn btn-outline" style={{ width: '100%', fontSize: '0.9rem', padding: '0.6rem' }}>Detayları İncele</a>
+              <Link to="/urunler/mesai" className="btn btn-outline" style={{ width: '100%', fontSize: '0.9rem', padding: '0.6rem', textDecoration: 'none' }}>Detayları İncele</Link>
             </div>
 
             {/* TESLIMAT CARD */}
@@ -151,7 +152,7 @@ export default function Home() {
                   Kurye zimmet atamaları, alıcı WhatsApp Reverse OTP doğrulaması ve teslimat anında ekran üstü parmakla dijital imza altyapısı ile dijital teslimat kanıtı.
                 </p>
               </div>
-              <a href="#cozum-teslimat" className="btn btn-outline" style={{ width: '100%', fontSize: '0.9rem', padding: '0.6rem' }}>Detayları İncele</a>
+              <Link to="/urunler/teslimat" className="btn btn-outline" style={{ width: '100%', fontSize: '0.9rem', padding: '0.6rem', textDecoration: 'none' }}>Detayları İncele</Link>
             </div>
 
           </div>

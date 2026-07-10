@@ -17,3 +17,4 @@ android-gateway/.idea/
 *.sqlite
 backend/local.db
 backend/local.db-journal
+*.apk
