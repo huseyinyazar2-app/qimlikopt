@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import Devices from './pages/Devices';
 import Logs from './pages/Logs';
+import Webhooks from './pages/Webhooks';
 import Settings from './pages/Settings';
 
 function App() {
@@ -48,6 +49,7 @@ function App() {
           <Route path="clients" element={<Clients />} />
           <Route path="devices" element={<Devices />} />
           <Route path="logs" element={<Logs />} />
+          <Route path="webhooks" element={<Webhooks />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

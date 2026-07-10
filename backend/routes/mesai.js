@@ -112,9 +112,18 @@ router.get('/employees', companyAuth, async (req, res) => {
 });
 
 router.put('/employees/:id', companyAuth, async (req, res) => {
-    const { hourly_wage } = req.body;
+    const { hourly_wage, annual_leave_days, hire_date } = req.body;
     try {
-        await db.query('UPDATE mesai_employees SET hourly_wage = ? WHERE id = ? AND company_id = ?', [parseFloat(hourly_wage) || 0, req.params.id, req.company.id]);
+        await db.query(
+            'UPDATE mesai_employees SET hourly_wage = ?, annual_leave_days = ?, hire_date = ? WHERE id = ? AND company_id = ?',
+            [
+                parseFloat(hourly_wage) || 0,
+                annual_leave_days === undefined || annual_leave_days === null || annual_leave_days === '' ? null : parseInt(annual_leave_days),
+                hire_date || null,
+                req.params.id,
+                req.company.id,
+            ]
+        );
         res.json({ message: 'Personel bilgileri güncellendi.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -311,13 +320,60 @@ router.get('/company/logs', companyAuth, async (req, res) => {
     }
 });
 
+// --- BORDRO YARDIMCILARI ---
+// Yerel saat diliminde YYYY-MM-DD (tatil eşleştirme için)
+function toIsoDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+// weekend_days '0' -> Set{0} (0=Pazar), '6,0' -> Set{6,0}
+function parseWeekendDays(str) {
+    return new Set(String(str ?? '0').split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)));
+}
+// Bir tarih aralığındaki fiili çalışma günü (hafta tatili + resmi tatil hariç) — yıllık izin hesabı için
+function countWorkingDays(startIso, endIso, weekendSet, holidaySet) {
+    let count = 0;
+    const s = new Date(startIso + 'T00:00:00');
+    const e = new Date(endIso + 'T00:00:00');
+    if (isNaN(s) || isNaN(e)) return 0;
+    for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+        if (weekendSet.has(d.getDay())) continue;
+        if (holidaySet.has(toIsoDate(d))) continue;
+        count++;
+    }
+    return count;
+}
+// Firmanın geçerli tatil haritası (global resmi + firmaya özel) -> Map<iso, {name,is_half_day,multiplier}>
+async function loadHolidayMap(companyId) {
+    const { rows } = await db.query(
+        'SELECT holiday_date, name, is_half_day, multiplier FROM mesai_holidays WHERE company_id IS NULL OR company_id = ?',
+        [companyId]
+    );
+    const map = new Map();
+    rows.forEach(h => map.set(String(h.holiday_date).slice(0, 10), h));
+    return map;
+}
+
 async function calculateEmployeeReport(id) {
     const { rows: empRows } = await db.query('SELECT company_id, hourly_wage FROM mesai_employees WHERE id = ?', [id]);
     if (empRows.length === 0) return { daily: [], monthly: [] };
     const hourly_wage = empRows[0].hourly_wage || 0;
 
-    const { rows: compRows } = await db.query('SELECT shift_type, shift_start_time, shift_end_time, tolerance_minutes, deduct_break_time FROM mesai_companies WHERE id = ?', [empRows[0].company_id]);
+    const { rows: compRows } = await db.query(
+        `SELECT shift_type, shift_start_time, shift_end_time, tolerance_minutes, deduct_break_time,
+                overtime_multiplier, weekend_multiplier, holiday_multiplier, daily_normal_hours, weekend_days
+         FROM mesai_companies WHERE id = ?`, [empRows[0].company_id]);
     const company = compRows[0];
+
+    // Bordro çarpanları ve gün türü kuralları
+    const otMult = company.overtime_multiplier ?? 1.5;
+    const wkMult = company.weekend_multiplier ?? 2.0;
+    const holMult = company.holiday_multiplier ?? 2.0;
+    const dailyNormal = company.daily_normal_hours ?? 9;
+    const weekendSet = parseWeekendDays(company.weekend_days);
+    const holidayMap = await loadHolidayMap(empRows[0].company_id);
 
     const { rows: logs } = await db.query(
         `SELECT l.*, loc.location_name, loc.shift_start_time as loc_start, loc.shift_end_time as loc_end
@@ -335,13 +391,23 @@ async function calculateEmployeeReport(id) {
         const timeStr = new Date(log.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
         if (!dailyLogs[dateStr]) {
+            const dObj = new Date(log.created_at);
+            const iso = toIsoDate(dObj);
             dailyLogs[dateStr] = {
                 date: dateStr,
+                iso_date: iso,
+                weekday: dObj.getDay(),
+                holiday_info: holidayMap.get(iso) || null,
+                day_kind: 'workday',
                 check_in: '-',
                 check_out: '-',
                 hours: 0,
                 break_hours: 0,
                 wage: 0,
+                normal_hours: 0,
+                overtime_hours: 0,
+                weekend_hours: 0,
+                holiday_hours: 0,
                 location: log.location_name,
                 raw_check_in: null,
                 raw_break_start: null,
@@ -406,7 +472,39 @@ async function calculateEmployeeReport(id) {
         if (company.deduct_break_time) {
             day.hours = Math.max(0, day.hours - day.break_hours);
         }
-        day.wage = parseFloat((day.hours * hourly_wage).toFixed(2));
+        const worked = day.hours;
+        const isFullHoliday = day.holiday_info && !day.holiday_info.is_half_day;
+        const isWeekend = weekendSet.has(day.weekday);
+
+        if (isFullHoliday) {
+            // Resmi/dini bayram: tüm çalışma tatil çarpanıyla (tatile özel çarpan varsa o)
+            const f = day.holiday_info.multiplier != null ? day.holiday_info.multiplier : holMult;
+            day.day_kind = 'holiday';
+            day.holiday_name = day.holiday_info.name;
+            day.holiday_hours = worked;
+            day.wage = parseFloat((worked * hourly_wage * f).toFixed(2));
+        } else if (isWeekend) {
+            // Hafta tatili çalışması
+            day.day_kind = 'weekend';
+            day.weekend_hours = worked;
+            day.wage = parseFloat((worked * hourly_wage * wkMult).toFixed(2));
+        } else {
+            // Normal iş günü: günlük eşiğe kadar normal, üstü fazla mesai
+            if (day.holiday_info && day.holiday_info.is_half_day) {
+                day.day_kind = 'half_holiday';
+                day.holiday_name = day.holiday_info.name;
+            }
+            const normal = Math.min(worked, dailyNormal);
+            const overtime = Math.max(0, worked - dailyNormal);
+            day.normal_hours = normal;
+            day.overtime_hours = overtime;
+            day.wage = parseFloat((normal * hourly_wage + overtime * hourly_wage * otMult).toFixed(2));
+        }
+
+        day.normal_hours = parseFloat(day.normal_hours.toFixed(2));
+        day.overtime_hours = parseFloat(day.overtime_hours.toFixed(2));
+        day.weekend_hours = parseFloat(day.weekend_hours.toFixed(2));
+        day.holiday_hours = parseFloat(day.holiday_hours.toFixed(2));
     });
 
     const { rows: leaves } = await db.query("SELECT start_date, end_date, leave_type FROM mesai_leaves WHERE employee_id = ? AND status = 'approved'", [id]);
@@ -425,6 +523,10 @@ async function calculateEmployeeReport(id) {
                     hours: 0,
                     break_hours: 0,
                     wage: 0,
+                    normal_hours: 0,
+                    overtime_hours: 0,
+                    weekend_hours: 0,
+                    holiday_hours: 0,
                     days_present: 0,
                     days_leave: 0
                 };
@@ -432,6 +534,10 @@ async function calculateEmployeeReport(id) {
             monthlyLogs[monthYear].hours += day.hours;
             monthlyLogs[monthYear].break_hours += day.break_hours;
             monthlyLogs[monthYear].wage += day.wage;
+            monthlyLogs[monthYear].normal_hours += day.normal_hours;
+            monthlyLogs[monthYear].overtime_hours += day.overtime_hours;
+            monthlyLogs[monthYear].weekend_hours += day.weekend_hours;
+            monthlyLogs[monthYear].holiday_hours += day.holiday_hours;
             if (day.check_in !== '-') {
                 monthlyLogs[monthYear].days_present += 1;
             }
@@ -444,7 +550,7 @@ async function calculateEmployeeReport(id) {
         for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
             const monthYear = d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
             if (!monthlyLogs[monthYear]) {
-                monthlyLogs[monthYear] = { month: monthYear, hours: 0, break_hours: 0, wage: 0, days_present: 0, days_leave: 0 };
+                monthlyLogs[monthYear] = { month: monthYear, hours: 0, break_hours: 0, wage: 0, normal_hours: 0, overtime_hours: 0, weekend_hours: 0, holiday_hours: 0, days_present: 0, days_leave: 0 };
             }
             monthlyLogs[monthYear].days_leave += 1;
         }
@@ -454,10 +560,23 @@ async function calculateEmployeeReport(id) {
         ...m,
         hours: parseFloat(m.hours.toFixed(2)),
         break_hours: parseFloat(m.break_hours.toFixed(2)),
-        wage: parseFloat(m.wage.toFixed(2))
+        wage: parseFloat(m.wage.toFixed(2)),
+        normal_hours: parseFloat(m.normal_hours.toFixed(2)),
+        overtime_hours: parseFloat(m.overtime_hours.toFixed(2)),
+        weekend_hours: parseFloat(m.weekend_hours.toFixed(2)),
+        holiday_hours: parseFloat(m.holiday_hours.toFixed(2))
     }));
 
-    return { daily, monthly };
+    return {
+        daily,
+        monthly,
+        payroll: {
+            overtime_multiplier: otMult,
+            weekend_multiplier: wkMult,
+            holiday_multiplier: holMult,
+            daily_normal_hours: dailyNormal,
+        },
+    };
 }
 
 // Şirket erişimi: personel raporu (sahiplik doğrulanır)
@@ -564,5 +683,145 @@ router.get('/company/analytics', companyAuth, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// --- 8. BORDRO AYARLARI (ÇARPANLAR) ---
+router.get('/company/payroll-settings', companyAuth, async (req, res) => {
+    const c = req.company;
+    res.json({
+        overtime_multiplier: c.overtime_multiplier ?? 1.5,
+        weekend_multiplier: c.weekend_multiplier ?? 2.0,
+        holiday_multiplier: c.holiday_multiplier ?? 2.0,
+        daily_normal_hours: c.daily_normal_hours ?? 9,
+        annual_leave_days: c.annual_leave_days ?? 14,
+        weekend_days: c.weekend_days ?? '0',
+    });
+});
+
+router.put('/company/payroll-settings', companyAuth, async (req, res) => {
+    const { overtime_multiplier, weekend_multiplier, holiday_multiplier, daily_normal_hours, annual_leave_days, weekend_days } = req.body;
+    try {
+        await db.query(
+            `UPDATE mesai_companies SET overtime_multiplier = ?, weekend_multiplier = ?, holiday_multiplier = ?,
+                    daily_normal_hours = ?, annual_leave_days = ?, weekend_days = ? WHERE id = ?`,
+            [
+                parseFloat(overtime_multiplier) || 1.5,
+                parseFloat(weekend_multiplier) || 2.0,
+                parseFloat(holiday_multiplier) || 2.0,
+                parseFloat(daily_normal_hours) || 9,
+                parseInt(annual_leave_days) || 14,
+                String(weekend_days || '0'),
+                req.company.id,
+            ]
+        );
+        res.json({ message: 'Bordro ayarları güncellendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- 9. RESMİ TATİL TAKVİMİ ---
+// Global (resmi) tatiller + firmanın kendi eklediği tatiller
+router.get('/company/holidays', companyAuth, async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT id, company_id, holiday_date, name, is_half_day, multiplier,
+                    CASE WHEN company_id IS NULL THEN 1 ELSE 0 END as is_official
+             FROM mesai_holidays WHERE company_id IS NULL OR company_id = ?
+             ORDER BY holiday_date ASC`,
+            [req.company.id]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/company/holidays', companyAuth, async (req, res) => {
+    const { holiday_date, name, is_half_day, multiplier } = req.body;
+    if (!holiday_date || !name) {
+        return res.status(400).json({ error: 'Tarih ve tatil adı zorunludur.' });
+    }
+    try {
+        await db.query(
+            'INSERT INTO mesai_holidays (company_id, holiday_date, name, is_half_day, multiplier) VALUES (?, ?, ?, ?, ?)',
+            [req.company.id, String(holiday_date).slice(0, 10), name, is_half_day ? 1 : 0, multiplier != null && multiplier !== '' ? parseFloat(multiplier) : null]
+        );
+        res.status(201).json({ message: 'Tatil günü eklendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Sadece firmanın kendi eklediği tatil silinebilir (resmi tatiller korunur)
+router.delete('/company/holidays/:id', companyAuth, async (req, res) => {
+    try {
+        await db.query('DELETE FROM mesai_holidays WHERE id = ? AND company_id = ?', [req.params.id, req.company.id]);
+        res.json({ message: 'Tatil günü silindi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- 10. YILLIK İZİN BAKİYESİ ---
+async function computeLeaveBalance(employeeId) {
+    const { rows: empRows } = await db.query('SELECT company_id, annual_leave_days FROM mesai_employees WHERE id = ?', [employeeId]);
+    if (empRows.length === 0) return null;
+    const emp = empRows[0];
+    const { rows: compRows } = await db.query('SELECT annual_leave_days, weekend_days FROM mesai_companies WHERE id = ?', [emp.company_id]);
+    const comp = compRows[0] || {};
+    const entitlement = emp.annual_leave_days ?? comp.annual_leave_days ?? 14;
+    const weekendSet = parseWeekendDays(comp.weekend_days);
+    const holidaySet = new Set((await loadHolidayMap(emp.company_id)).keys());
+
+    const year = new Date().getFullYear();
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+
+    const { rows: leaves } = await db.query(
+        'SELECT start_date, end_date, leave_type, status FROM mesai_leaves WHERE employee_id = ?',
+        [employeeId]
+    );
+
+    let used = 0, pending = 0;
+    leaves.forEach(lv => {
+        if (lv.leave_type !== 'annual') return; // sadece yıllık ücretli izin bakiyeden düşer
+        let s = String(lv.start_date).slice(0, 10);
+        let e = String(lv.end_date).slice(0, 10);
+        if (e < yearStart || s > yearEnd) return; // bu yılın dışı
+        if (s < yearStart) s = yearStart;
+        if (e > yearEnd) e = yearEnd;
+        const days = countWorkingDays(s, e, weekendSet, holidaySet);
+        if (lv.status === 'approved') used += days;
+        else if (lv.status === 'pending') pending += days;
+    });
+
+    return { year, entitlement, used, pending, remaining: Math.max(0, entitlement - used) };
+}
+
+// Şirket: bir personelin izin bakiyesi (sahiplik doğrulanır)
+router.get('/employees/:id/leave-balance', companyAuth, async (req, res) => {
+    try {
+        const { rows } = await db.query('SELECT id FROM mesai_employees WHERE id = ? AND company_id = ?', [req.params.id, req.company.id]);
+        if (rows.length === 0) return res.status(404).json({ error: 'Personel bulunamadı.' });
+        const balance = await computeLeaveBalance(req.params.id);
+        res.json(balance);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Personel: kendi izin bakiyesi
+router.get('/worker/leave-balance', employeeAuth, async (req, res) => {
+    try {
+        const balance = await computeLeaveBalance(req.worker.id);
+        res.json(balance);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Test amaçlı iç fonksiyon erişimi (bordro motoru doğrulaması)
+router._calculateEmployeeReport = calculateEmployeeReport;
+router._computeLeaveBalance = computeLeaveBalance;
 
 module.exports = router;

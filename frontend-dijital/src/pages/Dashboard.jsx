@@ -551,24 +551,41 @@ export default function Dashboard({ user }) {
                     <td style={{ padding: '0.75rem 0' }}>{i.reporter_phone}</td>
                     <td style={{ padding: '0.75rem 0', maxWidth: 200 }}>{i.description}</td>
                     <td style={{ padding: '0.75rem 0' }}>
-                      <span className={`badge ${i.status === 'resolved' ? 'success' : 'warning'}`}>
-                        {i.status === 'resolved' ? 'Çözüldü' : 'Bekliyor'}
+                      <span className={`badge ${i.status === 'resolved' ? 'success' : i.status === 'in_progress' ? '' : 'warning'}`} style={i.status === 'in_progress' ? { background: 'rgba(99,102,241,0.12)', color: '#6366f1' } : undefined}>
+                        {i.status === 'resolved' ? 'Çözüldü' : i.status === 'in_progress' ? 'İş Emrinde' : 'Bekliyor'}
                       </span>
                     </td>
                     <td style={{ padding: '0.75rem 0' }}>
                       {i.status === 'pending' && (
-                        <button 
-                          onClick={async () => {
-                            try {
-                              await axios.put(`${host}/api/dijital/company/incidents/${i.id}/resolve`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                              fetchCompanyData();
-                              toast.success('Çözüldü olarak işaretlendi.');
-                            } catch (e) { toast.error('Hata oluştu'); }
-                          }}
-                          className="btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                        >
-                          Çözüldü İşaretle
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await axios.post(`${host}/api/dijital/company/incidents/${i.id}/to-work-order`, { priority: 'high' }, { headers: { Authorization: `Bearer ${token}` } });
+                                toast.success('Düzeltici iş emri oluşturuldu.');
+                                navigate('/is-emirleri');
+                              } catch (e) { toast.error(e.response?.data?.error || 'Hata oluştu'); }
+                            }}
+                            className="btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--brand-primary)', borderColor: 'rgba(2,132,199,0.3)' }}
+                          >
+                            <Wrench size={13} /> İş Emrine Çevir
+                          </button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await axios.put(`${host}/api/dijital/company/incidents/${i.id}/resolve`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                                fetchCompanyData();
+                                toast.success('Çözüldü olarak işaretlendi.');
+                              } catch (e) { toast.error('Hata oluştu'); }
+                            }}
+                            className="btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                          >
+                            Çözüldü İşaretle
+                          </button>
+                        </div>
+                      )}
+                      {i.status === 'in_progress' && (
+                        <span className="badge" style={{ background: 'rgba(99,102,241,0.12)', color: '#6366f1', fontSize: '0.72rem' }}>İş emri açıldı</span>
                       )}
                     </td>
                   </tr>

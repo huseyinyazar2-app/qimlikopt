@@ -1,6 +1,6 @@
 const express = require('express');
-const axios = require('axios');
 const db = require('../db');
+const { enqueueWebhook } = require('../webhook');
 
 const router = express.Router();
 
@@ -45,36 +45,35 @@ router.post('/receive', authenticateGateway, async (req, res) => {
             return res.status(404).json({ error: 'Client not found or inactive' });
         }
 
-        // Client found, fire webhook
-        let webhookStatus = 'success';
-        let errorDetails = null;
+        // Mesaj alindi ve musteri eslesti -> ters-OTP dogrulamasi BASARILI.
+        // Bu, dis webhook tesliminden BAGIMSIZDIR: musterinin sunucusu dusse bile
+        // dogrulama (verify-status / verifyOtp) calisir. Teslim ayri kuyrukta yeniden denenir.
+        const logResult = await db.query(
+            'INSERT INTO logs (client_id, phone_number, message_body, status, error_details) VALUES (?, ?, ?, ?, ?)',
+            [client.id, phone, message, 'success', null]
+        );
+        const logId = logResult.lastInsertRowid != null ? Number(logResult.lastInsertRowid) : null;
 
+        // Dis webhook teslimini kuyruga al (idempotent yeniden deneme). Gateway'i bekletmez.
         try {
-            await axios.post(client.webhook_url, {
-                prefix: client.prefix,
-                user_phone: phone,
-                code: code,
-                full_message: message,
-                status: 'verified'
-            }, {
-                headers: { 'x-qimlik-key': client.api_key },
-                timeout: 5000 // 5 seconds timeout
+            await enqueueWebhook({
+                client,
+                logId,
+                payload: {
+                    prefix: client.prefix,
+                    user_phone: phone,
+                    code: code,
+                    full_message: message,
+                    status: 'verified',
+                    _api_key: client.api_key,
+                },
             });
-        } catch (webhookError) {
-            webhookStatus = 'failed_to_send_webhook';
-            errorDetails = webhookError.message;
-            console.error(`Webhook failed for client ${client.prefix}:`, webhookError.message);
+        } catch (queueErr) {
+            console.error('[gateway] webhook kuyruga alinamadi:', queueErr.message);
         }
 
-        // Log the transaction
-        await db.query(
-            'INSERT INTO logs (client_id, phone_number, message_body, status, error_details) VALUES (?, ?, ?, ?, ?)',
-            [client.id, phone, message, webhookStatus, errorDetails]
-        );
-
-        // Always return 200 to Gateway so it can delete the SMS from its local queue
-        // Even if webhook fails, we don't want the gateway to keep retrying forever unless we implement a robust queue
-        res.status(200).json({ success: true, status: webhookStatus });
+        // Gateway'e her zaman 200 don ki yerel kuyrugundan SMS'i silebilsin.
+        res.status(200).json({ success: true, status: 'success' });
 
     } catch (error) {
         console.error('Error processing gateway request:', error);

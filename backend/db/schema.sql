@@ -275,3 +275,79 @@ CREATE TABLE IF NOT EXISTS teslimat_logs (
 );
 
 
+-- ============================================================================
+-- FAZ 2: MODUL AMIRAL OZELLIKLERI
+-- ============================================================================
+
+-- --- MESAI: Resmi/dini tatil takvimi (bordro carpanlari icin) ---
+-- company_id NULL ise tum firmalar icin gecerli resmi tatil.
+-- multiplier NULL ise firmanin holiday_multiplier ayari kullanilir.
+CREATE TABLE IF NOT EXISTS mesai_holidays (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER REFERENCES mesai_companies(id),
+    holiday_date DATE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    is_half_day BOOLEAN DEFAULT 0,
+    multiplier REAL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_mesai_holidays_date ON mesai_holidays (holiday_date);
+
+-- --- DIJITAL: Is emri / bakim gorevi (onleyici + arizaya bagli) ---
+CREATE TABLE IF NOT EXISTS dijital_work_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER REFERENCES dijital_companies(id),
+    machine_id INTEGER REFERENCES dijital_machines(id),
+    technician_id INTEGER REFERENCES dijital_technicians(id),
+    incident_id INTEGER REFERENCES dijital_incidents(id),  -- arizadan turetilmisse
+    order_type VARCHAR(20) NOT NULL DEFAULT 'preventive',  -- 'preventive' | 'corrective'
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    priority VARCHAR(20) DEFAULT 'normal',                 -- 'low'|'normal'|'high'|'urgent'
+    status VARCHAR(20) DEFAULT 'open',                     -- 'open'|'assigned'|'in_progress'|'done'|'cancelled'
+    sla_hours INTEGER,                                     -- hedef cozum suresi (saat)
+    due_at TIMESTAMP,                                      -- created_at + sla_hours
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    maintenance_log_id INTEGER REFERENCES dijital_maintenance_logs(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_dijital_wo_company ON dijital_work_orders (company_id, status);
+
+-- --- TESLIMAT: Basarisiz teslim denemeleri (yeniden deneme yonetimi) ---
+CREATE TABLE IF NOT EXISTS teslimat_delivery_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    package_id INTEGER REFERENCES teslimat_packages(id),
+    courier_id INTEGER REFERENCES teslimat_couriers(id),
+    attempt_no INTEGER NOT NULL DEFAULT 1,
+    result VARCHAR(20) NOT NULL,                           -- 'failed' | 'delivered'
+    reason VARCHAR(100),                                   -- 'recipient_absent'|'wrong_address'|'refused'|'other'
+    note TEXT,
+    next_attempt_date DATE,
+    gps_latitude REAL,
+    gps_longitude REAL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_teslimat_attempts_pkg ON teslimat_delivery_attempts (package_id);
+
+-- --- OTP: Webhook cikis kuyrugu + yeniden deneme (idempotent teslim) ---
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER REFERENCES clients(id),
+    prefix VARCHAR(50),
+    log_id INTEGER REFERENCES logs(id),
+    target_url VARCHAR(500) NOT NULL,
+    payload_json TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',                  -- 'pending'|'delivered'|'failed'|'dead'
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 6,
+    next_attempt_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_status_code INTEGER,
+    last_error TEXT,
+    delivered_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_pending ON webhook_deliveries (status, next_attempt_at);
+
+

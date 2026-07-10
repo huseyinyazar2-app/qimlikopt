@@ -403,4 +403,185 @@ router.get('/company/analytics', companyAuth, async (req, res) => {
     }
 });
 
+// ============================================================================
+// --- 7. BAŞARISIZ TESLİM YÖNETİMİ & KURYE PERFORMANS KARNESİ ---
+// ============================================================================
+
+const FAIL_REASONS = ['recipient_absent', 'wrong_address', 'refused', 'other'];
+
+// Kurye teslim edemedi: başarısız deneme kaydı oluşturur (COURIER AUTH — kendi paketi)
+router.post('/courier/packages/:id/fail', courierAuth, async (req, res) => {
+    const { id } = req.params;
+    const { reason, note, next_attempt_date, gps_latitude, gps_longitude } = req.body;
+    if (!reason || !FAIL_REASONS.includes(reason)) {
+        return res.status(400).json({ error: 'Geçerli bir başarısızlık nedeni zorunludur.' });
+    }
+    if (gps_latitude === undefined || gps_latitude === null || gps_longitude === undefined || gps_longitude === null) {
+        return res.status(400).json({ error: 'GPS konum verisi zorunludur.' });
+    }
+    try {
+        // Paket bu kuryeye zimmetli olmalı
+        const { rows: pkgRows } = await db.query(
+            'SELECT id FROM teslimat_packages WHERE id = ? AND courier_id = ?',
+            [id, req.worker.id]
+        );
+        if (pkgRows.length === 0) {
+            return res.status(403).json({ error: 'Bu paket size zimmetli değil.' });
+        }
+
+        // Bu paket için mevcut deneme sayısı + 1
+        const { rows: cntRows } = await db.query(
+            'SELECT COUNT(*) as cnt FROM teslimat_delivery_attempts WHERE package_id = ?',
+            [id]
+        );
+        const attemptNo = Number(cntRows[0]?.cnt || 0) + 1;
+
+        await db.query(
+            `INSERT INTO teslimat_delivery_attempts
+                (package_id, courier_id, attempt_no, result, reason, note, next_attempt_date, gps_latitude, gps_longitude)
+             VALUES (?, ?, ?, 'failed', ?, ?, ?, ?, ?)`,
+            [id, req.worker.id, attemptNo, reason, note || null, next_attempt_date || null, parseFloat(gps_latitude), parseFloat(gps_longitude)]
+        );
+
+        await db.query(
+            "UPDATE teslimat_packages SET status = 'failed', return_reason = ? WHERE id = ?",
+            [reason, id]
+        );
+
+        await db.query(
+            "INSERT INTO teslimat_logs (package_id, log_type, gps_latitude, gps_longitude) VALUES (?, 'delivery_failed', ?, ?)",
+            [id, parseFloat(gps_latitude), parseFloat(gps_longitude)]
+        );
+
+        res.json({ message: 'Başarısız teslim kaydı oluşturuldu.', attempt_no: attemptNo });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Firma: başarısız (status='failed') paketler — kurye adı ve deneme sayısı ile
+router.get('/company/packages/failed', companyAuth, async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT p.*, c.name || ' ' || c.surname as courier_name,
+                    (SELECT COUNT(*) FROM teslimat_delivery_attempts a WHERE a.package_id = p.id) as attempts
+             FROM teslimat_packages p
+             LEFT JOIN teslimat_couriers c ON p.courier_id = c.id
+             WHERE p.company_id = ? AND p.status = 'failed'
+             ORDER BY p.created_at DESC`,
+            [req.company.id]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Firma: bir paketin tüm deneme geçmişi (kronolojik, kurye adı ile)
+router.get('/company/packages/:id/attempts', companyAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Sahiplik doğrula
+        const { rows: own } = await db.query(
+            'SELECT id FROM teslimat_packages WHERE id = ? AND company_id = ?',
+            [id, req.company.id]
+        );
+        if (own.length === 0) {
+            return res.status(404).json({ error: 'Paket bulunamadı.' });
+        }
+        const { rows } = await db.query(
+            `SELECT a.*, c.name || ' ' || c.surname as courier_name
+             FROM teslimat_delivery_attempts a
+             LEFT JOIN teslimat_couriers c ON a.courier_id = c.id
+             WHERE a.package_id = ?
+             ORDER BY a.attempt_no ASC, a.id ASC`,
+            [id]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Firma: başarısız paketi yeniden ata (yeniden dağıtım için)
+router.put('/company/packages/:id/reassign', companyAuth, async (req, res) => {
+    const { id } = req.params;
+    const { courier_id } = req.body;
+    if (!courier_id) {
+        return res.status(400).json({ error: 'Kurye ataması zorunludur.' });
+    }
+    try {
+        // Paket sahipliği
+        const { rows: own } = await db.query(
+            'SELECT id FROM teslimat_packages WHERE id = ? AND company_id = ?',
+            [id, req.company.id]
+        );
+        if (own.length === 0) {
+            return res.status(404).json({ error: 'Paket bulunamadı.' });
+        }
+        // Kurye de aynı firmaya ait olmalı
+        const { rows: cr } = await db.query(
+            'SELECT id FROM teslimat_couriers WHERE id = ? AND company_id = ?',
+            [courier_id, req.company.id]
+        );
+        if (cr.length === 0) {
+            return res.status(400).json({ error: 'Geçersiz kurye.' });
+        }
+        await db.query(
+            "UPDATE teslimat_packages SET courier_id = ?, status = 'in_transit', return_reason = NULL WHERE id = ? AND company_id = ?",
+            [courier_id, id, req.company.id]
+        );
+        res.json({ message: 'Paket yeniden atandı ve dağıtıma alındı.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Firma: kurye performans karnesi
+router.get('/company/courier-scorecard', companyAuth, async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT
+                c.id,
+                c.name || ' ' || c.surname as courier_name,
+                c.is_active,
+                (SELECT COUNT(*) FROM teslimat_packages p WHERE p.courier_id = c.id) as total_assigned,
+                (SELECT COUNT(*) FROM teslimat_packages p WHERE p.courier_id = c.id AND p.status = 'delivered') as delivered,
+                (SELECT COUNT(*) FROM teslimat_packages p WHERE p.courier_id = c.id AND p.status = 'failed') as failed,
+                (SELECT COUNT(*) FROM teslimat_delivery_attempts a WHERE a.courier_id = c.id) as total_attempts,
+                (SELECT COUNT(DISTINCT a.package_id) FROM teslimat_delivery_attempts a WHERE a.courier_id = c.id) as attempted_packages,
+                (SELECT COUNT(*) FROM teslimat_logs l JOIN teslimat_packages p ON l.package_id = p.id
+                    WHERE p.courier_id = c.id AND l.log_type = 'delivered_success'
+                      AND l.created_at >= date('now','-29 days')) as last30_delivered
+             FROM teslimat_couriers c
+             WHERE c.company_id = ?
+             ORDER BY delivered DESC, c.id ASC`,
+            [req.company.id]
+        );
+
+        const scorecard = rows.map(r => {
+            const delivered = Number(r.delivered) || 0;
+            const failed = Number(r.failed) || 0;
+            const resolved = delivered + failed;
+            const totalAttempts = Number(r.total_attempts) || 0;
+            const attemptedPackages = Number(r.attempted_packages) || 0;
+            return {
+                id: r.id,
+                courier_name: r.courier_name,
+                is_active: r.is_active,
+                total_assigned: Number(r.total_assigned) || 0,
+                delivered,
+                failed,
+                success_rate: resolved > 0 ? Math.round((delivered / resolved) * 100) : 0,
+                avg_attempts: attemptedPackages > 0 ? Math.round((totalAttempts / attemptedPackages) * 10) / 10 : 0,
+                last30_delivered: Number(r.last30_delivered) || 0,
+            };
+        });
+
+        res.json(scorecard);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

@@ -43,6 +43,13 @@ export default function DeliverPage({ user }) {
   const [deliveryStatus, setDeliveryStatus] = useState('delivered'); // delivered, partial, returned
   const [returnReason, setReturnReason] = useState('');
 
+  // "Teslim Edilemedi" (başarısız teslim) akışı
+  const [showFailForm, setShowFailForm] = useState(false);
+  const [failReason, setFailReason] = useState('recipient_absent');
+  const [failNote, setFailNote] = useState('');
+  const [failNextDate, setFailNextDate] = useState('');
+  const [resultType, setResultType] = useState('delivered'); // 'delivered' | 'failed'
+
   const host = getApiUrl();
   const token = user?.token;
 
@@ -200,6 +207,34 @@ export default function DeliverPage({ user }) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
+  // Teslim edilemedi: başarısız teslim denemesini kaydet (OTP gerektirmez)
+  const handleFail = async () => {
+    if (!coords) {
+      setError('Başarısız teslim kaydı için GPS koordinatları gereklidir.');
+      return;
+    }
+    setActionLoading(true);
+    setError('');
+    try {
+      const res = await axios.post(`${host}/api/teslimat/courier/packages/${packageId}/fail`, {
+        reason: failReason,
+        note: failNote || null,
+        next_attempt_date: failNextDate || null,
+        gps_latitude: coords.latitude,
+        gps_longitude: coords.longitude
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setResultType('failed');
+      setSuccessMsg(res.data.message);
+      setSignatureSaved(true);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Başarısız teslim kaydedilirken hata oluştu.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Confirm delivery and submit coordinates + compressed base64 signature
   const handleConfirmDelivery = async () => {
     if (!coords) {
@@ -330,11 +365,20 @@ export default function DeliverPage({ user }) {
               </div>
             )}
 
-            {successMsg && (
+            {successMsg && resultType === 'delivered' && (
               <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: 'var(--status-success)', borderRadius: 10, fontSize: '0.85rem', textAlign: 'center', marginBottom: '1.5rem' }}>
                 <CheckCircle2 size={32} style={{ margin: '0 auto 0.5rem auto' }} />
                 <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Teslim Edildi!</div>
                 <div style={{ marginTop: 4 }}>{successMsg}</div>
+              </div>
+            )}
+
+            {successMsg && resultType === 'failed' && (
+              <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', borderRadius: 10, fontSize: '0.85rem', textAlign: 'center', marginBottom: '1.5rem' }}>
+                <AlertTriangle size={32} style={{ margin: '0 auto 0.5rem auto' }} />
+                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Teslim Edilemedi</div>
+                <div style={{ marginTop: 4 }}>{successMsg}</div>
+                <div style={{ marginTop: 6, fontSize: '0.78rem', opacity: 0.85 }}>Neden: {FAIL_REASON_LABELS[failReason]}</div>
               </div>
             )}
 
@@ -367,17 +411,87 @@ export default function DeliverPage({ user }) {
                   )}
                 </div>
 
-                {/* STAGE 2: Reverse OTP Verification */}
+                {/* STAGE 2: Reverse OTP Verification + Teslim Edilemedi */}
                 {verifyStatus === 'idle' && (
                   <div style={{ marginBottom: '1.5rem' }}>
-                    <button 
-                      onClick={startVerification} 
+                    <button
+                      onClick={startVerification}
                       disabled={!user}
-                      className="btn-primary" 
+                      className="btn-primary"
                       style={{ width: '100%', padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                     >
                       <ShieldCheck size={18} /> Alıcı Kimliğini WhatsApp İle Doğrula
                     </button>
+
+                    {/* Teslim Edilemedi geçişi */}
+                    {!showFailForm && (
+                      <button
+                        onClick={() => { setShowFailForm(true); setError(''); }}
+                        disabled={!user}
+                        className="btn-outline"
+                        style={{ width: '100%', padding: '0.75rem', marginTop: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, borderColor: '#ef4444', color: '#ef4444' }}
+                      >
+                        <AlertTriangle size={16} /> Teslim Edilemedi
+                      </button>
+                    )}
+
+                    {showFailForm && (
+                      <div className="glass-card" style={{ padding: '1.25rem', marginTop: '1rem', textAlign: 'left', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#ef4444', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <AlertTriangle size={16} /> Başarısız Teslim Kaydı
+                        </div>
+
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Neden</label>
+                        <select
+                          value={failReason}
+                          onChange={e => setFailReason(e.target.value)}
+                          style={{ width: '100%', padding: '0.7rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: '#ffffff', marginBottom: '1rem' }}
+                        >
+                          <option value="recipient_absent">Alıcı adreste yok</option>
+                          <option value="wrong_address">Yanlış adres</option>
+                          <option value="refused">Alıcı reddetti</option>
+                          <option value="other">Diğer</option>
+                        </select>
+
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Not (Zorunlu Değil)</label>
+                        <textarea
+                          value={failNote}
+                          onChange={e => setFailNote(e.target.value)}
+                          placeholder="Açıklama giriniz..."
+                          style={{ width: '100%', padding: '0.7rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', height: 60, resize: 'none', marginBottom: '1rem', boxSizing: 'border-box' }}
+                        />
+
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Yeniden Deneme Tarihi (Zorunlu Değil)</label>
+                        <input
+                          type="date"
+                          value={failNextDate}
+                          onChange={e => setFailNextDate(e.target.value)}
+                          style={{ width: '100%', padding: '0.7rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', marginBottom: '1.25rem', boxSizing: 'border-box' }}
+                        />
+
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                          <button
+                            onClick={() => setShowFailForm(false)}
+                            style={{ flex: 1, padding: '0.7rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}
+                          >
+                            Vazgeç
+                          </button>
+                          <button
+                            onClick={handleFail}
+                            disabled={actionLoading || !coords}
+                            className="btn-outline"
+                            style={{ flex: 1, padding: '0.7rem', borderColor: '#ef4444', color: '#ef4444' }}
+                          >
+                            {actionLoading ? 'İşleniyor...' : 'Başarısızlığı Kaydet'}
+                          </button>
+                        </div>
+                        {!coords && (
+                          <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginTop: '0.6rem', textAlign: 'center' }}>
+                            Kayıt için GPS konumu gereklidir (yukarıdan alınır).
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -485,6 +599,13 @@ export default function DeliverPage({ user }) {
     </div>
   );
 }
+
+const FAIL_REASON_LABELS = {
+  recipient_absent: 'Alıcı adreste yok',
+  wrong_address: 'Yanlış adres',
+  refused: 'Alıcı reddetti',
+  other: 'Diğer',
+};
 
 const containerStyle = {
   minHeight: '100vh',

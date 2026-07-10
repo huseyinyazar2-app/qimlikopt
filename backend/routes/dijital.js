@@ -563,4 +563,227 @@ router.get('/company/analytics', companyAuth, async (req, res) => {
     }
 });
 
+// --- 10. WORK ORDERS (İŞ EMİRLERİ) + SLA + ÖNLEYİCİ BAKIM ---
+
+// Firmanın iş emirleri (opsiyonel ?status= filtresi ile)
+router.get('/company/work-orders', companyAuth, async (req, res) => {
+    const { status } = req.query;
+    try {
+        const params = [req.company.id];
+        let statusFilter = '';
+        if (status) {
+            statusFilter = ' AND wo.status = ?';
+            params.push(status);
+        }
+        const { rows } = await db.query(
+            `SELECT wo.*, m.machine_name, m.machine_code,
+                    t.name || ' ' || t.surname AS technician_name,
+                    CASE WHEN wo.status NOT IN ('done','cancelled') AND wo.due_at IS NOT NULL AND wo.due_at < datetime('now')
+                         THEN 1 ELSE 0 END AS is_overdue
+             FROM dijital_work_orders wo
+             JOIN dijital_machines m ON wo.machine_id = m.id
+             LEFT JOIN dijital_technicians t ON wo.technician_id = t.id
+             WHERE wo.company_id = ?${statusFilter}
+             ORDER BY wo.created_at DESC`,
+            params
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Yeni iş emri oluştur
+router.post('/company/work-orders', companyAuth, async (req, res) => {
+    const { machine_id, technician_id, order_type, title, description, priority, sla_hours } = req.body;
+    if (!machine_id || !order_type || !title) {
+        return res.status(400).json({ error: 'Makine, iş emri türü ve başlık zorunludur.' });
+    }
+    if (!['preventive', 'corrective'].includes(order_type)) {
+        return res.status(400).json({ error: 'Geçersiz iş emri türü.' });
+    }
+    try {
+        // Makine bu firmaya ait olmalı
+        const mc = await db.query('SELECT id FROM dijital_machines WHERE id = ? AND company_id = ?', [machine_id, req.company.id]);
+        if (mc.rows.length === 0) {
+            return res.status(403).json({ error: 'Bu makineye iş emri açma yetkiniz yok.' });
+        }
+        // Teknisyen verilmişse firmaya ait olmalı
+        if (technician_id) {
+            const tc = await db.query('SELECT id FROM dijital_technicians WHERE id = ? AND company_id = ?', [technician_id, req.company.id]);
+            if (tc.rows.length === 0) {
+                return res.status(400).json({ error: 'Geçersiz teknisyen.' });
+            }
+        }
+
+        const slaVal = sla_hours ? parseInt(sla_hours) : null;
+        const status = technician_id ? 'assigned' : 'open';
+        const dueExpr = (slaVal && slaVal > 0) ? `datetime('now', '+${slaVal} hours')` : 'NULL';
+
+        await db.query(
+            `INSERT INTO dijital_work_orders (company_id, machine_id, technician_id, order_type, title, description, priority, status, sla_hours, due_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ${dueExpr})`,
+            [req.company.id, machine_id, technician_id || null, order_type, title, description || '', priority || 'normal', status, slaVal]
+        );
+        res.status(201).json({ message: 'İş emri başarıyla oluşturuldu.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// İş emri güncelle (atama / öncelik / durum)
+router.put('/company/work-orders/:id', companyAuth, async (req, res) => {
+    const { id } = req.params;
+    const { technician_id, priority, status } = req.body;
+    try {
+        const { rows } = await db.query('SELECT * FROM dijital_work_orders WHERE id = ? AND company_id = ?', [id, req.company.id]);
+        const wo = rows[0];
+        if (!wo) {
+            return res.status(404).json({ error: 'İş emri bulunamadı.' });
+        }
+
+        // Teknisyen verilmişse firmaya ait olmalı
+        if (technician_id) {
+            const tc = await db.query('SELECT id FROM dijital_technicians WHERE id = ? AND company_id = ?', [technician_id, req.company.id]);
+            if (tc.rows.length === 0) {
+                return res.status(400).json({ error: 'Geçersiz teknisyen.' });
+            }
+        }
+
+        const newTech = technician_id !== undefined ? (technician_id || null) : wo.technician_id;
+        const newPriority = priority || wo.priority;
+        let newStatus = status || wo.status;
+        // Teknisyen atanınca ve durum belirtilmemişse, açık iş emrini 'assigned' yap
+        if (technician_id && !status && wo.status === 'open') {
+            newStatus = 'assigned';
+        }
+
+        await db.query(
+            `UPDATE dijital_work_orders
+             SET technician_id = ?, priority = ?, status = ?,
+                 started_at = CASE WHEN ? = 'in_progress' AND started_at IS NULL THEN datetime('now') ELSE started_at END,
+                 completed_at = CASE WHEN ? IN ('done','cancelled') THEN COALESCE(completed_at, datetime('now')) ELSE completed_at END
+             WHERE id = ? AND company_id = ?`,
+            [newTech, newPriority, newStatus, newStatus, newStatus, id, req.company.id]
+        );
+        res.json({ message: 'İş emri güncellendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Arızayı düzeltici (corrective) iş emrine çevir
+router.post('/company/incidents/:id/to-work-order', companyAuth, async (req, res) => {
+    const { id } = req.params;
+    const { priority, technician_id, sla_hours } = req.body;
+    try {
+        const { rows } = await db.query(
+            `SELECT i.id, i.machine_id, i.description, m.company_id
+             FROM dijital_incidents i
+             JOIN dijital_machines m ON i.machine_id = m.id
+             WHERE i.id = ? AND m.company_id = ?`,
+            [id, req.company.id]
+        );
+        const incident = rows[0];
+        if (!incident) {
+            return res.status(404).json({ error: 'Arıza kaydı bulunamadı.' });
+        }
+
+        if (technician_id) {
+            const tc = await db.query('SELECT id FROM dijital_technicians WHERE id = ? AND company_id = ?', [technician_id, req.company.id]);
+            if (tc.rows.length === 0) {
+                return res.status(400).json({ error: 'Geçersiz teknisyen.' });
+            }
+        }
+
+        const desc = incident.description || '';
+        const title = 'Arıza: ' + (desc.length > 100 ? desc.slice(0, 100) + '...' : desc || 'Müşteri arıza bildirimi');
+        const woPriority = priority || 'high';
+        const status = technician_id ? 'assigned' : 'open';
+        const slaVal = sla_hours ? parseInt(sla_hours) : null;
+        const dueExpr = (slaVal && slaVal > 0) ? `datetime('now', '+${slaVal} hours')` : 'NULL';
+
+        await db.query(
+            `INSERT INTO dijital_work_orders (company_id, machine_id, technician_id, incident_id, order_type, title, description, priority, status, sla_hours, due_at)
+             VALUES (?, ?, ?, ?, 'corrective', ?, ?, ?, ?, ?, ${dueExpr})`,
+            [req.company.id, incident.machine_id, technician_id || null, incident.id, title, desc, woPriority, status, slaVal]
+        );
+        await db.query(`UPDATE dijital_incidents SET status = 'in_progress' WHERE id = ?`, [incident.id]);
+
+        res.status(201).json({ message: 'Arıza düzeltici iş emrine dönüştürüldü.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Önleyici bakımı yaklaşan/gecikmiş, henüz açık iş emri olmayan makineler
+router.get('/company/preventive-due', companyAuth, async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT m.id, m.machine_code, m.machine_name, m.last_maintenance_date, m.maintenance_interval_days,
+                    date(m.last_maintenance_date, '+' || m.maintenance_interval_days || ' days') AS next_due
+             FROM dijital_machines m
+             WHERE m.company_id = ?
+               AND m.maintenance_interval_days IS NOT NULL
+               AND m.last_maintenance_date IS NOT NULL
+               AND date(m.last_maintenance_date, '+' || m.maintenance_interval_days || ' days') <= date('now','+7 days')
+               AND NOT EXISTS (
+                   SELECT 1 FROM dijital_work_orders wo
+                   WHERE wo.machine_id = m.id AND wo.order_type = 'preventive'
+                     AND wo.status NOT IN ('done','cancelled')
+               )
+             ORDER BY next_due ASC`,
+            [req.company.id]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Teknisyene atanmış aktif iş emirleri
+router.get('/technician/work-orders', technicianAuth, async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT wo.*, m.machine_name, m.machine_code,
+                    CASE WHEN wo.status NOT IN ('done','cancelled') AND wo.due_at IS NOT NULL AND wo.due_at < datetime('now')
+                         THEN 1 ELSE 0 END AS is_overdue
+             FROM dijital_work_orders wo
+             JOIN dijital_machines m ON wo.machine_id = m.id
+             WHERE wo.technician_id = ? AND wo.status NOT IN ('done','cancelled')
+             ORDER BY wo.created_at DESC`,
+            [req.worker.id]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Teknisyen kendi iş emri durumunu günceller (başlat/tamamla)
+router.put('/technician/work-orders/:id/status', technicianAuth, async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!['in_progress', 'done'].includes(status)) {
+        return res.status(400).json({ error: 'Geçersiz durum.' });
+    }
+    try {
+        const { rows } = await db.query('SELECT id FROM dijital_work_orders WHERE id = ? AND technician_id = ?', [id, req.worker.id]);
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Size atanmış böyle bir iş emri bulunamadı.' });
+        }
+        await db.query(
+            `UPDATE dijital_work_orders
+             SET status = ?,
+                 started_at = CASE WHEN ? = 'in_progress' AND started_at IS NULL THEN datetime('now') ELSE started_at END,
+                 completed_at = CASE WHEN ? = 'done' THEN COALESCE(completed_at, datetime('now')) ELSE completed_at END
+             WHERE id = ? AND technician_id = ?`,
+            [status, status, status, id, req.worker.id]
+        );
+        res.json({ message: 'İş emri durumu güncellendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

@@ -1,10 +1,11 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, Code2, BookOpen, ExternalLink, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Webhook, Code2, BookOpen, ExternalLink, LogOut } from 'lucide-react';
 
 export default function Layout({ user, onLogout }) {
   const menuItems = [
     { path: '/dashboard', name: 'Genel Bakış', icon: <LayoutDashboard size={20} /> },
     { path: '/logs', name: 'İşlem Kayıtları', icon: <FileText size={20} /> },
+    { path: '/webhooks', name: 'Webhook Durumu', icon: <Webhook size={20} /> },
     { path: '/api', name: 'API Bilgileri', icon: <Code2 size={20} /> },
     { path: '/integration', name: 'Nasıl Kullanılır?', icon: <BookOpen size={20} /> },
     { path: '/popup-guide', name: 'Açılır Pencere (Popup)', icon: <ExternalLink size={20} /> },

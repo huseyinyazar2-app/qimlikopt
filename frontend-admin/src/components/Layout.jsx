@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Smartphone, FileText, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Smartphone, FileText, Webhook, Settings, LogOut } from 'lucide-react';
 import axios from 'axios';
 import { getApiUrl } from '../config';
 
@@ -32,6 +32,7 @@ export default function Layout({ username, onLogout }) {
     { path: '/clients', name: 'Müşteriler', icon: <Users size={20} /> },
     { path: '/devices', name: 'Cihazlar', icon: <Smartphone size={20} /> },
     { path: '/logs', name: 'Kayıtlar', icon: <FileText size={20} /> },
+    { path: '/webhooks', name: 'Webhook Teslimleri', icon: <Webhook size={20} /> },
     { path: '/settings', name: 'Ayarlar', icon: <Settings size={20} /> },
   ];
 

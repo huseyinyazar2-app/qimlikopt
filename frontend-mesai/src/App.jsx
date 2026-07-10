@@ -10,6 +10,7 @@ import Locations from './pages/Locations';
 import Employees from './pages/Employees';
 import CheckPage from './pages/CheckPage';
 import Settings from './pages/Settings';
+import Payroll from './pages/Payroll';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -45,6 +46,7 @@ function App() {
             <Route path="dashboard" element={<Dashboard user={user} />} />
             <Route path="locations" element={user.role === 'company' ? <Locations user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="employees" element={user.role === 'company' ? <Employees user={user} /> : <Navigate to="/dashboard" />} />
+            <Route path="bordro" element={user.role === 'company' ? <Payroll user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="logs" element={<Logs user={user} />} />
             <Route path="settings" element={user.role === 'company' ? <Settings user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -7,6 +7,8 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Couriers from './pages/Couriers';
 import Packages from './pages/Packages';
+import FailedDeliveries from './pages/FailedDeliveries';
+import Scorecard from './pages/Scorecard';
 import DeliverPage from './pages/DeliverPage';
 import TrackPage from './pages/TrackPage';
 
@@ -58,6 +60,8 @@ function App() {
             <Route path="dashboard" element={<Dashboard user={user} />} />
             <Route path="couriers" element={user.role === 'company' ? <Couriers user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="packages" element={user.role === 'company' ? <Packages user={user} /> : <Navigate to="/dashboard" />} />
+            <Route path="basarisiz" element={user.role === 'company' ? <FailedDeliveries user={user} /> : <Navigate to="/dashboard" />} />
+            <Route path="karne" element={user.role === 'company' ? <Scorecard user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         ) : (

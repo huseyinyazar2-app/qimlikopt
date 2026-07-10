@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, ClipboardList, Users, Wrench, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, ClipboardList, Users, Wrench, LogOut, ClipboardCheck } from 'lucide-react';
 
 export default function Layout({ user, onLogout }) {
   const isCompany = user?.role === 'company';
@@ -8,11 +8,13 @@ export default function Layout({ user, onLogout }) {
     { path: '/dashboard', name: 'Makineler', icon: <LayoutDashboard size={20} /> },
     { path: '/forms', name: 'Kontrol Formları', icon: <ClipboardList size={20} /> },
     { path: '/technicians', name: 'Teknisyenler', icon: <Users size={20} /> },
+    { path: '/is-emirleri', name: 'İş Emirleri', icon: <ClipboardCheck size={20} /> },
     { path: '/logs', name: 'Bakım Kayıtları', icon: <FileText size={20} /> },
   ];
 
   const techMenuItems = [
     { path: '/dashboard', name: 'İş Raporu Gir', icon: <Wrench size={20} /> },
+    { path: '/is-emirleri', name: 'İş Emirlerim', icon: <ClipboardCheck size={20} /> },
     { path: '/logs', name: 'Son İşlemlerim', icon: <FileText size={20} /> },
   ];
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { signToken, verifyPassword, hashPassword, readBearer, JWT_SECRET } = require('../auth');
+const { processQueue } = require('../webhook');
 const jwt = require('jsonwebtoken');
 
 const router = express.Router();
@@ -188,6 +189,55 @@ router.get('/analytics', async (req, res) => {
                 total_logs: lg[0]?.total || 0,
             },
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- WEBHOOK TESLİM KUYRUĞU (İZLEME + MANUEL YENİDEN DENEME) ---
+router.get('/webhook-deliveries', async (req, res) => {
+    const { status } = req.query;
+    const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+    try {
+        let sql = `SELECT wd.id, wd.client_id, wd.prefix, wd.log_id, wd.target_url, wd.status,
+                          wd.attempts, wd.max_attempts, wd.next_attempt_at, wd.last_status_code,
+                          wd.last_error, wd.delivered_at, wd.created_at, wd.updated_at,
+                          cl.company_name
+                   FROM webhook_deliveries wd
+                   LEFT JOIN clients cl ON wd.client_id = cl.id`;
+        const args = [];
+        if (status) { sql += ' WHERE wd.status = ?'; args.push(status); }
+        sql += ' ORDER BY wd.updated_at DESC LIMIT ?';
+        args.push(limit);
+        const { rows } = await db.query(sql, args);
+
+        // Durum özeti
+        const { rows: summ } = await db.query(
+            `SELECT status, COUNT(*) as count FROM webhook_deliveries GROUP BY status`);
+        const summary = {};
+        summ.forEach(s => { summary[s.status] = s.count; });
+
+        res.json({ deliveries: rows, summary });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Ölü/başarısız bir teslimi elle yeniden kuyruğa al
+router.post('/webhook-deliveries/:id/retry', async (req, res) => {
+    try {
+        const { rows } = await db.query('SELECT attempts, max_attempts FROM webhook_deliveries WHERE id = ?', [req.params.id]);
+        if (rows.length === 0) return res.status(404).json({ error: 'Kayıt bulunamadı.' });
+        const attempts = rows[0].attempts || 0;
+        // Ölü kaydın yeniden denenebilmesi için deneme tavanını yükselt
+        const newMax = Math.max(rows[0].max_attempts || 6, attempts + 3);
+        await db.query(
+            `UPDATE webhook_deliveries SET status='pending', next_attempt_at=CURRENT_TIMESTAMP,
+                    max_attempts=?, last_error=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            [newMax, req.params.id]
+        );
+        setImmediate(() => { processQueue().catch(() => {}); });
+        res.json({ message: 'Teslim yeniden kuyruğa alındı.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

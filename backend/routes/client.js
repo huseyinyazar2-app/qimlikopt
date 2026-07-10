@@ -233,4 +233,25 @@ router.get('/:clientId/analytics', async (req, res) => {
     }
 });
 
+// --- CLIENT WEBHOOK TESLİM DURUMU (kendi teslimleri) ---
+router.get('/:clientId/webhook-deliveries', async (req, res) => {
+    const { clientId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit) || 100, 300);
+    try {
+        const { rows } = await db.query(
+            `SELECT id, prefix, log_id, status, attempts, max_attempts, next_attempt_at,
+                    last_status_code, last_error, delivered_at, created_at, updated_at
+             FROM webhook_deliveries WHERE client_id = ? ORDER BY updated_at DESC LIMIT ?`,
+            [clientId, limit]
+        );
+        const { rows: summ } = await db.query(
+            'SELECT status, COUNT(*) as count FROM webhook_deliveries WHERE client_id = ? GROUP BY status', [clientId]);
+        const summary = {};
+        summ.forEach(s => { summary[s.status] = s.count; });
+        res.json({ deliveries: rows, summary });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

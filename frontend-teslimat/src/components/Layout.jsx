@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Package, Truck } from 'lucide-react';
+import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Package, Truck, AlertTriangle, Award } from 'lucide-react';
 
 export default function Layout({ user, onLogout }) {
   const isCompany = user?.role === 'company';
@@ -8,6 +8,8 @@ export default function Layout({ user, onLogout }) {
     { path: '/dashboard', name: 'Teslimat Takip', icon: <MapPin size={20} /> },
     { path: '/couriers', name: 'Kurye Yönetimi', icon: <Truck size={20} /> },
     { path: '/packages', name: 'Paket Yönetimi', icon: <Package size={20} /> },
+    { path: '/basarisiz', name: 'Başarısız Teslimler', icon: <AlertTriangle size={20} /> },
+    { path: '/karne', name: 'Kurye Karnesi', icon: <Award size={20} /> },
   ];
 
   const courierMenuItems = [

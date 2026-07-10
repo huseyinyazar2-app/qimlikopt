@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Settings } from 'lucide-react';
+import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Settings, Calculator } from 'lucide-react';
 
 export default function Layout({ user, onLogout }) {
   const isCompany = user?.role === 'company';
@@ -7,6 +7,7 @@ export default function Layout({ user, onLogout }) {
   const companyMenuItems = [
     { path: '/dashboard', name: 'Şantiyeler', icon: <MapPin size={20} /> },
     { path: '/employees', name: 'Çalışanlar', icon: <Users size={20} /> },
+    { path: '/bordro', name: 'Bordro', icon: <Calculator size={20} /> },
     { path: '/logs', name: 'Mesai Kayıtları', icon: <FileText size={20} /> },
     { path: '/settings', name: 'Ayarlar', icon: <Settings size={20} /> },
   ];

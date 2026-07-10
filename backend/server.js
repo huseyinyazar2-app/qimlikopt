@@ -61,9 +61,12 @@ app.get('/health', (req, res) => {
 });
 
 const initDb = require('./db/init');
+const { startWebhookProcessor } = require('./webhook');
 
 // Start Server
 app.listen(PORT, async () => {
     console.log(`Qimlik Core Server is running on port ${PORT}`);
     await initDb();
+    // Dis webhook teslim kuyrugu yeniden deneme islemcisi
+    startWebhookProcessor(30000);
 });

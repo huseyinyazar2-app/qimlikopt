@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Logs from './pages/Logs';
+import Webhooks from './pages/Webhooks';
 import ApiDocs from './pages/ApiDocs';
 import IntegrationGuide from './pages/IntegrationGuide';
 import PopupGuide from './pages/PopupGuide';
@@ -39,6 +40,7 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard user={user} />} />
             <Route path="logs" element={<Logs user={user} />} />
+            <Route path="webhooks" element={<Webhooks user={user} />} />
             <Route path="api" element={<ApiDocs user={user} onLogout={handleLogout} />} />
             <Route path="integration" element={<IntegrationGuide user={user} />} />
             <Route path="popup-guide" element={<PopupGuide user={user} />} />

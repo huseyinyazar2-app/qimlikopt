@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Logs from './pages/Logs';
 import Forms from './pages/Forms';
 import Technicians from './pages/Technicians';
+import WorkOrders from './pages/WorkOrders';
 import PublicMachine from './pages/PublicMachine';
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
             <Route path="dashboard" element={<Dashboard user={user} />} />
             <Route path="forms" element={user.role === 'company' ? <Forms user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="technicians" element={user.role === 'company' ? <Technicians user={user} /> : <Navigate to="/dashboard" />} />
+            <Route path="is-emirleri" element={<WorkOrders user={user} />} />
             <Route path="logs" element={<Logs user={user} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>

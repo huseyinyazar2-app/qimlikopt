@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../config';
-import { Users, Plus, Phone, User, Camera, Calendar, Clock, Pause, Play, ChevronRight, X, Image, Download } from 'lucide-react';
+import { Users, Plus, Phone, User, Camera, Calendar, Clock, Pause, Play, ChevronRight, X, Image, Download, Pencil, Save } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import toast from 'react-hot-toast';
 import EmptyState from '../components/EmptyState';
 
 export default function Employees({ user }) {
@@ -10,6 +11,14 @@ export default function Employees({ user }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState(null); // Employee selected for report
   const [reportData, setReportData] = useState(null); // { daily, monthly }
+  const [leaveBalances, setLeaveBalances] = useState({}); // { empId: {entitlement, used, pending, remaining} }
+
+  // Edit employee states
+  const [editEmp, setEditEmp] = useState(null);
+  const [editWage, setEditWage] = useState('');
+  const [editAnnualLeave, setEditAnnualLeave] = useState('');
+  const [editHireDate, setEditHireDate] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
 
   // New employee states
   const [name, setName] = useState('');
@@ -29,8 +38,56 @@ export default function Employees({ user }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       setEmployees(res.data);
+      fetchLeaveBalances(res.data);
     } catch (err) {
       console.error('Personel listesi yüklenemedi:', err);
+    }
+  };
+
+  const fetchLeaveBalances = async (list) => {
+    try {
+      const results = await Promise.all(
+        list.map(emp =>
+          axios.get(`${host}/api/mesai/employees/${emp.id}/leave-balance`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then(r => [emp.id, r.data]).catch(() => [emp.id, null])
+        )
+      );
+      const map = {};
+      results.forEach(([id, data]) => { if (data) map[id] = data; });
+      setLeaveBalances(map);
+    } catch (err) {
+      console.error('İzin bakiyeleri yüklenemedi:', err);
+    }
+  };
+
+  const openEdit = (emp) => {
+    setEditEmp(emp);
+    setEditWage(emp.hourly_wage ?? '');
+    setEditAnnualLeave(emp.annual_leave_days ?? '');
+    setEditHireDate(emp.hire_date ? String(emp.hire_date).slice(0, 10) : '');
+  };
+
+  const handleEditSave = async (e) => {
+    e.preventDefault();
+    setEditLoading(true);
+    try {
+      await axios.put(
+        `${host}/api/mesai/employees/${editEmp.id}`,
+        {
+          hourly_wage: editWage === '' ? null : Number(editWage),
+          annual_leave_days: editAnnualLeave === '' ? null : Number(editAnnualLeave),
+          hire_date: editHireDate || null,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Personel bilgileri güncellendi');
+      setEditEmp(null);
+      fetchEmployees();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Güncelleme başarısız');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -186,7 +243,7 @@ export default function Employees({ user }) {
                 <tr>
                   <th>Personel</th>
                   <th>Telefon</th>
-                  <th>Kayıt</th>
+                  <th>İzin Bakiyesi</th>
                   <th>Durum</th>
                   <th>Rapor</th>
                 </tr>
@@ -211,7 +268,18 @@ export default function Employees({ user }) {
                       </div>
                     </td>
                     <td style={{ fontSize: '0.85rem' }}>{emp.phone_number}</td>
-                    <td className="text-muted" style={{ fontSize: '0.8rem' }}>{new Date(emp.created_at).toLocaleDateString()}</td>
+                    <td>
+                      {leaveBalances[emp.id] ? (
+                        <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.12)', color: 'var(--brand-secondary)' }}>
+                          {leaveBalances[emp.id].remaining}/{leaveBalances[emp.id].entitlement} kaldı
+                          {leaveBalances[emp.id].pending > 0 && (
+                            <span className="text-muted" style={{ marginLeft: 4, fontWeight: 400 }}>({leaveBalances[emp.id].pending} bekliyor)</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-muted" style={{ fontSize: '0.8rem' }}>—</span>
+                      )}
+                    </td>
                     <td>
                       <span className={`badge ${emp.is_active ? 'success' : 'error'}`}>
                         {emp.is_active ? 'Aktif' : 'Askıda'}
@@ -269,7 +337,14 @@ export default function Employees({ user }) {
                   <Download size={14} /> Excel Raporu
                 </button>
               )}
-              <button 
+              <button
+                onClick={() => openEdit(selectedEmp)}
+                className="btn-outline"
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                <Pencil size={14} /> Düzenle
+              </button>
+              <button
                 onClick={() => toggleStatus(selectedEmp.id, selectedEmp.is_active)}
                 className={selectedEmp.is_active ? "btn-outline" : "btn-primary"}
                 style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
@@ -412,6 +487,39 @@ export default function Employees({ user }) {
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                 <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}>İptal</button>
                 <button type="submit" className="btn-primary" disabled={loading} style={{ flex: 1 }}>{loading ? 'Kaydediliyor...' : 'Kaydet'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Employee Modal */}
+      {editEmp && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div className="glass-card" style={{ width: 400 }}>
+            <h2 style={{ marginBottom: '0.5rem' }}>Personel Düzenle</h2>
+            <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>{editEmp.name} {editEmp.surname}</p>
+            <form onSubmit={handleEditSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Saatlik Ücret (₺)</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 600 }}>₺</span>
+                  <input type="number" step="0.01" style={inputStyle} value={editWage} onChange={e => setEditWage(e.target.value)} placeholder="Örn: 250" />
+                </div>
+              </div>
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Yıllık İzin Hakkı (boş = şirket varsayılanı)</label>
+                <input type="number" step="1" min="0" style={{ ...inputStyle, paddingLeft: '0.75rem' }} value={editAnnualLeave} onChange={e => setEditAnnualLeave(e.target.value)} placeholder="Şirket varsayılanı" />
+              </div>
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>İşe Giriş Tarihi</label>
+                <input type="date" style={{ ...inputStyle, paddingLeft: '0.75rem' }} value={editHireDate} onChange={e => setEditHireDate(e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setEditEmp(null)} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', cursor: 'pointer' }}>İptal</button>
+                <button type="submit" className="btn-primary" disabled={editLoading} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Save size={16} /> {editLoading ? 'Kaydediliyor...' : 'Kaydet'}
+                </button>
               </div>
             </form>
           </div>
