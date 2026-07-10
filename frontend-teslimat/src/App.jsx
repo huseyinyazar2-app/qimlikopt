@@ -55,7 +55,7 @@ function App() {
         <Route path="/deliver/:packageId" element={<DeliverPage user={user} />} />
         
         {/* Public Package Tracking Screen */}
-        <Route path="/track/:packageCode" element={<TrackPage />} />
+        <Route path="/track/:token" element={<TrackPage />} />
 
         {/* Authenticated Routes */}
         {user ? (

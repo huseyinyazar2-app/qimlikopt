@@ -95,14 +95,41 @@ router.post('/heartbeat', authenticateGateway, async (req, res) => {
     try {
         // Upsert device info in Turso (SQLite)
         await db.query(`
-            INSERT INTO gateway_devices (device_id, device_name, battery_level, network_status, last_seen) 
+            INSERT INTO gateway_devices (device_id, device_name, battery_level, network_status, last_seen)
             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT (device_id) DO UPDATE SET 
+            ON CONFLICT (device_id) DO UPDATE SET
                 device_name = excluded.device_name,
                 battery_level = excluded.battery_level,
                 network_status = excluded.network_status,
                 last_seen = CURRENT_TIMESTAMP
         `, [device_id, device_name || 'Unknown Device', battery || 0, network || 'Unknown']);
+
+        // Faz 6: saglik gecmisi. Heartbeat sik gelir; her birini yazmak tabloyu sisirir.
+        // Son kayittan >= ~10 dk geçtiyse yeni bir gecmis satiri ekle, sonra 7 gunden
+        // eskisini buda. Budama nadiren is yapar (mevcut degilse hizli doner).
+        try {
+            const { rows: last } = await db.query(
+                'SELECT created_at FROM gateway_heartbeats WHERE device_id = ? ORDER BY id DESC LIMIT 1',
+                [device_id]
+            );
+            const stale = !last.length ||
+                (await db.query(
+                    "SELECT (julianday('now') - julianday(?)) * 24 * 60 AS mins",
+                    [last[0].created_at]
+                )).rows[0].mins >= 10;
+            if (stale) {
+                await db.query(
+                    'INSERT INTO gateway_heartbeats (device_id, battery_level, network_status) VALUES (?, ?, ?)',
+                    [device_id, battery ?? null, network || null]
+                );
+                await db.query(
+                    "DELETE FROM gateway_heartbeats WHERE created_at < datetime('now','-7 days')"
+                );
+            }
+        } catch (histErr) {
+            // Gecmis kaydi kritik degil; heartbeat'i basarisiz sayma.
+            console.warn('[Heartbeat] gecmis kaydi atlandi:', histErr.message);
+        }
 
         console.log(`[Heartbeat] Device: ${device_id}, Battery: ${battery}%, Network: ${network}`);
         res.status(200).json({ success: true });

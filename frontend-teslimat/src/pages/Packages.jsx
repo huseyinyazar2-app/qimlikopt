@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Package, Plus, Clipboard, User, MapPin, Phone, Search, HelpCircle, Truck, ExternalLink, Download } from 'lucide-react';
+import { Package, Plus, Clipboard, User, MapPin, Phone, Search, HelpCircle, Truck, ExternalLink, Download, Link as LinkIcon } from 'lucide-react';
+import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { getApiUrl } from '../config';
 import { isReadOnly } from '../utils/role';
@@ -15,6 +16,7 @@ export default function Packages({ user }) {
   const [selectedPackId, setSelectedPackId] = useState(null);
   const [selectedCourierId, setSelectedCourierId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [fallbackLinkId, setFallbackLinkId] = useState(null);
 
   // New package states
   const [code, setCode] = useState('');
@@ -110,6 +112,21 @@ export default function Packages({ user }) {
     XLSX.writeFile(wb, "Paket_Listesi.xlsx");
   };
 
+  const copyTrackingLink = async (p) => {
+    const url = `${window.location.origin}/track/${p.tracking_token}`;
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Takip linki kopyalandı');
+        setFallbackLinkId(null);
+        return;
+      } catch {
+        // fall through to manual fallback
+      }
+    }
+    setFallbackLinkId(fallbackLinkId === p.id ? null : p.id);
+  };
+
   const generateDummyTrackingCode = () => {
     const num = Math.floor(100000 + Math.random() * 900000);
     setCode(`PKG-${num}`);
@@ -176,9 +193,11 @@ export default function Packages({ user }) {
                   </div>
                   
                   {/* Public Tracking Link */}
-                  <a href={`/track/${p.package_code}`} target="_blank" rel="noreferrer" title="Kamu Alıcı Takip Ekranını Aç" style={{ color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', gap: 2, fontSize: '0.85rem', textDecoration: 'none' }}>
-                    Takip <ExternalLink size={14} />
-                  </a>
+                  {p.tracking_token && (
+                    <a href={`/track/${p.tracking_token}`} target="_blank" rel="noreferrer" title="Kamu Alıcı Takip Ekranını Aç" style={{ color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', gap: 2, fontSize: '0.85rem', textDecoration: 'none' }}>
+                      Takip <ExternalLink size={14} />
+                    </a>
+                  )}
                 </div>
 
                 <h3 style={{ fontSize: '1.15rem', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>{p.recipient_name}</h3>
@@ -206,6 +225,26 @@ export default function Packages({ user }) {
 
               {/* Courier Assignment and QR label code */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {p.tracking_token && (
+                  <>
+                    <button
+                      onClick={() => copyTrackingLink(p)}
+                      className="btn-outline"
+                      style={{ padding: '0.55rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    >
+                      <LinkIcon size={16} /> Takip Linki Kopyala
+                    </button>
+                    {fallbackLinkId === p.id && (
+                      <input
+                        readOnly
+                        onFocus={e => e.target.select()}
+                        value={`${window.location.origin}/track/${p.tracking_token}`}
+                        style={{ ...inputStyle, fontSize: '0.75rem' }}
+                      />
+                    )}
+                  </>
+                )}
+
                 {p.status === 'created' && !readOnly && (
                   <button
                     onClick={() => { setSelectedPackId(p.id); setShowAssignModal(true); }}

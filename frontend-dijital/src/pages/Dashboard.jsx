@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, Calendar, MapPin, Box, Command, Download, Package, ClipboardList, Users, ArrowRight, TrendingUp, Bell, Cpu, PieChart as PieIcon } from 'lucide-react';
+import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, Calendar, MapPin, Box, Command, Download, Package, ClipboardList, Users, ArrowRight, TrendingUp, Bell, Cpu, PieChart as PieIcon, Pencil, History, X, ClipboardCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -23,7 +23,13 @@ export default function Dashboard({ user }) {
   const [spareParts, setSpareParts] = useState([]);
   const [newPartName, setNewPartName] = useState('');
   const [newPartStock, setNewPartStock] = useState('');
+  const [newPartMinStock, setNewPartMinStock] = useState('');
   const [stockInputs, setStockInputs] = useState({});
+  const [setCountInputs, setSetCountInputs] = useState({});
+  const [setCountNotes, setSetCountNotes] = useState({});
+  const [editInputs, setEditInputs] = useState({});
+  const [openPanel, setOpenPanel] = useState({});
+  const [movements, setMovements] = useState(null);
   const [analytics, setAnalytics] = useState(null);
 
 
@@ -175,6 +181,68 @@ export default function Dashboard({ user }) {
       toast.success('Stok güncellendi.');
     } catch (e) {
       toast.error('Hata oluştu');
+    }
+  };
+
+  const handleSetCount = async (partId) => {
+    const raw = setCountInputs[partId];
+    if (raw === '' || raw === undefined || raw === null) {
+      toast.error('Sayım değeri girin.');
+      return;
+    }
+    const val = parseInt(raw);
+    if (isNaN(val) || val < 0) {
+      toast.error('Sayım 0 veya daha büyük bir sayı olmalı.');
+      return;
+    }
+    try {
+      await axios.put(`${host}/api/dijital/spare-parts/${partId}/set-count`, { stock_quantity: val, note: setCountNotes[partId] || undefined }, { headers: { Authorization: `Bearer ${token}` } });
+      setSetCountInputs(prev => ({ ...prev, [partId]: '' }));
+      setSetCountNotes(prev => ({ ...prev, [partId]: '' }));
+      setOpenPanel(prev => ({ ...prev, [partId]: null }));
+      fetchCompanyData();
+      toast.success('Sayım güncellendi.');
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Hata oluştu');
+    }
+  };
+
+  const handleEditPart = async (partId) => {
+    const data = editInputs[partId] || {};
+    const partName = (data.name ?? '').trim();
+    if (!partName) {
+      toast.error('Parça adı boş olamaz.');
+      return;
+    }
+    const min = parseInt(data.min_stock);
+    try {
+      await axios.put(`${host}/api/dijital/spare-parts/${partId}`, { part_name: partName, min_stock: isNaN(min) || min < 0 ? 0 : min }, { headers: { Authorization: `Bearer ${token}` } });
+      setOpenPanel(prev => ({ ...prev, [partId]: null }));
+      fetchCompanyData();
+      toast.success('Parça güncellendi.');
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Hata oluştu');
+    }
+  };
+
+  const togglePanel = (part, type) => {
+    setOpenPanel(prev => {
+      const next = prev[part.id] === type ? null : type;
+      if (next === 'edit') {
+        setEditInputs(ei => ({ ...ei, [part.id]: { name: part.part_name, min_stock: String(part.min_stock ?? 0) } }));
+      }
+      return { ...prev, [part.id]: next };
+    });
+  };
+
+  const openMovements = async (part) => {
+    setMovements({ partId: part.id, partName: part.part_name, rows: [], loading: true });
+    try {
+      const res = await axios.get(`${host}/api/dijital/spare-parts/${part.id}/movements`, { headers: { Authorization: `Bearer ${token}` } });
+      setMovements({ partId: part.id, partName: part.part_name, rows: Array.isArray(res.data) ? res.data : [], loading: false });
+    } catch (e) {
+      toast.error('Hareketler yüklenemedi');
+      setMovements(null);
     }
   };
 
@@ -606,12 +674,14 @@ export default function Dashboard({ user }) {
             <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Yeni Yedek Parça Tanımla</h2>
             <form onSubmit={async (e) => {
               e.preventDefault();
+              if (!newPartName.trim()) { toast.error('Parça adı boş olamaz.'); return; }
+              const min = parseInt(newPartMinStock);
               try {
-                await axios.post(`${host}/api/dijital/spare-parts`, { part_name: newPartName, stock_quantity: parseInt(newPartStock)||0 }, { headers: { Authorization: `Bearer ${token}` } });
-                setNewPartName(''); setNewPartStock('');
+                await axios.post(`${host}/api/dijital/spare-parts`, { part_name: newPartName.trim(), stock_quantity: parseInt(newPartStock)||0, min_stock: isNaN(min) || min < 0 ? 0 : min }, { headers: { Authorization: `Bearer ${token}` } });
+                setNewPartName(''); setNewPartStock(''); setNewPartMinStock('');
                 fetchCompanyData();
                 toast.success('Parça stoklara eklendi');
-              } catch(e) { toast.error('Hata oluştu'); }
+              } catch(e) { toast.error(e.response?.data?.error || 'Hata oluştu'); }
             }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Parça Adı</label>
@@ -620,6 +690,10 @@ export default function Dashboard({ user }) {
               <div>
                 <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Başlangıç Stoğu</label>
                 <input type="number" required style={inputStyle} value={newPartStock} onChange={e => setNewPartStock(e.target.value)} placeholder="Adet" />
+              </div>
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Uyarı Eşiği (Opsiyonel)</label>
+                <input type="number" min="0" style={inputStyle} value={newPartMinStock} onChange={e => setNewPartMinStock(e.target.value)} placeholder="Örn: 5 — bu adede düşünce uyarı ver. 0 = uyarı yok" />
               </div>
               <button type="submit" className="btn-primary">Stoğa Ekle</button>
             </form>
@@ -640,32 +714,151 @@ export default function Dashboard({ user }) {
                   <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}>
                     <th style={{ padding: '0.75rem 0' }}>Parça Adı</th>
                     <th style={{ padding: '0.75rem 0' }}>Mevcut Stok</th>
-                    {!readOnly && <th style={{ padding: '0.75rem 0' }}>Stok Ekle</th>}
+                    <th style={{ padding: '0.75rem 0' }}>Uyarı Eşiği</th>
+                    <th style={{ padding: '0.75rem 0', textAlign: 'right' }}>İşlemler</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {spareParts.map(p => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                  {spareParts.map(p => {
+                    const isNegative = p.stock_quantity < 0;
+                    const isLow = !isNegative && p.min_stock > 0 && p.stock_quantity <= p.min_stock;
+                    const panel = openPanel[p.id];
+                    return (
+                    <Fragment key={p.id}>
+                    <tr style={{ borderBottom: panel ? 'none' : '1px solid rgba(0,0,0,0.05)' }}>
                       <td style={{ padding: '0.75rem 0', fontWeight: 600 }}>{p.part_name}</td>
                       <td style={{ padding: '0.75rem 0' }}>
-                        <span className={`badge ${p.stock_quantity > 5 ? 'success' : p.stock_quantity > 0 ? 'warning' : 'error'}`}>{p.stock_quantity} Adet</span>
-                      </td>
-                      {!readOnly && (
-                      <td style={{ padding: '0.75rem 0' }}>
-                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                          <input
-                            type="number"
-                            min="1"
-                            placeholder="Adet"
-                            value={stockInputs[p.id] || ''}
-                            onChange={e => setStockInputs(prev => ({ ...prev, [p.id]: e.target.value }))}
-                            onKeyDown={e => { if (e.key === 'Enter') handleAddStock(p.id); }}
-                            style={{ width: 70, padding: '0.3rem 0.5rem', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none', fontSize: '0.8rem' }}
-                          />
-                          <button onClick={() => handleAddStock(p.id)} className="btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>+ Ekle</button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'flex-start' }}>
+                          <span className={`badge ${isNegative ? 'error' : p.stock_quantity > (p.min_stock || 0) ? 'success' : 'warning'}`}>{p.stock_quantity} Adet</span>
+                          {isNegative && <span className="badge error">Negatif (sayım tutmuyor)</span>}
+                          {isLow && <span className="badge" style={{ background: 'rgba(245,158,11,0.15)', color: '#b45309' }}>Stok azaldı</span>}
                         </div>
                       </td>
-                      )}
+                      <td style={{ padding: '0.75rem 0', color: 'var(--text-secondary)' }}>
+                        {p.min_stock > 0 ? `${p.min_stock} adet` : <span className="text-muted">Uyarı yok</span>}
+                      </td>
+                      <td style={{ padding: '0.75rem 0' }}>
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {!readOnly && (
+                          <>
+                          <button onClick={() => togglePanel(p, 'addstock')} className="btn-outline" style={sparePartBtn}>
+                            <Plus size={13} /> Stok ekle
+                          </button>
+                          <button onClick={() => togglePanel(p, 'setcount')} className="btn-outline" style={sparePartBtn}>
+                            <ClipboardCheck size={13} /> Sayım düzelt
+                          </button>
+                          <button onClick={() => togglePanel(p, 'edit')} className="btn-outline" style={sparePartBtn}>
+                            <Pencil size={13} /> Eşik düzenle
+                          </button>
+                          </>
+                          )}
+                          <button onClick={() => openMovements(p)} className="btn-outline" style={sparePartBtn}>
+                            <History size={13} /> Hareketler
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {!readOnly && panel && (
+                    <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                      <td colSpan={4} style={{ padding: '0 0 1rem 0' }}>
+                        <div style={{ background: 'rgba(15,23,42,0.03)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '1rem' }}>
+                          {panel === 'addstock' && (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Eklenecek miktar:</label>
+                              <input type="number" min="1" placeholder="Adet"
+                                value={stockInputs[p.id] || ''}
+                                onChange={e => setStockInputs(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                onKeyDown={e => { if (e.key === 'Enter') handleAddStock(p.id); }}
+                                style={sparePartInput} />
+                              <button onClick={() => handleAddStock(p.id)} className="btn-primary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Ekle</button>
+                              <span className="text-muted" style={{ fontSize: '0.75rem' }}>Yalnızca pozitif miktar eklenir.</span>
+                            </div>
+                          )}
+                          {panel === 'setcount' && (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Fiziksel sayım (mutlak değer):</label>
+                              <input type="number" min="0" placeholder="Gerçek adet"
+                                value={setCountInputs[p.id] ?? ''}
+                                onChange={e => setSetCountInputs(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                style={sparePartInput} />
+                              <input type="text" placeholder="Not (opsiyonel)"
+                                value={setCountNotes[p.id] || ''}
+                                onChange={e => setSetCountNotes(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                style={{ ...sparePartInput, width: 180 }} />
+                              <button onClick={() => handleSetCount(p.id)} className="btn-primary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Sayımı Kaydet</button>
+                              <span className="text-muted" style={{ fontSize: '0.75rem' }}>Stok bu değere sabitlenir. Yanlış/negatif sayımı düzeltmek için kullanın.</span>
+                            </div>
+                          )}
+                          {panel === 'edit' && (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Parça adı:</label>
+                              <input type="text"
+                                value={editInputs[p.id]?.name ?? ''}
+                                onChange={e => setEditInputs(prev => ({ ...prev, [p.id]: { ...prev[p.id], name: e.target.value } }))}
+                                style={{ ...sparePartInput, width: 200 }} />
+                              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Uyarı eşiği:</label>
+                              <input type="number" min="0"
+                                value={editInputs[p.id]?.min_stock ?? ''}
+                                onChange={e => setEditInputs(prev => ({ ...prev, [p.id]: { ...prev[p.id], min_stock: e.target.value } }))}
+                                style={sparePartInput} />
+                              <button onClick={() => handleEditPart(p.id)} className="btn-primary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>Kaydet</button>
+                              <span className="text-muted" style={{ fontSize: '0.75rem' }}>0 = uyarı kapalı.</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    )}
+                    </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Stok Hareketleri Modalı */}
+      {movements && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={e => e.target === e.currentTarget && setMovements(null)}>
+          <div className="glass-card" style={{ width: 720, maxWidth: '95vw', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <History size={20} color="var(--brand-primary)" /> Stok Hareketleri
+                </h2>
+                <p className="text-muted" style={{ fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>{movements.partName}</p>
+              </div>
+              <button onClick={() => setMovements(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
+                <X size={20} />
+              </button>
+            </div>
+            {movements.loading ? (
+              <p className="text-muted" style={{ fontSize: '0.9rem' }}>Yükleniyor...</p>
+            ) : movements.rows.length === 0 ? (
+              <EmptyState icon={History} title="Hareket yok" description="Bu parça için henüz stok girişi, tüketim veya sayım kaydı bulunmuyor." />
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '0.6rem 0' }}>Tarih</th>
+                    <th style={{ padding: '0.6rem 0' }}>Hareket</th>
+                    <th style={{ padding: '0.6rem 0' }}>Bakiye</th>
+                    <th style={{ padding: '0.6rem 0' }}>Sebep</th>
+                    <th style={{ padding: '0.6rem 0' }}>Not</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movements.rows.map((m, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                      <td style={{ padding: '0.6rem 0', whiteSpace: 'nowrap' }}>{m.created_at ? new Date(m.created_at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                      <td style={{ padding: '0.6rem 0', fontWeight: 600, color: m.delta > 0 ? '#10b981' : m.delta < 0 ? '#ef4444' : 'var(--text-secondary)' }}>
+                        {m.delta > 0 ? `+${m.delta}` : m.delta}
+                      </td>
+                      <td style={{ padding: '0.6rem 0', color: m.balance_after < 0 ? '#ef4444' : 'var(--text-primary)' }}>{m.balance_after}</td>
+                      <td style={{ padding: '0.6rem 0' }}>{REASON_TR[m.reason] || m.reason || '-'}</td>
+                      <td style={{ padding: '0.6rem 0', color: 'var(--text-secondary)' }}>{m.note || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -809,6 +1002,12 @@ export default function Dashboard({ user }) {
     </div>
   );
 }
+
+const REASON_TR = { manual_add: 'Stok girişi', consume: 'Bakımda kullanıldı', adjust: 'Sayım düzeltmesi' };
+
+const sparePartBtn = { padding: '0.3rem 0.55rem', fontSize: '0.72rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 };
+
+const sparePartInput = { width: 110, padding: '0.35rem 0.5rem', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none', fontSize: '0.8rem', boxSizing: 'border-box' };
 
 const STATUS_TR = { active: 'Aktif', maintenance: 'Bakımda', error: 'Arızalı', inactive: 'Pasif', passive: 'Pasif', broken: 'Arızalı' };
 const STATUS_COLOR = { active: '#10b981', maintenance: '#f59e0b', error: '#ef4444', broken: '#ef4444', inactive: '#94a3b8', passive: '#94a3b8' };

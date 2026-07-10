@@ -122,6 +122,35 @@ async function runNotificationJobs() {
                 dedup_key: `maintenance_due:${m.id}:${m.due_date}`,
             });
         }
+
+        // Faz 6: dusuk/negatif stok -> gunde bir kez hatirlat (hareket olmasa da).
+        const { rows: lowParts } = await db.query(
+            `SELECT id, company_id, part_name, stock_quantity, min_stock
+             FROM dijital_spare_parts
+             WHERE stock_quantity < 0 OR (min_stock > 0 AND stock_quantity <= min_stock)`
+        );
+        const today = new Date().toISOString().slice(0, 10);
+        for (const p of lowParts) {
+            await notify({
+                module: 'dijital', company_id: p.company_id, target_role: 'manager', type: 'low_stock',
+                title: p.stock_quantity < 0 ? 'Stok negatife düştü' : 'Yedek parça stoğu azaldı',
+                body: `${p.part_name}: kalan ${p.stock_quantity}${p.min_stock > 0 ? ` (uyarı eşiği ${p.min_stock})` : ''}.`,
+                link: '/dashboard', entity_type: 'spare_part', entity_id: p.id,
+                dedup_key: `low_stock:${p.id}:${today}`,
+            });
+        }
+
+        // Faz 6: saklama suresi dolan giris selfie'lerini sil (firma ayarina gore).
+        await db.query(
+            `DELETE FROM mesai_log_photos
+             WHERE id IN (
+                 SELECT ph.id FROM mesai_log_photos ph
+                 JOIN mesai_logs l ON ph.log_id = l.id
+                 JOIN mesai_employees e ON l.employee_id = e.id
+                 JOIN mesai_companies c ON e.company_id = c.id
+                 WHERE julianday('now') - julianday(ph.created_at) > COALESCE(c.selfie_retention_days, 30)
+             )`
+        );
     } catch (err) {
         console.error('[notify-jobs] hata:', err.message);
     }

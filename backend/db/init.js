@@ -98,8 +98,44 @@ async function runMigrations() {
     // Eski satırlarda NULL kalır; okumada paketin güncel kuryesine düşülür.
     await addColumn('teslimat_logs', 'courier_id', 'INTEGER REFERENCES teslimat_couriers(id)');
 
+    // --- Faz 6: Cila ---
+    await addColumn('mesai_companies', 'require_checkin_selfie', 'BOOLEAN DEFAULT 0');
+    await addColumn('mesai_companies', 'selfie_retention_days', 'INTEGER DEFAULT 30');
+    await addColumn('teslimat_packages', 'tracking_token', 'VARCHAR(64)');
+    await addColumn('dijital_spare_parts', 'min_stock', 'INTEGER DEFAULT 0');
+
+    // tracking_token indexi kolon EKLENDIKTEN sonra (schema.sql'de olamaz — bkz. not).
+    try {
+        await db.client.execute('CREATE INDEX IF NOT EXISTS idx_teslimat_pkg_token ON teslimat_packages (tracking_token)');
+    } catch (err) {
+        console.warn('tracking_token index atlandı:', err.message);
+    }
+
     // Resmi tatilleri tohumla (yalnızca bir kez; global = company_id NULL)
     await seedHolidays();
+
+    // Eski paketlere takip jetonu üret (yeni public/track ucu jetonla çalışır).
+    await backfillTrackingTokens();
+}
+
+// Faz 6: tracking_token'i olmayan paketlere tahmin edilemez jeton yaz.
+// SQLite'ta güvenli rastgele üretmek zor; JS tarafında üretip tek tek yazıyoruz.
+async function backfillTrackingTokens() {
+    const crypto = require('crypto');
+    try {
+        const { rows } = await db.client.execute(
+            "SELECT id FROM teslimat_packages WHERE tracking_token IS NULL OR tracking_token = ''"
+        );
+        for (const r of rows) {
+            await db.client.execute({
+                sql: 'UPDATE teslimat_packages SET tracking_token = ? WHERE id = ?',
+                args: [crypto.randomBytes(16).toString('hex'), r.id],
+            });
+        }
+        if (rows.length > 0) console.log(`Faz 6: ${rows.length} pakete takip jetonu üretildi.`);
+    } catch (err) {
+        console.warn('Takip jetonu backfill atlandı:', err.message);
+    }
 }
 
 // 2026 sabit tarihli resmi/ulusal bayramlar. Dini bayramlar (Ramazan/Kurban) her yıl

@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard, panelWriteGuard } = require('../auth');
+const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard, panelWriteGuard, requireTier } = require('../auth');
 const { createOtp, verifyOtp } = require('../otp');
 const { mountPanelUsers } = require('../panelUsers');
 const { notify, mountNotifications } = require('../notifications');
@@ -28,6 +28,30 @@ const technicianAuth = workerGuard('dijital');
 
 // Faz 3: 'viewer' rolü tüm yazma isteklerinde reddedilir (public/login etkilenmez)
 router.use(panelWriteGuard('dijital'));
+
+// Faz 6: stok hareketini defterle. Defter (dijital_stock_movements) denetim izidir;
+// balance_after her adımdan sonraki bakiyeyi sabitler. `part` güncel satır olmalı.
+// Düşük/negatif stokta manager'a bildirim üretir (günde bir kez, dedup ile).
+async function recordStockMovement({ company_id, part, delta, reason, ref_type = null, ref_id = null, note = null }) {
+    const balance_after = Number(part.stock_quantity);
+    await db.query(
+        `INSERT INTO dijital_stock_movements (company_id, part_id, delta, balance_after, reason, ref_type, ref_id, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [company_id, part.id, delta, balance_after, reason, ref_type, ref_id, note]
+    );
+    const min = Number(part.min_stock || 0);
+    // min_stock>0 ve esige inildiyse, VEYA stok negatifse (sayım tutmuyor) uyar.
+    if (balance_after < 0 || (min > 0 && balance_after <= min)) {
+        const today = new Date().toISOString().slice(0, 10);
+        await notify({
+            module: 'dijital', company_id, target_role: 'manager', type: 'low_stock',
+            title: balance_after < 0 ? 'Stok negatife düştü' : 'Yedek parça stoğu azaldı',
+            body: `${part.part_name}: kalan ${balance_after}${min > 0 ? ` (uyarı eşiği ${min})` : ''}.`,
+            link: '/dashboard', entity_type: 'spare_part', entity_id: part.id,
+            dedup_key: `low_stock:${part.id}:${today}`,
+        });
+    }
+}
 
 function sanitizeCompany(company) {
     if (!company) return company;
@@ -406,12 +430,22 @@ router.post('/maintenance/submit', technicianAuth, async (req, res) => {
 
         if (used_parts && Array.isArray(used_parts) && used_parts.length > 0) {
             for (let part of used_parts) {
-                if (part.part_id && part.quantity > 0) {
+                const qty = parseInt(part.quantity, 10);
+                if (part.part_id && Number.isFinite(qty) && qty > 0) {
                     // Parça da aynı firmaya ait olmalı
                     const { rows: pr } = await db.query('SELECT id FROM dijital_spare_parts WHERE id = ? AND company_id = ?', [part.part_id, req.worker.company_id]);
                     if (pr.length > 0) {
-                        await db.query('INSERT INTO dijital_maintenance_parts (log_id, part_id, quantity_used) VALUES (?, ?, ?)', [logId, part.part_id, part.quantity]);
-                        await db.query('UPDATE dijital_spare_parts SET stock_quantity = stock_quantity - ? WHERE id = ?', [part.quantity, part.part_id]);
+                        await db.query('INSERT INTO dijital_maintenance_parts (log_id, part_id, quantity_used) VALUES (?, ?, ?)', [logId, part.part_id, qty]);
+                        // Parça fiilen kullanıldı; stok gerçek durumu yansıtsın (negatife de
+                        // düşebilir = sayım tutmuyor demektir, bildirim bunu görünür kılar).
+                        const upd = await db.query(
+                            'UPDATE dijital_spare_parts SET stock_quantity = stock_quantity - ? WHERE id = ? RETURNING id, part_name, stock_quantity, min_stock',
+                            [qty, part.part_id]
+                        );
+                        await recordStockMovement({
+                            company_id: req.worker.company_id, part: upd.rows[0],
+                            delta: -qty, reason: 'consume', ref_type: 'maintenance_log', ref_id: logId,
+                        });
                     }
                 }
             }
@@ -510,24 +544,105 @@ router.get('/spare-parts', companyAuth, async (req, res) => {
     }
 });
 
-router.post('/spare-parts', companyAuth, async (req, res) => {
-    const { part_name, stock_quantity } = req.body;
+router.post('/spare-parts', companyAuth, requireTier('operator'), async (req, res) => {
+    const { part_name, stock_quantity, min_stock } = req.body;
+    if (!part_name || !String(part_name).trim()) {
+        return res.status(400).json({ error: 'Parça adı zorunludur.' });
+    }
+    const qty = Math.max(0, parseInt(stock_quantity, 10) || 0);
+    const min = Math.max(0, parseInt(min_stock, 10) || 0);
     try {
-        await db.query(
-            'INSERT INTO dijital_spare_parts (company_id, part_name, stock_quantity) VALUES (?, ?, ?)',
-            [req.company.id, part_name, stock_quantity || 0]
+        const ins = await db.query(
+            'INSERT INTO dijital_spare_parts (company_id, part_name, stock_quantity, min_stock) VALUES (?, ?, ?, ?) RETURNING id',
+            [req.company.id, String(part_name).trim(), qty, min]
         );
+        if (qty > 0) {
+            await recordStockMovement({
+                company_id: req.company.id,
+                part: { id: ins.rows[0].id, part_name, stock_quantity: qty, min_stock: min },
+                delta: qty, reason: 'manual_add', note: 'İlk stok',
+            });
+        }
         res.status(201).json({ message: 'Yedek parça eklendi.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-router.put('/spare-parts/:id/add-stock', companyAuth, async (req, res) => {
-    const { quantity } = req.body;
+// Parça bilgisi (ad + uyarı eşiği) düzenle
+router.put('/spare-parts/:id', companyAuth, requireTier('operator'), async (req, res) => {
+    const { part_name, min_stock } = req.body;
     try {
-        await db.query('UPDATE dijital_spare_parts SET stock_quantity = stock_quantity + ? WHERE id = ? AND company_id = ?', [quantity, req.params.id, req.company.id]);
-        res.json({ message: 'Stok güncellendi.' });
+        const { rows } = await db.query('SELECT * FROM dijital_spare_parts WHERE id = ? AND company_id = ?', [req.params.id, req.company.id]);
+        if (!rows.length) return res.status(404).json({ error: 'Parça bulunamadı.' });
+        await db.query(
+            'UPDATE dijital_spare_parts SET part_name = ?, min_stock = ? WHERE id = ? AND company_id = ?',
+            [part_name != null ? String(part_name).trim() : rows[0].part_name,
+             min_stock != null ? Math.max(0, parseInt(min_stock, 10) || 0) : rows[0].min_stock,
+             req.params.id, req.company.id]
+        );
+        res.json({ message: 'Parça güncellendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/spare-parts/:id/add-stock', companyAuth, requireTier('operator'), async (req, res) => {
+    const quantity = parseInt(req.body.quantity, 10);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+        return res.status(400).json({ error: 'Girilen miktar pozitif olmalıdır.' });
+    }
+    try {
+        const upd = await db.query(
+            'UPDATE dijital_spare_parts SET stock_quantity = stock_quantity + ? WHERE id = ? AND company_id = ? RETURNING id, part_name, stock_quantity, min_stock',
+            [quantity, req.params.id, req.company.id]
+        );
+        if (!upd.rows.length) return res.status(404).json({ error: 'Parça bulunamadı.' });
+        await recordStockMovement({
+            company_id: req.company.id, part: upd.rows[0],
+            delta: quantity, reason: 'manual_add',
+        });
+        res.json({ message: 'Stok güncellendi.', stock_quantity: upd.rows[0].stock_quantity });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Sayım düzeltme: stoğu mutlak bir değere ayarla (fark deftere yazılır).
+// Manuel giriş negatif olamaz — imkânsız durumu kullanıcı yaratmasın.
+router.put('/spare-parts/:id/set-count', companyAuth, requireTier('operator'), async (req, res) => {
+    const target = parseInt(req.body.stock_quantity, 10);
+    if (!Number.isFinite(target) || target < 0) {
+        return res.status(400).json({ error: 'Sayım değeri 0 veya daha büyük olmalıdır.' });
+    }
+    try {
+        const { rows } = await db.query('SELECT * FROM dijital_spare_parts WHERE id = ? AND company_id = ?', [req.params.id, req.company.id]);
+        if (!rows.length) return res.status(404).json({ error: 'Parça bulunamadı.' });
+        const delta = target - Number(rows[0].stock_quantity);
+        await db.query('UPDATE dijital_spare_parts SET stock_quantity = ? WHERE id = ? AND company_id = ?', [target, req.params.id, req.company.id]);
+        if (delta !== 0) {
+            await recordStockMovement({
+                company_id: req.company.id,
+                part: { ...rows[0], stock_quantity: target },
+                delta, reason: 'adjust', note: req.body.note || 'Sayım düzeltmesi',
+            });
+        }
+        res.json({ message: 'Sayım güncellendi.', stock_quantity: target });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Bir parçanın stok hareket defteri
+router.get('/spare-parts/:id/movements', companyAuth, async (req, res) => {
+    try {
+        const { rows: own } = await db.query('SELECT id FROM dijital_spare_parts WHERE id = ? AND company_id = ?', [req.params.id, req.company.id]);
+        if (!own.length) return res.status(404).json({ error: 'Parça bulunamadı.' });
+        const { rows } = await db.query(
+            'SELECT delta, balance_after, reason, ref_type, ref_id, note, created_at FROM dijital_stock_movements WHERE part_id = ? ORDER BY id DESC LIMIT 100',
+            [req.params.id]
+        );
+        res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

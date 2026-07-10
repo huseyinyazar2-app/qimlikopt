@@ -127,6 +127,37 @@ router.get('/devices', async (req, res) => {
     }
 });
 
+// Faz 6: bir cihazin saglik gecmisi — pil egilimi (sparkline) + son 24s cevrimici orani.
+// Cevrimici orani = son 24 saatte GELEN heartbeat / BEKLENEN (~10 dk'da bir = 144).
+router.get('/devices/:deviceId/health', async (req, res) => {
+    const { deviceId } = req.params;
+    try {
+        const { rows: history } = await db.query(
+            `SELECT battery_level, network_status, created_at
+             FROM gateway_heartbeats
+             WHERE device_id = ? AND created_at >= datetime('now','-7 days')
+             ORDER BY created_at ASC`,
+            [deviceId]
+        );
+        const { rows: cntRows } = await db.query(
+            `SELECT COUNT(*) AS c FROM gateway_heartbeats
+             WHERE device_id = ? AND created_at >= datetime('now','-1 day')`,
+            [deviceId]
+        );
+        const received = Number(cntRows[0]?.c || 0);
+        const EXPECTED_PER_DAY = 144; // 24s * 6 (10 dk'da bir)
+        const uptimeRatio = Math.min(1, received / EXPECTED_PER_DAY);
+        res.json({
+            device_id: deviceId,
+            history,
+            uptime_24h: Math.round(uptimeRatio * 100),
+            samples_24h: received,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // --- 4. GLOBAL SETTINGS ---
 
 // Get all settings (excluding credentials)

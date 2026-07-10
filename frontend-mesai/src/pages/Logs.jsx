@@ -27,7 +27,8 @@ import {
   RefreshCw,
   Download,
   Coffee,
-  CheckCircle
+  CheckCircle,
+  Camera
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
@@ -39,6 +40,7 @@ export default function Logs({ user }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMap, setSelectedMap] = useState(null);
+  const [selfieModal, setSelfieModal] = useState(null); // { img, name } | { loading, name }
   const [activeTab, setActiveTab] = useState('logs'); // logs | leaves
   const [leaves, setLeaves] = useState([]);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -103,6 +105,19 @@ export default function Logs({ user }) {
       fetchLogs();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const viewSelfie = async (logId, name) => {
+    setSelfieModal({ loading: true, name });
+    try {
+      const res = await axios.get(`${host}/api/mesai/company/logs/${logId}/selfie`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSelfieModal({ img: res.data.photo_base64, name });
+    } catch (err) {
+      toast.error('Selfie yüklenemedi (silinmiş olabilir).');
+      setSelfieModal(null);
     }
   };
 
@@ -176,6 +191,7 @@ export default function Logs({ user }) {
                   <th>Çalışma Alanı</th>
                   <th>GPS Koordinatları</th>
                   <th>Sapma Mesafesi</th>
+                  <th>Selfie</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,12 +232,22 @@ export default function Logs({ user }) {
                       <td style={{ fontWeight: 700, color: isClose ? 'var(--status-success)' : '#ef4444' }}>
                         {Math.round(log.calculated_distance)} metre
                       </td>
+                      <td>
+                        {log.has_selfie ? (
+                          <button onClick={() => viewSelfie(log.id, log.employee_name)} title="Selfie'yi göster"
+                            style={{ background: 'transparent', border: '1px solid var(--brand-primary)', color: 'var(--brand-primary)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem' }}>
+                            <Camera size={13} /> Göster
+                          </button>
+                        ) : (
+                          <span className="text-muted" style={{ fontSize: '0.75rem' }}>—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
                 {logs.length === 0 && (
                   <tr>
-                    <td colSpan="6" style={{ padding: 0 }}>
+                    <td colSpan="7" style={{ padding: 0 }}>
                       <EmptyState
                         icon={FileText}
                         title="Henüz mesai kaydı yok"
@@ -366,6 +392,24 @@ export default function Logs({ user }) {
         </div>
       )}
 
+
+      {selfieModal && (
+        <div onClick={() => setSelfieModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="glass-card" onClick={e => e.stopPropagation()} style={{ width: 340, maxWidth: '90%', background: '#fff' }}>
+            <h3 style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Camera size={16} /> {selfieModal.name}</span>
+              <button onClick={() => setSelfieModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>&times;</button>
+            </h3>
+            {selfieModal.loading ? (
+              <div style={{ textAlign: 'center', padding: '2rem' }}>
+                <RefreshCw className="spin" size={28} color="var(--brand-primary)" />
+              </div>
+            ) : (
+              <img src={selfieModal.img} alt={selfieModal.name} style={{ width: '100%', borderRadius: 8, display: 'block' }} />
+            )}
+          </div>
+        </div>
+      )}
 
       {showLeaveModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>

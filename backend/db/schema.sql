@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS dijital_spare_parts (
     company_id INTEGER REFERENCES dijital_companies(id),
     part_name VARCHAR(255) NOT NULL,
     stock_quantity INTEGER DEFAULT 0,
+    min_stock INTEGER DEFAULT 0, -- Faz 6: bu esige inince uyari (0 = uyari yok)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -175,6 +176,8 @@ CREATE TABLE IF NOT EXISTS mesai_companies (
     shift_end_time VARCHAR(10) DEFAULT '18:00',
     tolerance_minutes INTEGER DEFAULT 15,
     deduct_break_time BOOLEAN DEFAULT 1,
+    require_checkin_selfie BOOLEAN DEFAULT 0,   -- Faz 6: giris aninda selfie kaydi iste
+    selfie_retention_days INTEGER DEFAULT 30,   -- selfie'ler bu kadar gun sonra otomatik silinir
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -261,8 +264,12 @@ CREATE TABLE IF NOT EXISTS teslimat_packages (
     status VARCHAR(50) DEFAULT 'created', -- 'created', 'in_transit', 'delivered', 'failed'
     courier_id INTEGER REFERENCES teslimat_couriers(id),
     return_reason TEXT,
+    tracking_token VARCHAR(64), -- Faz 6: alici takip linki icin tahmin edilemez jeton
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- NOT: tracking_token indexi burada DEGIL, init.js runMigrations icinde olusturulur.
+-- Eski DB'de bu tablo zaten var (CREATE TABLE atlanir) ve kolon henuz eklenmemis
+-- olur; index'i burada tanimlamak executeMultiple'i patlatir ve tum gocu iptal eder.
 
 CREATE TABLE IF NOT EXISTS teslimat_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -396,5 +403,50 @@ CREATE TABLE IF NOT EXISTS notification_reads (
     read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (notification_id, reader)
 );
+
+
+-- ============================================================================
+-- FAZ 6: CILA (selfie giris, gateway saglik gecmisi, stok hareket defteri)
+-- ============================================================================
+
+-- --- MESAI: giris selfie'leri. mesai_logs'tan AYRI tutulur ki bordro/rapor
+--     sorgulari agir base64 verisini tasimasin. Saklama suresi dolunca silinir.
+CREATE TABLE IF NOT EXISTS mesai_log_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    log_id INTEGER NOT NULL REFERENCES mesai_logs(id),
+    photo_base64 TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_mesai_log_photos_log ON mesai_log_photos (log_id);
+CREATE INDEX IF NOT EXISTS idx_mesai_log_photos_age ON mesai_log_photos (created_at);
+
+-- --- GATEWAY: her heartbeat'in gecmisi (pil egilimi + cevrimici orani icin).
+--     Heartbeat sik gelir; satir sismesini onlemek icin ~10 dk'da bir yazilir,
+--     7 gunden eskisi budanir (gateway.js).
+CREATE TABLE IF NOT EXISTS gateway_heartbeats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id VARCHAR(100) NOT NULL,
+    battery_level INTEGER,
+    network_status VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_gateway_hb_device ON gateway_heartbeats (device_id, created_at);
+
+-- --- DIJITAL: yedek parca stok hareket defteri. Defter dogrunun kaynagidir;
+--     balance_after her hareketten sonraki bakiyeyi sabitler (denetim izi).
+--     delta<0 tuketim, delta>0 giris. reason: 'manual_add'|'consume'|'adjust'.
+CREATE TABLE IF NOT EXISTS dijital_stock_movements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER NOT NULL REFERENCES dijital_companies(id),
+    part_id INTEGER NOT NULL REFERENCES dijital_spare_parts(id),
+    delta INTEGER NOT NULL,
+    balance_after INTEGER NOT NULL,
+    reason VARCHAR(30) NOT NULL,
+    ref_type VARCHAR(30),           -- 'maintenance_log' | null
+    ref_id INTEGER,
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_dijital_stockmov_part ON dijital_stock_movements (part_id, created_at);
 
 

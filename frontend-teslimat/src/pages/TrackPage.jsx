@@ -1,20 +1,25 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { 
-  Package, 
-  MapPin, 
-  User, 
-  Clock, 
-  CheckCircle2, 
-  Truck, 
-  AlertTriangle, 
-  RefreshCw 
+import {
+  MapPin,
+  User,
+  CheckCircle2,
+  AlertTriangle,
+  RotateCcw,
+  RefreshCw
 } from 'lucide-react';
 import { getApiUrl } from '../config';
 
+const FAIL_REASONS = {
+  recipient_absent: 'Alıcı adreste yok',
+  wrong_address: 'Adres hatalı',
+  refused: 'Teslim reddedildi',
+  other: 'Diğer'
+};
+
 export default function TrackPage() {
-  const { packageCode } = useParams();
+  const { token } = useParams();
   const [pack, setPack] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,10 +30,12 @@ export default function TrackPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.get(`${host}/api/teslimat/public/packages/${packageCode}`);
+      const res = await axios.get(`${host}/api/teslimat/public/track/${token}`);
       setPack(res.data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Paket bulunamadı. Lütfen takip kodunu kontrol edin.');
+      setError(err.response?.status === 404
+        ? 'Takip kaydı bulunamadı. Lütfen bağlantıyı kontrol edin.'
+        : (err.response?.data?.error || 'Takip bilgileri alınamadı. Lütfen tekrar deneyin.'));
     } finally {
       setLoading(false);
     }
@@ -36,21 +43,18 @@ export default function TrackPage() {
 
   useEffect(() => {
     fetchTrackingData();
-  }, [packageCode]);
+  }, [token]);
 
-  // Helper to censor recipient name (e.g., Hasan Yılmaz -> H**** Y***** )
-  const censorName = (name) => {
-    if (!name) return '';
-    return name.split(' ').map(part => {
-      if (part.length <= 1) return part;
-      return part[0] + '*'.repeat(part.length - 1);
-    }).join(' ');
-  };
+  const status = pack?.status;
+  const dispatched = ['in_transit', 'delivered', 'partial', 'returned', 'failed'].includes(status);
+  const delivered = status === 'delivered';
+  const isFailure = status === 'failed' || status === 'returned';
+  const isPartial = status === 'partial';
 
   return (
     <div style={containerStyle}>
       <div className="glass-panel" style={{ width: '100%', maxWidth: 500, padding: '2.5rem 2rem', textAlign: 'center' }}>
-        
+
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
           <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--brand-gradient)' }}></div>
@@ -78,80 +82,105 @@ export default function TrackPage() {
               <div className="text-muted" style={{ fontSize: '0.85rem' }}>Gönderen Firma: <strong style={{ color: 'var(--brand-secondary)' }}>{pack.company_name}</strong></div>
             </div>
 
-            {/* Censor Recipient details */}
+            {/* Recipient details (masked by backend) */}
             <div className="glass-card" style={{ padding: '1rem', textAlign: 'left', marginBottom: '2rem', background: 'rgba(255,255,255,0.7)', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', gap: 6, fontSize: '0.85rem' }}>
                 <User size={14} className="text-muted" />
                 <span style={{ fontWeight: 600 }}>Alıcı:</span>
-                <span>{censorName(pack.recipient_name)}</span>
+                <span>{pack.recipient_name}</span>
               </div>
-              {pack.delivery_address && (
-                <div style={{ display: 'flex', gap: 6, fontSize: '0.85rem', alignItems: 'flex-start' }}>
-                  <MapPin size={14} className="text-muted" style={{ marginTop: 2, flexShrink: 0 }} />
-                  <span style={{ fontWeight: 600 }}>Teslim Adresi:</span>
-                  <span>{pack.delivery_address}</span>
-                </div>
-              )}
             </div>
+
+            {/* Failure / partial banner */}
+            {isFailure && (
+              <div className="glass-card" style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '1rem', textAlign: 'left', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <RotateCcw color="#ef4444" size={20} style={{ flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{status === 'returned' ? 'Gönderi İade Edildi' : 'Teslim Edilemedi'}</div>
+                  <div className="text-muted" style={{ marginTop: 2, fontSize: '0.8rem' }}>Gönderiniz alıcıya teslim edilemedi.</div>
+                </div>
+              </div>
+            )}
+            {isPartial && (
+              <div className="glass-card" style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '1rem', textAlign: 'left', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertTriangle color="#f59e0b" size={20} style={{ flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Kısmen Teslim</div>
+                  <div className="text-muted" style={{ marginTop: 2, fontSize: '0.8rem' }}>Gönderinizin bir kısmı teslim edildi.</div>
+                </div>
+              </div>
+            )}
 
             {/* Tracking Progress Steps */}
             <div style={{ textAlign: 'left', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', paddingLeft: '1rem' }}>
-              {/* Step 1: Shipment Registered */}
+              {/* Step 1: Registered */}
               <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
                 <div style={lineStyle}></div>
-                <div style={{ ...dotStyle, background: 'var(--status-success)', color: 'var(--text-primary)' }}>✓</div>
+                <div style={{ ...dotStyle, background: 'var(--status-success)', color: 'white' }}>✓</div>
                 <div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>Gönderi Kaydı Alındı</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>Kayıt Oluşturuldu</div>
                   <div className="text-muted" style={{ fontSize: '0.75rem' }}>{new Date(pack.created_at).toLocaleString('tr-TR')}</div>
                 </div>
               </div>
 
-              {/* Step 2: Courier Zimmeted */}
+              {/* Step 2: Dispatched */}
               <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
                 <div style={lineStyle}></div>
-                <div style={{ 
-                  ...dotStyle, 
-                  background: pack.status === 'in_transit' || pack.status === 'delivered' ? 'var(--status-success)' : 'rgba(255,255,255,0.08)',
-                  color: pack.status === 'in_transit' || pack.status === 'delivered' ? 'white' : 'var(--text-muted)'
+                <div style={{
+                  ...dotStyle,
+                  background: dispatched ? 'var(--status-success)' : 'rgba(15,23,42,0.08)',
+                  color: dispatched ? 'white' : 'var(--text-muted)'
                 }}>
-                  {pack.status === 'in_transit' || pack.status === 'delivered' ? '✓' : '2'}
+                  {dispatched ? '✓' : '2'}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 600, color: pack.status === 'in_transit' || pack.status === 'delivered' ? 'white' : 'var(--text-muted)', fontSize: '0.9rem' }}>Dağıtıma Çıkarıldı</div>
+                  <div style={{ fontWeight: 600, color: dispatched ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '0.9rem' }}>Yola Çıktı</div>
                   <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                    {pack.status === 'in_transit' || pack.status === 'delivered' ? 'Zimmet atandı ve kurye yolda.' : 'Kurye ataması bekleniyor.'}
+                    {dispatched ? 'Kurye dağıtıma çıktı.' : 'Kurye ataması bekleniyor.'}
                   </div>
                 </div>
               </div>
 
               {/* Step 3: Delivered */}
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <div style={{ 
-                  ...dotStyle, 
-                  background: pack.status === 'delivered' ? 'var(--status-success)' : 'rgba(255,255,255,0.08)',
-                  color: pack.status === 'delivered' ? 'white' : 'var(--text-muted)'
+                <div style={{
+                  ...dotStyle,
+                  background: delivered ? 'var(--status-success)' : isFailure ? 'rgba(239,68,68,0.15)' : 'rgba(15,23,42,0.08)',
+                  color: delivered ? 'white' : isFailure ? '#ef4444' : 'var(--text-muted)'
                 }}>
-                  {pack.status === 'delivered' ? '✓' : '3'}
+                  {delivered ? '✓' : isFailure ? '✕' : '3'}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 600, color: pack.status === 'delivered' ? 'white' : 'var(--text-muted)', fontSize: '0.9rem' }}>Teslim Edildi</div>
+                  <div style={{ fontWeight: 600, color: delivered ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '0.9rem' }}>Teslim Edildi</div>
                   <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                    {pack.status === 'delivered' 
-                      ? `Doğrulandı: ${new Date(pack.delivered_at).toLocaleString('tr-TR')}` 
-                      : 'Paket henüz teslim edilmedi.'}
+                    {delivered && pack.delivered_at
+                      ? `Doğrulandı: ${new Date(pack.delivered_at).toLocaleString('tr-TR')}`
+                      : isFailure
+                        ? 'Teslim edilemedi.'
+                        : 'Paket henüz teslim edilmedi.'}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* GPS verification label */}
-            {pack.status === 'delivered' && pack.gps_latitude && (
+            {/* Failed attempts detail */}
+            {pack.failed_attempts > 0 && (
+              <div className="glass-card" style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '1rem', textAlign: 'left', marginBottom: '1rem', fontSize: '0.8rem' }}>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Başarısız teslim denemesi: {pack.failed_attempts}</div>
+                {pack.last_fail_reason && FAIL_REASONS[pack.last_fail_reason] && (
+                  <div className="text-muted" style={{ marginTop: 2 }}>Son neden: {FAIL_REASONS[pack.last_fail_reason]}</div>
+                )}
+              </div>
+            )}
+
+            {/* Delivery point (text only, no map for public/mobile) */}
+            {pack.delivery_point && (
               <div className="glass-card" style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '1rem', textAlign: 'left', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CheckCircle2 color="var(--status-success)" size={20} style={{ flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Güvenli Teslimat Konumu</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Teslim Noktası</div>
                   <div className="text-muted" style={{ marginTop: 2 }}>
-                    Alıcı, WhatsApp Reverse OTP doğrulamasıyla şu koordinatlarda onay vermiştir: {pack.gps_latitude.toFixed(5)}, {pack.gps_longitude.toFixed(5)}
+                    {pack.delivery_point.latitude.toFixed(5)}, {pack.delivery_point.longitude.toFixed(5)}
                   </div>
                 </div>
               </div>

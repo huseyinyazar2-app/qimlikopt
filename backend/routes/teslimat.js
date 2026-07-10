@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const db = require('../db');
 const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard, panelWriteGuard } = require('../auth');
 const { createOtp, verifyOtp } = require('../otp');
@@ -119,11 +120,13 @@ router.post('/packages', companyAuth, async (req, res) => {
             return res.status(400).json({ error: 'Bu paket kodu zaten mevcut.' });
         }
 
+        // Faz 6: alıcıya verilecek takip linki için tahmin edilemez jeton.
+        const tracking_token = crypto.randomBytes(16).toString('hex');
         await db.query(
-            'INSERT INTO teslimat_packages (company_id, package_code, recipient_name, recipient_phone, delivery_address) VALUES (?, ?, ?, ?, ?)',
-            [req.company.id, package_code, recipient_name, recipient_phone, delivery_address]
+            'INSERT INTO teslimat_packages (company_id, package_code, recipient_name, recipient_phone, delivery_address, tracking_token) VALUES (?, ?, ?, ?, ?, ?)',
+            [req.company.id, package_code, recipient_name, recipient_phone, delivery_address, tracking_token]
         );
-        res.status(201).json({ message: 'Gönderi kaydı oluşturuldu.' });
+        res.status(201).json({ message: 'Gönderi kaydı oluşturuldu.', tracking_token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -346,7 +349,64 @@ router.get('/courier/packages/:id', courierAuth, async (req, res) => {
     }
 });
 
-// --- 6. PUBLIC SHIPMENT TRACKING (alıcı için, kod ile) ---
+// Faz 6: alıcı takip linki — tahmin edilemez jetonla, zenginleştirilmiş durum.
+// Kuryenin canlı konumu KASITLI olarak paylaşılmaz (çalışan mahremiyeti).
+// Sadece: durum adımları, deneme sayısı/son sebep, teslim edildiyse teslim noktası.
+router.get('/public/track/:token', async (req, res) => {
+    const { token } = req.params;
+    // Jeton 32 hex; biçim tutmayan istekte DB'ye hiç gitme.
+    if (!/^[a-f0-9]{16,64}$/i.test(token || '')) {
+        return res.status(404).json({ error: 'Takip kaydı bulunamadı.' });
+    }
+    try {
+        const { rows } = await db.query(
+            `SELECT p.id, p.package_code, p.recipient_name, p.status, p.created_at,
+                    c.company_name,
+                    (SELECT l.created_at FROM teslimat_logs l
+                      WHERE l.package_id = p.id AND l.log_type IN ('delivered_success','delivered_partial')
+                      ORDER BY l.id DESC LIMIT 1) AS delivered_at,
+                    (SELECT l.gps_latitude FROM teslimat_logs l
+                      WHERE l.package_id = p.id AND l.log_type IN ('delivered_success','delivered_partial')
+                      ORDER BY l.id DESC LIMIT 1) AS delivered_lat,
+                    (SELECT l.gps_longitude FROM teslimat_logs l
+                      WHERE l.package_id = p.id AND l.log_type IN ('delivered_success','delivered_partial')
+                      ORDER BY l.id DESC LIMIT 1) AS delivered_lng,
+                    (SELECT COUNT(*) FROM teslimat_delivery_attempts a
+                      WHERE a.package_id = p.id AND a.result = 'failed') AS failed_attempts,
+                    (SELECT a.reason FROM teslimat_delivery_attempts a
+                      WHERE a.package_id = p.id AND a.result = 'failed'
+                      ORDER BY a.created_at DESC, a.id DESC LIMIT 1) AS last_fail_reason
+             FROM teslimat_packages p
+             JOIN teslimat_companies c ON p.company_id = c.id
+             WHERE p.tracking_token = ?`,
+            [token]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Takip kaydı bulunamadı.' });
+        }
+        const r = rows[0];
+        // Alıcı adını maskele (herkese açık link): "Ahmet Yılmaz" -> "Ahmet Y."
+        const name = String(r.recipient_name || '').trim();
+        const masked = name ? name.split(/\s+/).map((w, i, arr) =>
+            i === arr.length - 1 && arr.length > 1 ? w[0].toUpperCase() + '.' : w).join(' ') : '';
+        res.json({
+            package_code: r.package_code,
+            recipient_name: masked,
+            company_name: r.company_name,
+            status: r.status,
+            created_at: r.created_at,
+            delivered_at: r.delivered_at,
+            delivery_point: (r.delivered_lat != null && r.delivered_lng != null)
+                ? { latitude: r.delivered_lat, longitude: r.delivered_lng } : null,
+            failed_attempts: Number(r.failed_attempts || 0),
+            last_fail_reason: r.last_fail_reason || null,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- 6. PUBLIC SHIPMENT TRACKING (alıcı için, kod ile) — geriye uyumluluk ---
 router.get('/public/packages/:code', async (req, res) => {
     const { code } = req.params;
     try {

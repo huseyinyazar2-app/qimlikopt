@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../config';
 import toast from 'react-hot-toast';
-import { Settings as SettingsIcon, Save, Info, Calculator, CalendarDays, Plus, Trash2, Lock } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Info, Calculator, CalendarDays, Plus, Trash2, Lock, Camera } from 'lucide-react';
 import { isReadOnly } from '../utils/role';
 
 const WEEKDAYS = [
@@ -23,6 +23,8 @@ export default function Settings({ user }) {
   const [shiftEnd, setShiftEnd] = useState('18:00');
   const [tolerance, setTolerance] = useState(15);
   const [deductBreakTime, setDeductBreakTime] = useState(true);
+  const [requireSelfie, setRequireSelfie] = useState(false);
+  const [selfieRetention, setSelfieRetention] = useState(30);
   const [loading, setLoading] = useState(false);
   const host = getApiUrl();
   const headers = { Authorization: `Bearer ${user.token}` };
@@ -144,6 +146,8 @@ export default function Settings({ user }) {
           setShiftEnd(comp.shift_end_time || '18:00');
           setTolerance(comp.tolerance_minutes !== undefined ? comp.tolerance_minutes : 15);
           setDeductBreakTime(comp.deduct_break_time === undefined ? true : !!comp.deduct_break_time);
+          setRequireSelfie(!!comp.require_checkin_selfie);
+          setSelfieRetention(comp.selfie_retention_days ?? 30);
         }
       } catch (err) {
         console.error('Mevcut ayarlar yuklenirken hata:', err);
@@ -164,7 +168,9 @@ export default function Settings({ user }) {
         shift_start_time: shiftStart,
         shift_end_time: shiftEnd,
         tolerance_minutes: tolerance,
-        deduct_break_time: deductBreakTime
+        deduct_break_time: deductBreakTime,
+        require_checkin_selfie: requireSelfie,
+        selfie_retention_days: Number(selfieRetention) || 30
       }, { headers });
       toast.success('Mesai ayarları başarıyla kaydedildi');
     } catch (err) {
@@ -258,6 +264,35 @@ export default function Settings({ user }) {
             <label htmlFor="deductBreakTime" style={{ fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>
               Mola ve yemek sürelerini toplam çalışma süresinden düş
             </label>
+          </div>
+
+          {/* Faz 6: giriş selfie'si (denetim kaydı — girişi engellemez) */}
+          <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                type="checkbox"
+                id="requireSelfie"
+                checked={requireSelfie}
+                onChange={e => setRequireSelfie(e.target.checked)}
+                style={{ width: 18, height: 18, cursor: 'pointer' }}
+              />
+              <label htmlFor="requireSelfie" style={{ fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Camera size={16} color="var(--brand-primary)" /> Giriş/çıkışta selfie iste
+              </label>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem', display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+              <Info size={14} style={{ flexShrink: 0, marginTop: 2 }} /> Personel giriş yaparken ön kameradan bir fotoğraf çekilir ve kayda eklenir. Bu bir <b>denetim kaydıdır</b>: kamera reddedilse veya çalışmasa bile giriş engellenmez. Fotoğraflar aşağıdaki süre sonunda otomatik silinir.
+            </p>
+            {requireSelfie && (
+              <div style={{ marginTop: '0.75rem', maxWidth: 260 }}>
+                <label style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600, fontSize: '0.85rem' }}>Selfie saklama süresi (gün)</label>
+                <input
+                  type="number" min="1" max="365" style={inputStyle}
+                  value={selfieRetention}
+                  onChange={e => setSelfieRetention(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>

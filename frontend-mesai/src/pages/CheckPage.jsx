@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getApiUrl } from '../config';
-import { MapPin, ShieldCheck, Navigation, LogIn, LogOut, RefreshCw, AlertTriangle, UserCheck, ArrowLeft, Coffee, CheckCircle } from 'lucide-react';
+import { MapPin, ShieldCheck, Navigation, LogIn, LogOut, RefreshCw, AlertTriangle, UserCheck, ArrowLeft, Coffee, CheckCircle, Camera } from 'lucide-react';
 
 export default function CheckPage({ user }) {
   const { locationId } = useParams();
@@ -17,6 +17,13 @@ export default function CheckPage({ user }) {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [gpsError, setGpsError] = useState('');
+
+  // Faz 6: giriş selfie'si. Bu bir DENETİM kaydıdır — girişi ASLA engellemez.
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [selfieOn, setSelfieOn] = useState(false);   // kamera akışı hazır mı
+  const [selfieError, setSelfieError] = useState(''); // bilgilendirici, engelleyici değil
+  const requireSelfie = !!location?.require_selfie;
 
   const host = getApiUrl();
 
@@ -81,6 +88,58 @@ export default function CheckPage({ user }) {
     getGPSLocation();
   }, [locationId, user?.token]);
 
+  // Selfie gerekiyorsa ön kamerayı sessizce başlat. Başarısızlık girişi engellemez.
+  useEffect(() => {
+    if (!requireSelfie) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          setSelfieError('Bu cihaz kamerayı desteklemiyor. Giriş yine de yapılabilir.');
+          return;
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+        setSelfieOn(true);
+        setSelfieError('');
+      } catch (err) {
+        // İzin reddi / kamera yok → sadece bilgilendir, akışı durdurma.
+        setSelfieError('Kamera açılamadı. Giriş yine de yapılabilir (selfie kaydedilmez).');
+        setSelfieOn(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [requireSelfie]);
+
+  // O anki kamera karesini küçük bir JPEG'e indir. Hata olursa null döner (giriş engellenmez).
+  const captureSelfie = () => {
+    try {
+      const v = videoRef.current;
+      if (!selfieOn || !v || !v.videoWidth) return null;
+      const maxW = 320;
+      const scale = Math.min(1, maxW / v.videoWidth);
+      const w = Math.round(v.videoWidth * scale);
+      const h = Math.round(v.videoHeight * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(v, 0, 0, w, h);
+      return canvas.toDataURL('image/jpeg', 0.5);
+    } catch {
+      return null;
+    }
+  };
+
   // Calculate distance on client-side for immediate display
   useEffect(() => {
     if (!coords || !location) return;
@@ -115,11 +174,14 @@ export default function CheckPage({ user }) {
     setActionLoading(true);
 
     try {
+      // Selfie sadece varsa eklenir; yakalanamazsa giriş yine gönderilir.
+      const selfie_base64 = requireSelfie ? captureSelfie() : null;
       const res = await axios.post(`${host}/api/mesai/check`, {
         location_id: locationId,
         log_type: type,
         gps_latitude: coords.latitude,
-        gps_longitude: coords.longitude
+        gps_longitude: coords.longitude,
+        ...(selfie_base64 ? { selfie_base64 } : {})
       }, {
         headers: { Authorization: `Bearer ${user.token}` }
       });
@@ -273,6 +335,34 @@ export default function CheckPage({ user }) {
             </div>
           )}
         </div>
+
+        {/* Faz 6: Selfie önizleme (gerekliyse). Giriş anında bir kare otomatik eklenir. */}
+        {requireSelfie && user?.role === 'employee' && (
+          <div className="glass-card" style={{ padding: '1rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.8)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.75rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              <Camera size={16} color="var(--brand-primary)" /> Giriş Selfie'si
+            </div>
+            <div style={{ position: 'relative', width: '100%', maxWidth: 220, margin: '0 auto', aspectRatio: '3 / 4', borderRadius: 12, overflow: 'hidden', background: '#0b1329' }}>
+              <video
+                ref={videoRef}
+                playsInline
+                muted
+                style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: selfieOn ? 'block' : 'none' }}
+              />
+              {!selfieOn && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#94a3b8', fontSize: '0.75rem', textAlign: 'center', padding: '0.75rem' }}>
+                  <Camera size={22} />
+                  {selfieError ? 'Kamera kapalı' : 'Kamera hazırlanıyor...'}
+                </div>
+              )}
+            </div>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.6rem', textAlign: 'center' }}>
+              {selfieError
+                ? selfieError
+                : 'Giriş/çıkış yaptığınızda anlık bir fotoğraf kaydedilir. Bu, girişi engellemez.'}
+            </p>
+          </div>
+        )}
 
         {/* Check In / Out Buttons */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>

@@ -71,11 +71,26 @@ router.post('/company/login', async (req, res) => {
 
 // --- COMPANY SETTINGS ---
 router.put('/company/settings', companyAuth, requireTier('manager'), async (req, res) => {
-    const { shift_type, shift_start_time, shift_end_time, tolerance_minutes, deduct_break_time } = req.body;
+    const { shift_type, shift_start_time, shift_end_time, tolerance_minutes, deduct_break_time,
+            require_checkin_selfie, selfie_retention_days } = req.body;
     try {
+        // Faz 6: selfie ayarlari yalnizca gonderilmisse degistirilsin (kismi guncelleme).
+        const wantSelfie = require_checkin_selfie === undefined
+            ? req.company.require_checkin_selfie
+            : (require_checkin_selfie ? 1 : 0);
+        // Saklama suresi: 1-365 gun arasi; disinda kalirsa mevcut degeri koru.
+        let retention = req.company.selfie_retention_days ?? 30;
+        if (selfie_retention_days !== undefined) {
+            const n = parseInt(selfie_retention_days, 10);
+            if (Number.isFinite(n) && n >= 1 && n <= 365) retention = n;
+        }
         await db.query(
-            'UPDATE mesai_companies SET shift_type = ?, shift_start_time = ?, shift_end_time = ?, tolerance_minutes = ?, deduct_break_time = ? WHERE id = ?',
-            [shift_type, shift_start_time, shift_end_time, parseInt(tolerance_minutes) || 0, deduct_break_time === undefined ? 1 : (deduct_break_time ? 1 : 0), req.company.id]
+            `UPDATE mesai_companies SET shift_type = ?, shift_start_time = ?, shift_end_time = ?,
+                    tolerance_minutes = ?, deduct_break_time = ?,
+                    require_checkin_selfie = ?, selfie_retention_days = ? WHERE id = ?`,
+            [shift_type, shift_start_time, shift_end_time, parseInt(tolerance_minutes) || 0,
+             deduct_break_time === undefined ? 1 : (deduct_break_time ? 1 : 0),
+             wantSelfie, retention, req.company.id]
         );
         res.json({ message: 'Şirket mesai ayarları güncellendi.' });
     } catch (err) {
@@ -222,7 +237,13 @@ router.get('/worker/locations', employeeAuth, async (req, res) => {
             'SELECT id, location_name, latitude, longitude, allowed_radius, shift_start_time, shift_end_time FROM mesai_locations WHERE company_id = ? ORDER BY location_name ASC',
             [req.worker.company_id]
         );
-        res.json(rows);
+        // Faz 6: check sayfasi selfie isteyecek mi bilsin diye firma ayarini iliştir.
+        const { rows: comp } = await db.query(
+            'SELECT require_checkin_selfie FROM mesai_companies WHERE id = ?',
+            [req.worker.company_id]
+        );
+        const requireSelfie = !!(comp[0] && comp[0].require_checkin_selfie);
+        res.json(rows.map(r => ({ ...r, require_selfie: requireSelfie })));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -297,7 +318,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
 }
 
 router.post('/check', employeeAuth, async (req, res) => {
-    const { location_id, log_type, gps_latitude, gps_longitude } = req.body;
+    const { location_id, log_type, gps_latitude, gps_longitude, selfie_base64 } = req.body;
     if (!location_id || !log_type || gps_latitude === undefined || gps_longitude === undefined) {
         return res.status(400).json({ error: 'Lokasyon, işlem türü ve GPS konum verileri zorunludur.' });
     }
@@ -317,10 +338,26 @@ router.post('/check', employeeAuth, async (req, res) => {
             location.longitude
         );
 
-        await db.query(
-            'INSERT INTO mesai_logs (employee_id, location_id, log_type, gps_latitude, gps_longitude, calculated_distance) VALUES (?, ?, ?, ?, ?, ?)',
+        const ins = await db.query(
+            'INSERT INTO mesai_logs (employee_id, location_id, log_type, gps_latitude, gps_longitude, calculated_distance) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
             [req.worker.id, location_id, log_type, parseFloat(gps_latitude), parseFloat(gps_longitude), distance]
         );
+
+        // Faz 6: selfie SADECE denetim kaydidir — girisi ASLA engellemez.
+        // Kamera reddedilse/gonderilmese bile check-in yukarida zaten islendi.
+        // Sadece gecerli ve makul boyutlu bir data-URL geldiyse ayri tabloya yaz.
+        const logId = ins.rows[0]?.id;
+        if (logId && typeof selfie_base64 === 'string' &&
+            selfie_base64.startsWith('data:image/') && selfie_base64.length < 500000) {
+            try {
+                await db.query(
+                    'INSERT INTO mesai_log_photos (log_id, photo_base64) VALUES (?, ?)',
+                    [logId, selfie_base64]
+                );
+            } catch (photoErr) {
+                console.warn('[mesai] selfie kaydedilemedi (giris etkilenmedi):', photoErr.message);
+            }
+        }
 
         const isWithin = distance <= location.allowed_radius;
         const msg = log_type === 'check_in'
@@ -341,7 +378,8 @@ router.post('/check', employeeAuth, async (req, res) => {
 router.get('/company/logs', companyAuth, async (req, res) => {
     try {
         const { rows } = await db.query(
-            `SELECT l.*, e.name || ' ' || e.surname as employee_name, loc.location_name
+            `SELECT l.*, e.name || ' ' || e.surname as employee_name, loc.location_name,
+                    EXISTS(SELECT 1 FROM mesai_log_photos p WHERE p.log_id = l.id) AS has_selfie
              FROM mesai_logs l
              JOIN mesai_employees e ON l.employee_id = e.id
              JOIN mesai_locations loc ON l.location_id = loc.id
@@ -349,6 +387,26 @@ router.get('/company/logs', companyAuth, async (req, res) => {
             [req.company.id]
         );
         res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Faz 6: bir giris kaydinin selfie'si (agir base64 — sadece istenince, tek tek).
+// Kaydin personeli istekte bulunan firmaya ait olmali (yetki izolasyonu).
+router.get('/company/logs/:id/selfie', companyAuth, async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT p.photo_base64
+             FROM mesai_log_photos p
+             JOIN mesai_logs l ON p.log_id = l.id
+             JOIN mesai_employees e ON l.employee_id = e.id
+             WHERE p.log_id = ? AND e.company_id = ?
+             ORDER BY p.id DESC LIMIT 1`,
+            [req.params.id, req.company.id]
+        );
+        if (!rows.length) return res.status(404).json({ error: 'Selfie bulunamadı.' });
+        res.json({ photo_base64: rows[0].photo_base64 });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -888,7 +946,8 @@ router.get('/company/map/data', companyAuth, async (req, res) => {
         const { rows: raw } = await db.query(
             `SELECT l.id, l.employee_id, e.name || ' ' || e.surname AS employee_name,
                     l.location_id, loc.location_name, loc.allowed_radius,
-                    l.log_type, l.gps_latitude, l.gps_longitude, l.calculated_distance, l.created_at
+                    l.log_type, l.gps_latitude, l.gps_longitude, l.calculated_distance, l.created_at,
+                    EXISTS(SELECT 1 FROM mesai_log_photos p WHERE p.log_id = l.id) AS has_selfie
              FROM mesai_logs l
              JOIN mesai_employees e ON l.employee_id = e.id
              JOIN mesai_locations loc ON l.location_id = loc.id
