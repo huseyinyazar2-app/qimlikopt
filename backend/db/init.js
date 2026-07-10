@@ -48,6 +48,39 @@ async function addColumn(table, column, definition) {
 }
 
 async function runMigrations() {
+    // --- Eski kurulumlarla şema hizalaması ---
+    // `CREATE TABLE IF NOT EXISTS` var olan tabloya kolon EKLEMEZ. İlk sürümden beri
+    // schema.sql'e eklenen kolonlar, eskiden kurulmuş veritabanlarında oluşmaz.
+    // Aşağıdakiler o boşluğu kapatır (yeni kurulumda "duplicate column" ile yoksayılır).
+    for (const table of ['clients', 'gateway_devices', 'mesai_companies', 'mesai_employees',
+        'dijital_companies', 'dijital_technicians', 'teslimat_companies', 'teslimat_couriers']) {
+        await addColumn(table, 'hourly_wage', 'REAL DEFAULT 0');
+    }
+
+    await addColumn('mesai_companies', 'shift_type', "VARCHAR(50) DEFAULT 'company_wide'");
+    await addColumn('mesai_companies', 'shift_start_time', "VARCHAR(10) DEFAULT '09:00'");
+    await addColumn('mesai_companies', 'shift_end_time', "VARCHAR(10) DEFAULT '18:00'");
+    await addColumn('mesai_companies', 'tolerance_minutes', 'INTEGER DEFAULT 15');
+    await addColumn('mesai_companies', 'deduct_break_time', 'BOOLEAN DEFAULT 1');
+
+    await addColumn('mesai_locations', 'shift_start_time', "VARCHAR(10) DEFAULT '09:00'");
+    await addColumn('mesai_locations', 'shift_end_time', "VARCHAR(10) DEFAULT '18:00'");
+    await addColumn('mesai_locations', 'maintenance_interval_days', 'INTEGER');
+    await addColumn('mesai_locations', 'last_maintenance_date', 'TIMESTAMP');
+
+    await addColumn('dijital_machines', 'gps_latitude', 'REAL');
+    await addColumn('dijital_machines', 'gps_longitude', 'REAL');
+    await addColumn('dijital_machines', 'require_location_match', 'BOOLEAN DEFAULT 0');
+    await addColumn('dijital_machines', 'allowed_radius', 'INTEGER DEFAULT 50');
+    await addColumn('dijital_machines', 'maintenance_interval_days', 'INTEGER');
+    await addColumn('dijital_machines', 'last_maintenance_date', 'TIMESTAMP');
+
+    await addColumn('dijital_maintenance_logs', 'technician_latitude', 'REAL');
+    await addColumn('dijital_maintenance_logs', 'technician_longitude', 'REAL');
+    await addColumn('dijital_maintenance_logs', 'calculated_distance', 'REAL');
+
+    await addColumn('teslimat_packages', 'return_reason', 'TEXT');
+
     // Mesai: bordro çarpanları + yıllık izin ayarları
     await addColumn('mesai_companies', 'overtime_multiplier', 'REAL DEFAULT 1.5');
     await addColumn('mesai_companies', 'weekend_multiplier', 'REAL DEFAULT 2.0');
