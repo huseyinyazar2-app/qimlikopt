@@ -1,0 +1,10 @@
+[Unit]
+Description=Qimlik sistem yedegi (DB + sirlar + Coolify durumu)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/qimlik-backup.sh
+Nice=10
+IOSchedulingClass=idle

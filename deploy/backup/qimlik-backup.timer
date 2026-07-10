@@ -1,0 +1,11 @@
+[Unit]
+Description=Gunluk qimlik sistem yedegi
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+# Sunucu yedek saatinde kapaliysa, acilisinda kacirilan calismayi telafi eder.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
