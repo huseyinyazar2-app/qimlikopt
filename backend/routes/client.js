@@ -212,4 +212,25 @@ router.get('/:clientId/stats', async (req, res) => {
     }
 });
 
+// --- CLIENT ANALYTICS (doğrulama hacmi/başarı grafikleri) ---
+router.get('/:clientId/analytics', async (req, res) => {
+    const { clientId } = req.params;
+    try {
+        // Son 30 gün günlük toplam/başarılı doğrulama — trend + başarı oranı
+        const { rows: daily } = await db.query(
+            `SELECT date(created_at) as day, COUNT(*) as total,
+                    SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success
+             FROM logs WHERE client_id = ? AND created_at >= date('now','-29 days')
+             GROUP BY date(created_at) ORDER BY day ASC`, [clientId]);
+        // Son 7 günün saatlik dağılımı — yoğunluk analizi
+        const { rows: hourly } = await db.query(
+            `SELECT strftime('%H', created_at) as hour, COUNT(*) as count
+             FROM logs WHERE client_id = ? AND created_at >= date('now','-6 days')
+             GROUP BY hour ORDER BY hour ASC`, [clientId]);
+        res.json({ daily, hourly });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, Calendar, MapPin, Box, Command, Download, Package, ClipboardList, Users, ArrowRight } from 'lucide-react';
+import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, Calendar, MapPin, Box, Command, Download, Package, ClipboardList, Users, ArrowRight, TrendingUp, Bell, Cpu, PieChart as PieIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { getApiUrl } from '../config';
 import EmptyState from '../components/EmptyState';
 
@@ -22,6 +22,7 @@ export default function Dashboard({ user }) {
   const [newPartName, setNewPartName] = useState('');
   const [newPartStock, setNewPartStock] = useState('');
   const [stockInputs, setStockInputs] = useState({});
+  const [analytics, setAnalytics] = useState(null);
 
 
   // New Machine form states
@@ -66,6 +67,10 @@ export default function Dashboard({ user }) {
         setIncidents(resI.data);
         const resSP = await axios.get(`${host}/api/dijital/spare-parts`, { headers });
         setSpareParts(resSP.data);
+      } catch(e) {}
+      try {
+        const resA = await axios.get(`${host}/api/dijital/company/analytics`, { headers });
+        setAnalytics(resA.data);
       } catch(e) {}
     } catch (err) {
       toast.error('Veriler yüklenirken hata oluştu');
@@ -291,6 +296,9 @@ export default function Dashboard({ user }) {
           )}
         </div>
       </header>
+
+      {/* ANALİTİK BÖLÜMÜ */}
+      {analytics && <AnalyticsSection data={analytics} loading={loadingData} />}
 
       {/* İlk kullanım rehberi: hiç makine yokken göster, veri girildikçe kaybolur */}
       {!loadingData && machines.length === 0 && (
@@ -771,6 +779,169 @@ export default function Dashboard({ user }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const STATUS_TR = { active: 'Aktif', maintenance: 'Bakımda', error: 'Arızalı', inactive: 'Pasif', passive: 'Pasif', broken: 'Arızalı' };
+const STATUS_COLOR = { active: '#10b981', maintenance: '#f59e0b', error: '#ef4444', broken: '#ef4444', inactive: '#94a3b8', passive: '#94a3b8' };
+
+const fmtDate = (d) => {
+  if (!d) return '-';
+  const dt = new Date(d);
+  if (isNaN(dt)) return '-';
+  return dt.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+function AnalyticsSection({ data, loading }) {
+  const summary = data.summary || {};
+  const daily = Array.isArray(data.daily) ? data.daily : [];
+  const machineStatus = Array.isArray(data.machine_status) ? data.machine_status : [];
+  const upcoming = Array.isArray(data.upcoming_maintenance) ? data.upcoming_maintenance : [];
+
+  // Trend verisini tarihe göre normalize et (gün etiketi kısalt)
+  const trendData = daily.map(d => ({
+    day: d.day,
+    label: (() => { const dt = new Date(d.day); return isNaN(dt) ? d.day : dt.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }); })(),
+    count: Number(d.count) || 0,
+  }));
+
+  const pieData = machineStatus
+    .map(s => ({ name: STATUS_TR[s.status] || s.status || 'Diğer', value: Number(s.count) || 0, color: STATUS_COLOR[s.status] || '#6366f1' }))
+    .filter(s => s.value > 0);
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isOverdue = (nextDue) => { const dt = new Date(nextDue); return !isNaN(dt) && dt < today; };
+
+  const kpis = [
+    { label: 'Toplam Makine', value: summary.machines ?? 0, icon: Cpu, color: 'var(--brand-primary)', bg: 'rgba(14,165,233,0.1)', alert: false },
+    { label: 'Teknisyen', value: summary.technicians ?? 0, icon: Users, color: 'var(--brand-secondary)', bg: 'rgba(99,102,241,0.1)', alert: false },
+    { label: 'Açık Arıza', value: summary.open_incidents ?? 0, icon: AlertCircle, color: '#ef4444', bg: 'rgba(239,68,68,0.1)', alert: (summary.open_incidents ?? 0) > 0 },
+    { label: 'Kritik Stok', value: summary.low_stock_parts ?? 0, icon: Package, color: '#ef4444', bg: 'rgba(239,68,68,0.1)', alert: (summary.low_stock_parts ?? 0) > 0 },
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ marginBottom: '2.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="glass-card" style={{ height: 96 }}>
+            <div className="skeleton-box" style={{ height: 20, width: '50%', marginBottom: '0.75rem' }}></div>
+            <div className="skeleton-box" style={{ height: 28, width: '30%' }}></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: '2.5rem' }}>
+      <h2 style={{ fontSize: '1.15rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+        <TrendingUp size={20} color="var(--brand-primary)" /> Analitik Genel Bakış
+      </h2>
+
+      {/* KPI Kartları */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        {kpis.map(k => {
+          const KIcon = k.icon;
+          return (
+            <div key={k.label} className="glass-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', border: k.alert ? '1px solid rgba(239,68,68,0.4)' : '1px solid var(--glass-border)', background: k.alert ? 'rgba(239,68,68,0.04)' : undefined }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: k.bg, color: k.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <KIcon size={24} />
+              </div>
+              <div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 'bold', color: k.alert ? '#ef4444' : 'var(--text-primary)', lineHeight: 1 }}>{k.value}</div>
+                <div className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>{k.label}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ÖNLEYİCİ BAKIM UYARI KARTI */}
+      {upcoming.length > 0 && (
+        <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '1.5rem', border: '1px solid rgba(245,158,11,0.45)', background: 'linear-gradient(135deg, rgba(245,158,11,0.06), rgba(239,68,68,0.04))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Bell size={20} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', color: 'var(--text-primary)', margin: 0 }}>Yaklaşan &amp; Geciken Bakımlar</h3>
+              <p className="text-muted" style={{ fontSize: '0.82rem', margin: 0 }}>Önümüzdeki 7 gün içinde bakımı gereken veya süresi geçmiş {upcoming.length} makine</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            {upcoming.map((m, idx) => {
+              const overdue = isOverdue(m.next_due);
+              return (
+                <div key={m.machine_code || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', background: 'rgba(255,255,255,0.6)', padding: '0.75rem 1rem', borderRadius: 8, border: `1px solid ${overdue ? 'rgba(239,68,68,0.35)' : 'rgba(245,158,11,0.3)'}` }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span className="badge" style={{ background: 'rgba(15,23,42,0.05)', fontFamily: 'monospace' }}>{m.machine_code}</span>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>{m.machine_name}</strong>
+                    </div>
+                    <div className="text-muted" style={{ fontSize: '0.78rem', marginTop: '0.3rem' }}>
+                      Son bakım: {fmtDate(m.last_maintenance_date)}
+                      {m.maintenance_interval_days ? ` • Periyot: ${m.maintenance_interval_days} gün` : ''}
+                      {' • Sonraki: '}<strong style={{ color: overdue ? '#ef4444' : '#b45309' }}>{fmtDate(m.next_due)}</strong>
+                    </div>
+                  </div>
+                  <span className="badge" style={{ background: overdue ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.18)', color: overdue ? '#ef4444' : '#b45309', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    {overdue ? 'GECİKTİ' : 'Yaklaşıyor'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Grafikler */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+        {/* Trend grafiği */}
+        <div className="glass-card" style={{ padding: '1.5rem' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+            <TrendingUp size={18} color="var(--brand-primary)" /> Son 30 Gün Bakım Kayıtları
+          </h3>
+          {trendData.length === 0 || trendData.every(d => d.count === 0) ? (
+            <EmptyState icon={TrendingUp} title="Henüz bakım kaydı yok" description="Teknisyenler bakım yaptıkça günlük bakım hareketleri burada grafiklenecek." />
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={trendData} margin={{ top: 5, right: 8, left: -18, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorMaint" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} interval="preserveStartEnd" minTickGap={24} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid var(--glass-border)', fontSize: '0.85rem' }} labelStyle={{ color: 'var(--text-primary)' }} formatter={(v) => [`${v} bakım`, 'Kayıt']} />
+                <Area type="monotone" dataKey="count" stroke="#0ea5e9" strokeWidth={2} fill="url(#colorMaint)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Makine durum dağılımı */}
+        <div className="glass-card" style={{ padding: '1.5rem' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+            <PieIcon size={18} color="var(--brand-secondary)" /> Makine Durum Dağılımı
+          </h3>
+          {pieData.length === 0 ? (
+            <EmptyState icon={PieIcon} title="Makine bulunmuyor" description="Makine ekledikçe durum dağılımı (aktif, bakımda, arızalı) burada gösterilecek." />
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2} label={({ name, value }) => `${name}: ${value}`} labelLine={false} style={{ fontSize: '0.75rem' }}>
+                  {pieData.map((entry, i) => <Cell key={`c-${i}`} fill={entry.color} />)}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid var(--glass-border)', fontSize: '0.85rem' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

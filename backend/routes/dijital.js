@@ -518,4 +518,49 @@ router.put('/spare-parts/:id/add-stock', companyAuth, async (req, res) => {
     }
 });
 
+// --- ANALYTICS (ŞİRKET PANOSU İÇİN) ---
+router.get('/company/analytics', companyAuth, async (req, res) => {
+    const cid = req.company.id;
+    try {
+        // Son 30 gün günlük bakım kaydı — trend
+        const { rows: daily } = await db.query(
+            `SELECT date(l.created_at) as day, COUNT(*) as count
+             FROM dijital_maintenance_logs l JOIN dijital_machines m ON l.machine_id = m.id
+             WHERE m.company_id = ? AND l.created_at >= date('now','-29 days')
+             GROUP BY date(l.created_at) ORDER BY day ASC`, [cid]);
+        // Makine durum dağılımı
+        const { rows: machineStatus } = await db.query(
+            'SELECT status, COUNT(*) as count FROM dijital_machines WHERE company_id = ? GROUP BY status', [cid]);
+        // Yaklaşan (veya geçmiş) bakımlar — önleyici bakım için
+        const { rows: upcoming } = await db.query(
+            `SELECT machine_code, machine_name, last_maintenance_date, maintenance_interval_days,
+                    date(last_maintenance_date, '+' || maintenance_interval_days || ' days') as next_due
+             FROM dijital_machines
+             WHERE company_id = ? AND maintenance_interval_days IS NOT NULL AND last_maintenance_date IS NOT NULL
+               AND date(last_maintenance_date, '+' || maintenance_interval_days || ' days') <= date('now','+7 days')
+             ORDER BY next_due ASC LIMIT 10`, [cid]);
+        const { rows: mac } = await db.query('SELECT COUNT(*) as total FROM dijital_machines WHERE company_id = ?', [cid]);
+        const { rows: tech } = await db.query('SELECT COUNT(*) as total FROM dijital_technicians WHERE company_id = ?', [cid]);
+        const { rows: inc } = await db.query(
+            `SELECT COUNT(*) as open FROM dijital_incidents i JOIN dijital_machines m ON i.machine_id = m.id
+             WHERE m.company_id = ? AND i.status = 'pending'`, [cid]);
+        const { rows: lowStock } = await db.query(
+            'SELECT COUNT(*) as low FROM dijital_spare_parts WHERE company_id = ? AND stock_quantity <= 5', [cid]);
+
+        res.json({
+            daily,
+            machine_status: machineStatus,
+            upcoming_maintenance: upcoming,
+            summary: {
+                machines: mac[0]?.total || 0,
+                technicians: tech[0]?.total || 0,
+                open_incidents: inc[0]?.open || 0,
+                low_stock_parts: lowStock[0]?.low || 0,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

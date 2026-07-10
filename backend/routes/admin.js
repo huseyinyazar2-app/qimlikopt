@@ -160,4 +160,37 @@ router.put('/settings/:key', async (req, res) => {
     }
 });
 
+// --- ADMIN ANALYTICS (genel sistem panosu) ---
+router.get('/analytics', async (req, res) => {
+    try {
+        // Son 30 gün günlük toplam/başarılı işlem — sistem geneli trend
+        const { rows: daily } = await db.query(
+            `SELECT date(created_at) as day, COUNT(*) as total,
+                    SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success
+             FROM logs WHERE created_at >= date('now','-29 days')
+             GROUP BY date(created_at) ORDER BY day ASC`);
+        // En yüksek hacimli müşteriler
+        const { rows: topClients } = await db.query(
+            `SELECT cl.company_name, cl.prefix, COUNT(lg.id) as count
+             FROM clients cl LEFT JOIN logs lg ON lg.client_id = cl.id
+             GROUP BY cl.id ORDER BY count DESC LIMIT 10`);
+        const { rows: cl } = await db.query('SELECT COUNT(*) as total, SUM(CASE WHEN is_active THEN 1 ELSE 0 END) as active FROM clients');
+        const { rows: dev } = await db.query('SELECT COUNT(*) as total FROM gateway_devices');
+        const { rows: lg } = await db.query('SELECT COUNT(*) as total FROM logs');
+
+        res.json({
+            daily,
+            top_clients: topClients,
+            summary: {
+                clients: cl[0]?.total || 0,
+                active_clients: cl[0]?.active || 0,
+                devices: dev[0]?.total || 0,
+                total_logs: lg[0]?.total || 0,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

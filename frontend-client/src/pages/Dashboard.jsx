@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { MessageSquare, CheckCircle, XCircle, RefreshCw, QrCode, ArrowRight, Rocket, KeyRound, Webhook, PlayCircle } from 'lucide-react';
+import { MessageSquare, CheckCircle, XCircle, RefreshCw, QrCode, ArrowRight, Rocket, KeyRound, Webhook, PlayCircle, TrendingUp, Clock, Percent, BarChart2 } from 'lucide-react';
+import {
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend
+} from 'recharts';
 import { getApiUrl } from '../config';
 
 export default function Dashboard({ user }) {
   const navigate = useNavigate();
   const [stats, setStats] = useState({ total: 0, successful: 0, failed: 0 });
   const [statsLoaded, setStatsLoaded] = useState(false);
+
+  // Analitik (trend + saatlik yoğunluk) durumu
+  const [analytics, setAnalytics] = useState({ daily: [], hourly: [] });
 
   // WhatsApp Simulator State
   const [gatewayPhone, setGatewayPhone] = useState(() => {
@@ -27,8 +34,23 @@ export default function Dashboard({ user }) {
     }
   };
 
+  const fetchAnalytics = async () => {
+    try {
+      const res = await axios.get(`${getApiUrl()}/api/client/${user.id}/analytics`);
+      setAnalytics({
+        daily: Array.isArray(res.data?.daily) ? res.data.daily : [],
+        hourly: Array.isArray(res.data?.hourly) ? res.data.hourly : [],
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
-    if (user?.id) fetchStats();
+    if (user?.id) {
+      fetchStats();
+      fetchAnalytics();
+    }
   }, [user]);
 
   // Generate unique OTP Code
@@ -82,6 +104,57 @@ export default function Dashboard({ user }) {
   const waMessage = `${user?.prefix} ${otpCode}`;
   const waLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(waLink)}`;
+
+  // --- Analitik verilerini grafiklere hazırla ---
+  const TR_MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+  const formatDay = (isoDay) => {
+    // '2026-07-10' -> '10 Tem'
+    const parts = String(isoDay).split('-');
+    if (parts.length !== 3) return isoDay;
+    const m = parseInt(parts[1], 10) - 1;
+    return `${parts[2]} ${TR_MONTHS[m] || ''}`.trim();
+  };
+
+  const dailyData = (analytics.daily || []).map((d) => ({
+    day: formatDay(d.day),
+    total: Number(d.total) || 0,
+    success: Number(d.success) || 0,
+  }));
+
+  const totalSum = dailyData.reduce((a, b) => a + b.total, 0);
+  const successSum = dailyData.reduce((a, b) => a + b.success, 0);
+  const successRate = totalSum ? Math.round((successSum / totalSum) * 100) : 0;
+
+  // Saatlik dağılımı 00-23 tam eksen olacak şekilde doldur
+  const hourlyMap = {};
+  (analytics.hourly || []).forEach((h) => {
+    hourlyMap[String(h.hour).padStart(2, '0')] = Number(h.count) || 0;
+  });
+  const hourlyData = Array.from({ length: 24 }, (_, i) => {
+    const hh = String(i).padStart(2, '0');
+    return { hour: hh, count: hourlyMap[hh] || 0 };
+  });
+  const hasHourlyData = hourlyData.some((h) => h.count > 0);
+  const hasDailyData = totalSum > 0;
+
+  const chartTooltipStyle = {
+    background: 'rgba(255,255,255,0.96)',
+    border: '1px solid var(--glass-border)',
+    borderRadius: 8,
+    fontSize: '0.8rem',
+    color: 'var(--text-primary)',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+  };
+
+  const EmptyChartState = () => (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      gap: '0.6rem', height: 300, color: 'var(--text-muted)', textAlign: 'center',
+    }}>
+      <BarChart2 size={40} style={{ opacity: 0.35 }} />
+      <span style={{ fontSize: '0.9rem' }}>Henüz doğrulama verisi yok</span>
+    </div>
+  );
 
   return (
     <div>
@@ -213,6 +286,95 @@ export default function Dashboard({ user }) {
             <div className="text-muted">Başarısız/Hatalı</div>
             <div style={{ fontSize: '2rem', fontWeight: 700 }}>{stats.failed}</div>
           </div>
+        </div>
+      </div>
+
+      {/* Analitik Bölümü */}
+      <div style={{ marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          <BarChart2 size={22} style={{ color: 'var(--brand-primary)' }} />
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Analitik</h2>
+        </div>
+
+        {/* Trend grafiği + Başarı oranı KPI */}
+        <div className="glass-card" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center',
+            justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <TrendingUp size={20} style={{ color: 'var(--brand-primary)' }} />
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 600 }}>Doğrulama Hacmi (Son 30 Gün)</h3>
+            </div>
+            {/* Başarı Oranı KPI */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem',
+              padding: '0.5rem 1rem', borderRadius: 10,
+              background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)',
+            }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 36, height: 36, borderRadius: '50%',
+                background: 'rgba(16, 185, 129, 0.15)', color: 'var(--status-success)',
+              }}>
+                <Percent size={18} />
+              </div>
+              <div>
+                <div className="text-muted" style={{ fontSize: '0.75rem' }}>Başarı Oranı</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)', lineHeight: 1.1 }}>
+                  %{successRate}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {hasDailyData ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={dailyData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gradSuccess" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={{ stroke: 'var(--glass-border)' }} minTickGap={20} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={40} />
+                <Tooltip contentStyle={chartTooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: '0.8rem' }} />
+                <Area type="monotone" dataKey="total" name="Toplam" stroke="#0ea5e9" strokeWidth={2} fill="url(#gradTotal)" />
+                <Area type="monotone" dataKey="success" name="Başarılı" stroke="#10b981" strokeWidth={2} fill="url(#gradSuccess)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChartState />
+          )}
+        </div>
+
+        {/* Saatlik yoğunluk */}
+        <div className="glass-card" style={{ padding: '1.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.5rem' }}>
+            <Clock size={20} style={{ color: 'var(--brand-secondary, #6366f1)' }} />
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 600 }}>Saatlik Doğrulama Yoğunluğu (Son 7 Gün)</h3>
+          </div>
+
+          {hasHourlyData ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={hourlyData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" vertical={false} />
+                <XAxis dataKey="hour" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={{ stroke: 'var(--glass-border)' }} interval={1} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={40} />
+                <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: 'rgba(99,102,241,0.08)' }} labelFormatter={(h) => `${h}:00`} />
+                <Bar dataKey="count" name="Doğrulama" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={26} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChartState />
+          )}
         </div>
       </div>
 

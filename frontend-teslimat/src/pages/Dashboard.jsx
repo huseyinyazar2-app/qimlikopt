@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar
+} from 'recharts';
 import { 
   Package, 
   Search,
@@ -19,7 +22,10 @@ import {
   RefreshCw,
   Users,
   Rocket,
-  ArrowRight
+  ArrowRight,
+  BarChart3,
+  TrendingUp,
+  Activity
 } from 'lucide-react';
 import { getApiUrl } from '../config';
 
@@ -29,6 +35,7 @@ export default function Dashboard({ user }) {
   const [packages, setPackages] = useState([]);
   const [couriers, setCouriers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState(null);
 
   const [showCmd, setShowCmd] = useState(false);
   const [cmdSearch, setCmdSearch] = useState('');
@@ -51,7 +58,15 @@ export default function Dashboard({ user }) {
 
       const resC = await axios.get(`${host}/api/teslimat/couriers`, { headers });
       setCouriers(resC.data.filter(c => c.is_active));
-      
+
+      // Analitik verilerini çek (grafikler bozulsa da panel çalışmaya devam etsin)
+      try {
+        const resA = await axios.get(`${host}/api/teslimat/company/analytics`, { headers });
+        setAnalytics(resA.data);
+      } catch (analyticsErr) {
+        setAnalytics(null);
+      }
+
       // Auto-select first elements for simulator dropdowns
       const pendingPacks = resP.data.filter(p => p.status !== 'delivered');
       if (pendingPacks.length > 0) setSelectedPackId(pendingPacks[0].id.toString());
@@ -258,6 +273,9 @@ export default function Dashboard({ user }) {
         </div>
       )}
 
+      {/* ANALİTİK BÖLÜMÜ */}
+      <AnalyticsSection analytics={analytics} />
+
       {/* Stats summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
         <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -447,12 +465,164 @@ export default function Dashboard({ user }) {
 }
 
 const inputStyle = {
-  width: '100%', 
-  padding: '0.75rem', 
-  borderRadius: 8, 
-  border: '1px solid var(--glass-border)', 
-  background: '#ffffff', 
-  color: 'var(--text-primary)', 
+  width: '100%',
+  padding: '0.75rem',
+  borderRadius: 8,
+  border: '1px solid var(--glass-border)',
+  background: '#ffffff',
+  color: 'var(--text-primary)',
   outline: 'none',
   boxSizing: 'border-box'
 };
+
+/* ---------------- ANALİTİK BÖLÜMÜ ---------------- */
+
+// Marka renk paleti
+const BRAND_COLORS = ['#0ea5e9', '#6366f1', '#f59e0b', '#10b981'];
+
+// Paket durumlarının Türkçe karşılıkları ve renkleri
+const STATUS_MAP = {
+  created:    { label: 'Oluşturuldu',   color: '#64748b' },
+  in_transit: { label: 'Yolda',          color: '#f59e0b' },
+  delivered:  { label: 'Teslim Edildi',  color: '#10b981' },
+  failed:     { label: 'Başarısız',      color: '#ef4444' },
+  returned:   { label: 'İade',           color: '#6366f1' },
+  partial:    { label: 'Kısmi',          color: '#0ea5e9' },
+};
+
+const translateStatus = (s) => (STATUS_MAP[s]?.label) || s;
+const statusColor = (s, i = 0) => (STATUS_MAP[s]?.color) || BRAND_COLORS[i % BRAND_COLORS.length];
+
+// Kısa gün etiketi (YYYY-MM-DD -> GG.AA)
+const shortDay = (day) => {
+  if (!day || typeof day !== 'string') return day;
+  const parts = day.split('-');
+  return parts.length === 3 ? `${parts[2]}.${parts[1]}` : day;
+};
+
+function ChartCard({ icon, title, children, empty, emptyText }) {
+  return (
+    <div className="glass-card" style={{ minWidth: 0 }}>
+      <h3 style={{ fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+        {icon} {title}
+      </h3>
+      {empty ? (
+        <div style={{ height: 240, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--text-muted)' }}>
+          <Activity size={28} style={{ opacity: 0.4 }} />
+          <span style={{ fontSize: '0.85rem' }}>{emptyText || 'Henüz veri bulunmuyor.'}</span>
+        </div>
+      ) : children}
+    </div>
+  );
+}
+
+function AnalyticsSection({ analytics }) {
+  if (!analytics) return null;
+
+  const daily = Array.isArray(analytics.daily) ? analytics.daily : [];
+  const statusDist = Array.isArray(analytics.status_distribution) ? analytics.status_distribution : [];
+  const courierPerf = Array.isArray(analytics.courier_performance) ? analytics.courier_performance : [];
+  const summary = analytics.summary || {};
+
+  const dailyData = daily.map(d => ({ label: shortDay(d.day), count: Number(d.count) || 0 }));
+  const statusData = statusDist.map(s => ({
+    name: translateStatus(s.status),
+    value: Number(s.count) || 0,
+    color: statusColor(s.status),
+  }));
+  const courierData = courierPerf
+    .map(c => ({ name: c.courier, delivered: Number(c.delivered) || 0 }))
+    .sort((a, b) => a.delivered - b.delivered); // yatay barda en yüksek üstte görünsün
+
+  const kpis = [
+    { icon: <Users size={22} />, label: 'Toplam Kurye', value: summary.couriers ?? 0, color: 'var(--brand-primary)', bg: 'rgba(14, 165, 233, 0.1)' },
+    { icon: <Activity size={22} />, label: 'Aktif Kurye', value: summary.active_couriers ?? 0, color: 'var(--brand-secondary)', bg: 'rgba(99, 102, 241, 0.1)' },
+    { icon: <Package size={22} />, label: 'Toplam Paket', value: summary.packages ?? 0, color: 'var(--status-success)', bg: 'rgba(16, 185, 129, 0.1)' },
+  ];
+
+  return (
+    <section style={{ marginBottom: '2rem' }}>
+      <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <BarChart3 size={22} color="var(--brand-primary)" /> Analitik
+      </h2>
+
+      {/* KPI kartları */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+        {kpis.map((k, i) => (
+          <div key={i} className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: k.bg, color: k.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {k.icon}
+            </div>
+            <div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{k.label}</div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>{k.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Trend + Durum dağılımı */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <ChartCard
+          icon={<TrendingUp size={18} color="var(--brand-primary)" />}
+          title="Son 30 Gün Teslimat Trendi"
+          empty={dailyData.length === 0}
+          emptyText="Son 30 günde teslimat kaydı yok."
+        >
+          <ResponsiveContainer width="100%" height={240}>
+            <AreaChart data={dailyData} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+              <defs>
+                <linearGradient id="teslimatTrend" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--glass-border)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} interval="preserveStartEnd" minTickGap={16} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} width={32} />
+              <Tooltip formatter={(v) => [`${v} teslimat`, 'Teslimat']} labelStyle={{ color: 'var(--text-primary)' }} />
+              <Area type="monotone" dataKey="count" name="Teslimat" stroke="#0ea5e9" strokeWidth={2} fill="url(#teslimatTrend)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          icon={<Package size={18} color="var(--brand-secondary)" />}
+          title="Paket Durum Dağılımı"
+          empty={statusData.length === 0 || statusData.every(s => s.value === 0)}
+          emptyText="Paket durum verisi yok."
+        >
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                {statusData.map((entry, i) => <Cell key={`s-${i}`} fill={entry.color} />)}
+              </Pie>
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: '0.8rem' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      {/* Kurye performansı */}
+      <ChartCard
+        icon={<Truck size={18} color="var(--status-warning)" />}
+        title="Kurye Teslim Sayıları"
+        empty={courierData.length === 0}
+        emptyText="Kurye teslimat verisi yok."
+      >
+        <ResponsiveContainer width="100%" height={Math.max(240, courierData.length * 38)}>
+          <BarChart data={courierData} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--glass-border)" horizontal={false} />
+            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
+            <Tooltip formatter={(v) => [`${v} teslimat`, 'Teslim']} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
+            <Bar dataKey="delivered" name="Teslim" radius={[0, 6, 6, 0]} barSize={18}>
+              {courierData.map((_, i) => <Cell key={`c-${i}`} fill={BRAND_COLORS[i % BRAND_COLORS.length]} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+    </section>
+  );
+}

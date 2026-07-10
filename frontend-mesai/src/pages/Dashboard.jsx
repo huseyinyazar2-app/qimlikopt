@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { getApiUrl } from '../config';
 import toast from 'react-hot-toast';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import {
   MapPin,
   Search,
@@ -20,7 +20,11 @@ import {
   AlertTriangle,
   Smartphone,
   ArrowRight,
-  Rocket
+  Rocket,
+  UserCheck,
+  LogIn,
+  ShieldAlert,
+  TrendingUp
 } from 'lucide-react';
 
 export default function Dashboard({ user }) {
@@ -33,6 +37,7 @@ export default function Dashboard({ user }) {
   
   // Employee stats states
   const [employeeReport, setEmployeeReport] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [loadingData, setLoadingData] = useState(true);
   const [showCmd, setShowCmd] = useState(false);
   const [cmdSearch, setCmdSearch] = useState('');
@@ -60,6 +65,14 @@ export default function Dashboard({ user }) {
 
       const resLogs = await axios.get(`${host}/api/mesai/company/logs`, { headers });
       setLogs(resLogs.data);
+
+      try {
+        const resAnalytics = await axios.get(`${host}/api/mesai/company/analytics`, { headers });
+        setAnalytics(resAnalytics.data);
+      } catch (analyticsErr) {
+        // Analitik verisi kritik değil; sessizce geç, panel çalışmaya devam etsin.
+        console.error('Analitik verisi yüklenemedi:', analyticsErr);
+      }
     } catch (err) {
       toast.error('Firma verileri yüklenirken hata');
     } finally {
@@ -319,6 +332,107 @@ export default function Dashboard({ user }) {
               <p className="text-muted" style={{ margin: 0, fontSize: '0.85rem', flex: 1 }}>Personel telefonundan şantiyedeki QR kodu okutarak giriş yapıp mesaisini başlatır.</p>
               <span className="text-muted" style={{ fontSize: '0.8rem' }}>Kayıtlar otomatik oluşur.</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ANALİTİK BÖLÜMÜ */}
+      {analytics && (
+        <div style={{ marginBottom: '2rem' }}>
+          {/* KPI kart satırı */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+            {[
+              { icon: Users, label: 'Toplam Personel', value: analytics.summary?.employees ?? 0, bg: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', highlight: false },
+              { icon: UserCheck, label: 'Aktif Personel', value: analytics.summary?.active_employees ?? 0, bg: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-success)', highlight: false },
+              { icon: MapPin, label: 'Çalışma Alanı', value: analytics.summary?.locations ?? 0, bg: 'rgba(14, 165, 233, 0.1)', color: '#0ea5e9', highlight: false },
+              { icon: LogIn, label: 'Bu Ay Giriş', value: analytics.summary?.month_checkins ?? 0, bg: 'var(--brand-gradient)', color: '#fff', highlight: true },
+              { icon: ShieldAlert, label: 'Bu Ay Sınır Dışı', value: analytics.summary?.month_out_of_bounds ?? 0, bg: 'linear-gradient(135deg, #ef4444, #f97316)', color: '#fff', highlight: true },
+            ].map((kpi, idx) => (
+              <div
+                key={idx}
+                className="glass-card"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.9rem',
+                  ...(kpi.highlight ? { background: kpi.bg, border: 'none' } : {})
+                }}
+              >
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                  background: kpi.highlight ? 'rgba(255,255,255,0.2)' : kpi.bg,
+                  color: kpi.highlight ? '#fff' : kpi.color,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <kpi.icon size={22} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.78rem', color: kpi.highlight ? 'rgba(255,255,255,0.85)' : 'var(--text-muted)' }}>{kpi.label}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: kpi.highlight ? '#fff' : 'var(--text-primary)' }}>{kpi.value}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Trend grafiği */}
+          <div className="glass-card">
+            <h3 style={{ fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <TrendingUp size={18} color="#6366f1" /> Son 30 Gün Mesai Girişleri
+            </h3>
+            {analytics.daily && analytics.daily.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart data={analytics.daily} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="mesaiTrend" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#6366f1" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.15)" vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    tickFormatter={(d) => {
+                      const dt = new Date(d);
+                      return isNaN(dt) ? d : dt.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' });
+                    }}
+                    tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+                    interval="preserveStartEnd"
+                    minTickGap={20}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={30}
+                  />
+                  <Tooltip
+                    labelFormatter={(d) => {
+                      const dt = new Date(d);
+                      return isNaN(dt) ? d : dt.toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' });
+                    }}
+                    formatter={(value) => [`${value} giriş`, 'Mesai']}
+                    contentStyle={{ borderRadius: 10, border: '1px solid var(--glass-border)', fontSize: '0.85rem' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#6366f1"
+                    strokeWidth={2.5}
+                    fill="url(#mesaiTrend)"
+                    dot={false}
+                    activeDot={{ r: 5, fill: '#0ea5e9' }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem' }} className="text-muted">
+                <TrendingUp size={32} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>Henüz veri yok</p>
+              </div>
+            )}
           </div>
         </div>
       )}

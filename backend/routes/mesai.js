@@ -527,4 +527,42 @@ router.put('/company/leaves/:id', companyAuth, async (req, res) => {
     }
 });
 
+// --- ANALYTICS (ŞİRKET PANOSU İÇİN) ---
+router.get('/company/analytics', companyAuth, async (req, res) => {
+    const cid = req.company.id;
+    try {
+        // Son 30 günün günlük giriş (check_in) sayısı — trend grafiği
+        const { rows: daily } = await db.query(
+            `SELECT date(l.created_at) as day, COUNT(*) as count
+             FROM mesai_logs l JOIN mesai_employees e ON l.employee_id = e.id
+             WHERE e.company_id = ? AND l.log_type = 'check_in' AND l.created_at >= date('now','-29 days')
+             GROUP BY date(l.created_at) ORDER BY day ASC`, [cid]);
+
+        const { rows: emp } = await db.query(
+            `SELECT COUNT(*) as total, SUM(CASE WHEN is_active THEN 1 ELSE 0 END) as active
+             FROM mesai_employees WHERE company_id = ?`, [cid]);
+        const { rows: loc } = await db.query('SELECT COUNT(*) as total FROM mesai_locations WHERE company_id = ?', [cid]);
+        const { rows: month } = await db.query(
+            `SELECT COUNT(*) as checkins,
+                    SUM(CASE WHEN l.calculated_distance > loc.allowed_radius THEN 1 ELSE 0 END) as out_of_bounds
+             FROM mesai_logs l
+             JOIN mesai_employees e ON l.employee_id = e.id
+             JOIN mesai_locations loc ON l.location_id = loc.id
+             WHERE e.company_id = ? AND l.log_type = 'check_in' AND l.created_at >= date('now','start of month')`, [cid]);
+
+        res.json({
+            daily,
+            summary: {
+                employees: emp[0]?.total || 0,
+                active_employees: emp[0]?.active || 0,
+                locations: loc[0]?.total || 0,
+                month_checkins: month[0]?.checkins || 0,
+                month_out_of_bounds: month[0]?.out_of_bounds || 0,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

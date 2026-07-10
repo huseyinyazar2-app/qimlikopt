@@ -364,4 +364,43 @@ router.get('/public/packages/:code', async (req, res) => {
     }
 });
 
+// --- ANALYTICS (ŞİRKET PANOSU İÇİN) ---
+router.get('/company/analytics', companyAuth, async (req, res) => {
+    const cid = req.company.id;
+    try {
+        // Son 30 gün günlük başarılı teslimat — trend
+        const { rows: daily } = await db.query(
+            `SELECT date(l.created_at) as day, COUNT(*) as count
+             FROM teslimat_logs l JOIN teslimat_packages p ON l.package_id = p.id
+             WHERE p.company_id = ? AND l.log_type = 'delivered_success' AND l.created_at >= date('now','-29 days')
+             GROUP BY date(l.created_at) ORDER BY day ASC`, [cid]);
+        // Paket durum dağılımı
+        const { rows: statusDist } = await db.query(
+            'SELECT status, COUNT(*) as count FROM teslimat_packages WHERE company_id = ? GROUP BY status', [cid]);
+        // Kurye performansı (en çok teslim eden 10)
+        const { rows: perf } = await db.query(
+            `SELECT c.name || ' ' || c.surname as courier, COUNT(l.id) as delivered
+             FROM teslimat_couriers c
+             LEFT JOIN teslimat_packages p ON p.courier_id = c.id
+             LEFT JOIN teslimat_logs l ON l.package_id = p.id AND l.log_type = 'delivered_success'
+             WHERE c.company_id = ? GROUP BY c.id ORDER BY delivered DESC LIMIT 10`, [cid]);
+        const { rows: cour } = await db.query(
+            'SELECT COUNT(*) as total, SUM(CASE WHEN is_active THEN 1 ELSE 0 END) as active FROM teslimat_couriers WHERE company_id = ?', [cid]);
+        const { rows: pkg } = await db.query('SELECT COUNT(*) as total FROM teslimat_packages WHERE company_id = ?', [cid]);
+
+        res.json({
+            daily,
+            status_distribution: statusDist,
+            courier_performance: perf,
+            summary: {
+                couriers: cour[0]?.total || 0,
+                active_couriers: cour[0]?.active || 0,
+                packages: pkg[0]?.total || 0,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
