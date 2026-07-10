@@ -1,3 +1,4 @@
+// watch_paths dogrulama isareti (bir sonraki commit'te kaldirilacak)
 const fs = require('fs');
 const path = require('path');
 const db = require('./index');
