@@ -1,3 +1,4 @@
+// watch_paths dogrulama isareti (bir sonraki commit'te kaldirilacak)
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
