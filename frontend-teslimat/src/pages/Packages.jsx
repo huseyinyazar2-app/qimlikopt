@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Package, Plus, Clipboard, User, MapPin, Phone, Search, HelpCircle, Truck, ExternalLink, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { getApiUrl } from '../config';
+import EmptyState from '../components/EmptyState';
 
 export default function Packages({ user }) {
   const [packages, setPackages] = useState([]);
@@ -228,9 +229,21 @@ export default function Packages({ user }) {
         })}
 
         {packages.length === 0 && (
-          <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3.5rem 1rem' }}>
-            <Package size={48} className="text-muted" style={{ margin: '0 auto 1rem auto' }} />
-            <p className="text-muted">Kayıtlı teslimat gönderisi bulunmuyor.</p>
+          <div className="glass-card" style={{ gridColumn: '1 / -1' }}>
+            <EmptyState
+              icon={<Package size={40} />}
+              title="Henüz paket yok"
+              description="Dağıtılacak ilk gönderinizi oluşturun. Alıcı bilgilerini girdiğinizde otomatik olarak teslim QR etiketi ve takip bağlantısı üretilir."
+              actionLabel="Yeni Gönderi Oluştur"
+              onAction={() => { setShowAddModal(true); generateDummyTrackingCode(); }}
+            />
+          </div>
+        )}
+
+        {packages.length > 0 && filteredPackages.length === 0 && (
+          <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 1rem' }}>
+            <Search size={40} className="text-muted" style={{ margin: '0 auto 1rem auto' }} />
+            <p className="text-muted">Aramanızla eşleşen gönderi bulunamadı.</p>
           </div>
         )}
       </div>

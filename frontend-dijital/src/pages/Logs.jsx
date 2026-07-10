@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FileText, Calendar, Wrench, ChevronDown, ChevronUp, Image } from 'lucide-react';
 import { getApiUrl } from '../config';
+import EmptyState from '../components/EmptyState';
 
 export default function Logs({ user }) {
   const [logs, setLogs] = useState([]);
@@ -135,10 +136,13 @@ export default function Logs({ user }) {
         })}
 
         {logs.length === 0 && (
-          <div className="glass-card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <FileText size={48} className="text-muted" style={{ margin: '0 auto 1rem auto' }} />
-            <p className="text-muted">Kayıtlı servis/bakım raporu bulunamadı.</p>
-          </div>
+          <EmptyState
+            icon={FileText}
+            title="Henüz rapor yok"
+            description={isCompany
+              ? 'Teknisyenleriniz makine QR kodunu okutup bakım formunu doldurdukça servis ve arıza raporları burada listelenecek.'
+              : 'Bir makine QR kodunu okutup bakım formunu tamamladığınızda raporlarınız burada görünecek.'}
+          />
         )}
       </div>
     </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Users, Plus, Phone, User, CheckCircle, Pause, Play } from 'lucide-react';
 import { getApiUrl } from '../config';
+import EmptyState from '../components/EmptyState';
 
 export default function Technicians({ user }) {
   const [techs, setTechs] = useState([]);
@@ -84,49 +85,54 @@ export default function Technicians({ user }) {
         </button>
       </header>
 
-      <div className="glass-card">
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Adı Soyadı</th>
-                <th>Telefon Numarası</th>
-                <th>Kayıt Tarihi</th>
-                <th>Durum</th>
-                <th>İşlemler</th>
-              </tr>
-            </thead>
-            <tbody>
-              {techs.map(t => (
-                <tr key={t.id}>
-                  <td style={{ fontWeight: 500 }}>{t.name} {t.surname}</td>
-                  <td>{t.phone_number}</td>
-                  <td className="text-muted">{new Date(t.created_at).toLocaleDateString()}</td>
-                  <td>
-                    <span className={`badge ${t.is_active ? 'success' : 'error'}`}>
-                      {t.is_active ? 'Aktif' : 'Askıda'}
-                    </span>
-                  </td>
-                  <td>
-                    <button 
-                      onClick={() => toggleStatus(t.id, t.is_active)}
-                      style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: 4 }}
-                      title={t.is_active ? "Askıya Al" : "Aktifleştir"}
-                    >
-                      {t.is_active ? <Pause size={18} /> : <Play size={18} />}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {techs.length === 0 && (
+      {techs.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="Henüz teknisyen yok"
+          description="Sahada makine bakımı yapacak teknik personelinizi ekleyin. Teknisyenler telefon numarasıyla WhatsApp üzerinden giriş yapıp QR okutarak servis verir."
+          actionLabel="Yeni Teknisyen"
+          onAction={() => setShowModal(true)}
+        />
+      ) : (
+        <div className="glass-card">
+          <div className="table-container">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">Kayıtlı teknisyen bulunamadı.</td>
+                  <th>Adı Soyadı</th>
+                  <th>Telefon Numarası</th>
+                  <th>Kayıt Tarihi</th>
+                  <th>Durum</th>
+                  <th>İşlemler</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {techs.map(t => (
+                  <tr key={t.id}>
+                    <td style={{ fontWeight: 500 }}>{t.name} {t.surname}</td>
+                    <td>{t.phone_number}</td>
+                    <td className="text-muted">{new Date(t.created_at).toLocaleDateString()}</td>
+                    <td>
+                      <span className={`badge ${t.is_active ? 'success' : 'error'}`}>
+                        {t.is_active ? 'Aktif' : 'Askıda'}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => toggleStatus(t.id, t.is_active)}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: 4 }}
+                        title={t.is_active ? "Askıya Al" : "Aktifleştir"}
+                      >
+                        {t.is_active ? <Pause size={18} /> : <Play size={18} />}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {showModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>

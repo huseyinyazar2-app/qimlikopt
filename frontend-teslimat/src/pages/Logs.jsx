@@ -11,6 +11,7 @@ import {
   RefreshCw 
 } from 'lucide-react';
 import { getApiUrl } from '../config';
+import EmptyState from '../components/EmptyState';
 
 export default function Logs({ user }) {
   const [logs, setLogs] = useState([]);
@@ -69,6 +70,15 @@ export default function Logs({ user }) {
       ) : isCompany ? (
         /* --- COMPANY VIEW: LIST OF ALL LOGS --- */
         <div className="glass-card">
+          {logs.length === 0 ? (
+            <EmptyState
+              icon={<FileText size={40} />}
+              title="Henüz kayıt yok"
+              description="Sahadaki personel giriş/çıkış yaptıkça mesai kayıtları burada saat, konum ve GPS mesafe bilgisiyle listelenir."
+              actionLabel="Yenile"
+              onAction={fetchLogs}
+            />
+          ) : (
           <div className="table-container">
             <table>
               <thead>
@@ -121,20 +131,23 @@ export default function Logs({ user }) {
                     </tr>
                   );
                 })}
-                {logs.length === 0 && (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">
-                      Henüz mesai giriş/çıkış kaydı bulunmuyor.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
+          )}
         </div>
       ) : (
         /* --- EMPLOYEE VIEW: LIST OF DAILY TIMESHEET DAYS --- */
         <div className="glass-card">
+          {logs.length === 0 ? (
+            <EmptyState
+              icon={<FileText size={40} />}
+              title="Henüz kaydınız yok"
+              description="Sahada giriş/çıkış yaptıkça günlük mesai özetiniz (giriş-çıkış saatleri ve çalışılan süre) burada listelenir."
+              actionLabel="Yenile"
+              onAction={fetchLogs}
+            />
+          ) : (
           <div className="table-container">
             <table>
               <thead>
@@ -172,16 +185,10 @@ export default function Logs({ user }) {
                     </td>
                   </tr>
                 ))}
-                {logs.length === 0 && (
-                  <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">
-                      Henüz mesai giriş/çıkış kaydınız bulunmuyor.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
+          )}
         </div>
       )}
     </div>

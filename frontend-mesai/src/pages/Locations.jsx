@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../config';
 import { MapPin, Plus, Map, Info, Compass, HelpCircle } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
 
 export default function Locations({ user }) {
   const [locations, setLocations] = useState([]);
@@ -133,9 +134,14 @@ export default function Locations({ user }) {
         })}
 
         {locations.length === 0 && (
-          <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 1rem' }}>
-            <Map size={48} className="text-muted" style={{ margin: '0 auto 1rem auto' }} />
-            <p className="text-muted">Kayıtlı çalışma alanı bulunamadı. Lütfen yeni bir lokasyon tanımlayın.</p>
+          <div className="glass-card" style={{ gridColumn: '1 / -1' }}>
+            <EmptyState
+              icon={Map}
+              title="Henüz çalışma alanı eklenmemiş"
+              description="Personelinizin giriş/çıkış yapabilmesi için önce bir şantiye veya ofis tanımlayın. Her çalışma alanı, koordinat sınırı ve okutulacak bir QR kodu ile gelir."
+              actionLabel="Yeni Çalışma Alanı"
+              onAction={() => setShowModal(true)}
+            />
           </div>
         )}
       </div>

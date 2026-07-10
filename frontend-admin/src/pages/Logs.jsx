@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { FileText } from 'lucide-react';
 import { getApiUrl } from '../config';
+import EmptyState from '../components/EmptyState';
 
 export default function Logs() {
   const [logs, setLogs] = useState([]);
@@ -24,7 +26,14 @@ export default function Logs() {
         <p className="text-muted">Müşterilere iletilen tüm OTP işlemlerinin kayıtları. (Faturalandırma baz alınır)</p>
       </header>
 
-      <div className="glass-card">
+      <div className="glass-card" style={logs.length === 0 ? { padding: 0 } : undefined}>
+        {logs.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="Henüz işlem kaydı yok"
+            description="Müşterilere OTP iletildikçe her işlem burada kayıt altına alınacaktır. Faturalandırma bu kayıtlar baz alınarak yapılır."
+          />
+        ) : (
         <div className="table-container">
           <table>
             <thead>
@@ -56,14 +65,10 @@ export default function Logs() {
                   <td className="text-muted" style={{ fontSize: '0.85rem' }}>{l.error_details || '-'}</td>
                 </tr>
               ))}
-              {logs.length === 0 && (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">Hiç kayıt bulunamadı.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );

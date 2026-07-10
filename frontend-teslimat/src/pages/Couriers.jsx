@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Users, Plus, Phone, User, Pause, Play, X, Search, ShieldCheck } from 'lucide-react';
 import { getApiUrl } from '../config';
+import EmptyState from '../components/EmptyState';
 
 export default function Couriers({ user }) {
   const [couriers, setCouriers] = useState([]);
@@ -107,6 +108,15 @@ export default function Couriers({ user }) {
 
       {/* Couriers List Card */}
       <div className="glass-card">
+        {couriers.length === 0 ? (
+          <EmptyState
+            icon={<Users size={40} />}
+            title="Henüz kurye yok"
+            description="Paketlerinizi zimmetleyebilmek için önce bir kurye personeli tanımlayın. Kurye, teslimat ekranına telefonuyla giriş yapar."
+            actionLabel="Yeni Kurye Tanımla"
+            onAction={() => setShowAddModal(true)}
+          />
+        ) : (
         <div className="table-container">
           <table>
             <thead>
@@ -150,12 +160,13 @@ export default function Couriers({ user }) {
               ))}
               {filteredCouriers.length === 0 && (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '2.5rem' }} className="text-muted">Kayıtlı kurye bulunamadı.</td>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '2.5rem' }} className="text-muted">Aramanızla eşleşen kurye bulunamadı.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* Add Courier Modal */}

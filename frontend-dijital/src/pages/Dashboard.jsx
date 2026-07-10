@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, Calendar, MapPin, Box, Command, Download } from 'lucide-react';
+import { Plus, QrCode, Search, Wrench, AlertCircle, CheckCircle, ExternalLink, Calendar, MapPin, Box, Command, Download, Package, ClipboardList, Users, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { getApiUrl } from '../config';
+import EmptyState from '../components/EmptyState';
 
 export default function Dashboard({ user }) {
   const isCompany = user?.role === 'company';
+  const navigate = useNavigate();
   
   const [machines, setMachines] = useState([]);
   const [forms, setForms] = useState([]);
@@ -18,6 +21,7 @@ export default function Dashboard({ user }) {
   const [spareParts, setSpareParts] = useState([]);
   const [newPartName, setNewPartName] = useState('');
   const [newPartStock, setNewPartStock] = useState('');
+  const [stockInputs, setStockInputs] = useState({});
 
 
   // New Machine form states
@@ -45,6 +49,9 @@ export default function Dashboard({ user }) {
 
   const host = getApiUrl();
   const token = user?.token;
+
+  // Sadece geliştirici modunda (yerelde) görünsün; canlıda (qimlik.com) gizle.
+  const isDevMode = typeof window !== 'undefined' && !window.location.hostname.endsWith('qimlik.com');
 
   const fetchCompanyData = async () => {
     setLoadingData(true);
@@ -147,6 +154,23 @@ export default function Dashboard({ user }) {
     }
   };
 
+  const handleAddStock = async (partId) => {
+    const raw = stockInputs[partId];
+    const qty = parseInt(raw);
+    if (!raw || isNaN(qty) || qty <= 0) {
+      toast.error('Geçerli bir miktar girin.');
+      return;
+    }
+    try {
+      await axios.put(`${host}/api/dijital/spare-parts/${partId}/add-stock`, { quantity: qty }, { headers: { Authorization: `Bearer ${token}` } });
+      setStockInputs(prev => ({ ...prev, [partId]: '' }));
+      fetchCompanyData();
+      toast.success('Stok güncellendi.');
+    } catch (e) {
+      toast.error('Hata oluştu');
+    }
+  };
+
   // Technician QR Scan Simulation handler
   const handleScanSimulate = (e) => {
     e.preventDefault();
@@ -171,7 +195,8 @@ export default function Dashboard({ user }) {
           <p className="text-muted">Makine üzerindeki QR kodu kameranızla okutun veya kodu elle girerek servis formunu açın.</p>
         </header>
 
-        {/* QR Scan Simulation Card */}
+        {/* QR Scan Simulation Card - sadece geliştirici modunda */}
+        {isDevMode && (
         <div className="glass-card" style={{ padding: '2.5rem', marginBottom: '2rem', textAlign: 'center' }}>
           <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
             <QrCode size={36} />
@@ -194,6 +219,7 @@ export default function Dashboard({ user }) {
             </button>
           </form>
         </div>
+        )}
 
         {/* Recent actions list */}
         {techLogs.length > 0 && (
@@ -266,8 +292,49 @@ export default function Dashboard({ user }) {
         </div>
       </header>
 
+      {/* İlk kullanım rehberi: hiç makine yokken göster, veri girildikçe kaybolur */}
+      {!loadingData && machines.length === 0 && (
+        <div className="glass-card" style={{ marginBottom: '2rem', padding: '2rem', background: 'var(--brand-gradient-soft, rgba(2,132,199,0.04))', border: '1px solid var(--glass-border)' }}>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '0.35rem' }}>Başlarken</h2>
+          <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+            Sistemi kurmak için 3 basit adım. Kurulum tamamlandıkça bu kart otomatik kaybolacak.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+            {[
+              { step: 1, done: forms.length > 0, icon: ClipboardList, title: 'Kontrol formu oluşturun', desc: 'Teknisyenin sahada dolduracağı bakım şablonunu tasarlayın.', onClick: () => navigate('/forms') },
+              { step: 2, done: false, icon: Box, title: 'Makine ekleyip forma bağlayın', desc: 'Ekipmanınızı kaydedin, QR kodunu alın ve bir forma bağlayın.', onClick: () => { setActiveTab('machines'); setShowAddModal(true); } },
+              { step: 3, done: false, icon: Users, title: 'Teknisyen ekleyin', desc: 'Sahadaki personeli ekleyin; QR okutup bakım yapsınlar.', onClick: () => navigate('/technicians') },
+            ].map(s => {
+              const StepIcon = s.icon;
+              return (
+                <button
+                  key={s.step}
+                  onClick={s.onClick}
+                  className="glass-card"
+                  style={{ textAlign: 'left', cursor: 'pointer', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', border: '1px solid var(--glass-border)', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.08)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: s.done ? 'rgba(16,185,129,0.12)' : 'rgba(2,132,199,0.1)', color: s.done ? '#10b981' : 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {s.done ? <CheckCircle size={22} /> : <StepIcon size={22} />}
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>ADIM {s.step}</span>
+                  </div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.title}</div>
+                  <div className="text-muted" style={{ fontSize: '0.82rem', lineHeight: 1.5 }}>{s.desc}</div>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--brand-primary)', fontSize: '0.8rem', fontWeight: 600, marginTop: 'auto' }}>
+                    {s.done ? 'Tamamlandı' : 'Başla'} <ArrowRight size={14} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--glass-border)', marginBottom: '1.5rem', overflowX: 'auto' }}>
-        <button 
+        <button
           onClick={() => setActiveTab('machines')}
           style={{ background: 'transparent', border: 'none', padding: '0.75rem 1rem', cursor: 'pointer', color: activeTab === 'machines' ? 'var(--brand-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'machines' ? '2px solid var(--brand-primary)' : '2px solid transparent', fontWeight: activeTab === 'machines' ? 600 : 400 }}
         >
@@ -432,19 +499,13 @@ export default function Dashboard({ user }) {
           );
         })}
 
-        {filteredMachines.length === 0 && !loadingData && (
-          <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(2, 132, 199, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
-              <Box size={40} color="var(--brand-primary)" />
-            </div>
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Henüz Envanteriniz Boş</h3>
-            <p className="text-muted" style={{ maxWidth: 400, margin: '0 auto 1.5rem auto' }}>
-              Sisteme kayıtlı hiçbir makine veya ekipman bulunmuyor. Yeni bir kayıt oluşturarak hemen QR kodlu takibe başlayabilirsiniz.
-            </p>
-            <button onClick={() => setShowAddModal(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
-              <Plus size={18} /> İlk Ekipmanı Ekle
-            </button>
-          </div>
+        {machines.length > 0 && filteredMachines.length === 0 && !loadingData && (
+          <EmptyState
+            fullSpan
+            icon={Search}
+            title="Sonuç bulunamadı"
+            description={`"${searchQuery}" aramanıza uyan bir makine yok. Farklı bir ad, kod veya konum deneyin.`}
+          />
         )}
       </div>
       </>
@@ -455,7 +516,11 @@ export default function Dashboard({ user }) {
         <div className="glass-card" style={{ padding: '1.5rem' }}>
           <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Müşteri Arıza Bildirimleri</h2>
           {incidents.length === 0 ? (
-            <p className="text-muted">Henüz kayıtlı bir arıza bildirimi bulunmuyor.</p>
+            <EmptyState
+              icon={AlertCircle}
+              title="Henüz arıza talebi yok"
+              description="Müşteriler makine üzerindeki QR kodu okutup arıza bildirdiğinde talepler burada listelenecek ve buradan yönetebileceksiniz."
+            />
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
               <thead>
@@ -535,7 +600,11 @@ export default function Dashboard({ user }) {
           <div className="glass-card" style={{ padding: '1.5rem', flex: '2 1 500px' }}>
             <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Stok Durumu</h2>
             {spareParts.length === 0 ? (
-              <p className="text-muted">Kayıtlı yedek parça bulunamadı.</p>
+              <EmptyState
+                icon={Package}
+                title="Henüz yedek parça yok"
+                description="Soldaki formu kullanarak ilk yedek parçanızı stoğa ekleyin. Eklediğiniz parçaların stok durumunu buradan takip edebilirsiniz."
+              />
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                 <thead>
@@ -553,16 +622,18 @@ export default function Dashboard({ user }) {
                         <span className={`badge ${p.stock_quantity > 5 ? 'success' : p.stock_quantity > 0 ? 'warning' : 'error'}`}>{p.stock_quantity} Adet</span>
                       </td>
                       <td style={{ padding: '0.75rem 0' }}>
-                        <button onClick={async () => {
-                          const qty = prompt("Eklenecek stok miktarını girin:");
-                          if (qty && !isNaN(qty)) {
-                            try {
-                              await axios.put(`${host}/api/dijital/spare-parts/${p.id}/add-stock`, { quantity: parseInt(qty) }, { headers: { Authorization: `Bearer ${token}` } });
-                              fetchCompanyData();
-                              toast.success('Stok güncellendi.');
-                            } catch(e) { toast.error('Hata oluştu'); }
-                          }
-                        }} className="btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>+ Stok Ekle</button>
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="Adet"
+                            value={stockInputs[p.id] || ''}
+                            onChange={e => setStockInputs(prev => ({ ...prev, [p.id]: e.target.value }))}
+                            onKeyDown={e => { if (e.key === 'Enter') handleAddStock(p.id); }}
+                            style={{ width: 70, padding: '0.3rem 0.5rem', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.8)', color: 'var(--text-primary)', outline: 'none', fontSize: '0.8rem' }}
+                          />
+                          <button onClick={() => handleAddStock(p.id)} className="btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>+ Ekle</button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -667,8 +738,8 @@ export default function Dashboard({ user }) {
                         onClick={() => {
                           if (navigator.geolocation) {
                             navigator.geolocation.getCurrentPosition(
-                              pos => { setGpsLat(pos.coords.latitude); setGpsLng(pos.coords.longitude); },
-                              err => alert('Konum alınamadı: ' + err.message)
+                              pos => { setGpsLat(pos.coords.latitude); setGpsLng(pos.coords.longitude); toast.success('Konum alındı.'); },
+                              err => toast.error('Konum alınamadı: ' + err.message)
                             );
                           }
                         }}

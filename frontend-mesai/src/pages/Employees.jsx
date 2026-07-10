@@ -3,6 +3,7 @@ import axios from 'axios';
 import { getApiUrl } from '../config';
 import { Users, Plus, Phone, User, Camera, Calendar, Clock, Pause, Play, ChevronRight, X, Image, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import EmptyState from '../components/EmptyState';
 
 export default function Employees({ user }) {
   const [employees, setEmployees] = useState([]);
@@ -223,7 +224,15 @@ export default function Employees({ user }) {
                 ))}
                 {employees.length === 0 && (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">Kayıtlı saha personeli bulunamadı.</td>
+                    <td colSpan="5" style={{ padding: 0 }}>
+                      <EmptyState
+                        icon={Users}
+                        title="Henüz personel eklenmemiş"
+                        description="Saha personellerinizi ekleyerek giriş/çıkış takibine başlayın. Eklediğiniz personel, telefon numarasıyla mesaisini başlatabilir."
+                        actionLabel="Yeni Personel Ekle"
+                        onAction={() => setShowAddModal(true)}
+                      />
+                    </td>
                   </tr>
                 )}
               </tbody>

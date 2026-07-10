@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Activity, Users, Smartphone, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Activity, Users, Smartphone, AlertCircle, CheckCircle, AlertTriangle, Rocket, ArrowRight } from 'lucide-react';
 import axios from 'axios';
 import { getApiUrl } from '../config';
 
@@ -97,6 +98,64 @@ export default function Dashboard() {
         <p className="text-muted">Sistem durumunu ve istatistikleri buradan takip edebilirsiniz.</p>
       </header>
 
+      {/* Getting Started (only when no clients yet) */}
+      {!loading && stats.clients === 0 && (
+        <div className="glass-card" style={{ marginBottom: '2rem', borderLeft: '3px solid var(--brand-primary)' }}>
+          <h2 style={{ marginBottom: '0.35rem', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Rocket size={20} color="var(--brand-primary)" /> Başlarken
+          </h2>
+          <p className="text-muted" style={{ marginBottom: '1.5rem' }}>
+            Paneli kullanmaya başlamak için aşağıdaki adımları izleyin.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '1rem' }}>
+            {gettingStartedSteps.map((step) => (
+              <Link
+                key={step.n}
+                to={step.to}
+                style={{
+                  display: 'flex',
+                  gap: '0.85rem',
+                  padding: '1rem',
+                  borderRadius: 10,
+                  border: '1px solid var(--glass-border)',
+                  background: 'rgba(15, 23, 42, 0.02)',
+                  textDecoration: 'none',
+                  color: 'var(--text-primary)',
+                  transition: 'all var(--transition-fast)',
+                }}
+              >
+                <div
+                  style={{
+                    flexShrink: 0,
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    background: 'var(--brand-gradient)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {step.n}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    {step.title} <ArrowRight size={14} className="text-muted" />
+                  </div>
+                  <div className="text-muted" style={{ fontSize: '0.82rem', marginTop: 2, lineHeight: 1.4 }}>
+                    {step.desc}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
         <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -140,3 +199,9 @@ export default function Dashboard() {
     </div>
   );
 }
+
+const gettingStartedSteps = [
+  { n: 1, to: '/clients', title: 'İlk müşterinizi ekleyin', desc: 'OTP hizmeti alacak firmayı ve Prefix bilgisini tanımlayın.' },
+  { n: 2, to: '/devices', title: 'Gateway cihazını bağlayın', desc: 'Android gateway uygulamasını sunucuya bağlayın.' },
+  { n: 3, to: '/logs', title: 'Loglarınızı izleyin', desc: 'Doğrulama ve OTP işlem kayıtlarını buradan takip edin.' },
+];

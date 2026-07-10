@@ -1,22 +1,26 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { getApiUrl } from '../config';
 import toast from 'react-hot-toast';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { 
-  MapPin, 
+import {
+  MapPin,
   Search,
   Command,
   Box,
-  Users, 
-  Clock, 
-  Activity, 
-  FileText, 
-  QrCode, 
-  ExternalLink, 
-  Navigation, 
-  CheckCircle, 
-  AlertTriangle 
+  Users,
+  Clock,
+  Activity,
+  FileText,
+  QrCode,
+  ExternalLink,
+  Navigation,
+  CheckCircle,
+  AlertTriangle,
+  Smartphone,
+  ArrowRight,
+  Rocket
 } from 'lucide-react';
 
 export default function Dashboard({ user }) {
@@ -39,6 +43,9 @@ export default function Dashboard({ user }) {
 
   const host = getApiUrl();
   const token = user?.token;
+
+  // Sadece geliştirici modunda (yerelde) görünsün; canlıda (qimlik.com) gizle.
+  const isDevMode = typeof window !== 'undefined' && !window.location.hostname.endsWith('qimlik.com');
 
   const fetchCompanyData = async () => {
     setLoadingData(true);
@@ -179,7 +186,8 @@ export default function Dashboard({ user }) {
           </div>
         </div>
 
-        {/* QR SCAN SIMULATION (For testing on laptop browser) */}
+        {/* QR SCAN SIMULATION (For testing on laptop browser) - sadece geliştirici modunda */}
+        {isDevMode && (
         <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', textAlign: 'center', border: '1px solid var(--brand-secondary)' }}>
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(236, 72, 153, 0.1)', color: 'var(--brand-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto' }}>
             <QrCode size={30} />
@@ -190,8 +198,8 @@ export default function Dashboard({ user }) {
           </p>
 
           <form onSubmit={handleSimulateScan} style={{ display: 'flex', gap: '0.75rem', maxWidth: '450px', margin: '0 auto', flexWrap: 'wrap' }}>
-            <select 
-              value={selectedLocId} 
+            <select
+              value={selectedLocId}
               onChange={e => setSelectedLocId(e.target.value)}
               style={{ flex: 1, minWidth: '200px', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)', background: '#ffffff', color: 'var(--text-primary)', outline: 'none' }}
             >
@@ -205,6 +213,7 @@ export default function Dashboard({ user }) {
             </button>
           </form>
         </div>
+        )}
 
         {/* Recent logs check list */}
         <div className="glass-card">
@@ -255,6 +264,64 @@ export default function Dashboard({ user }) {
         <h1 className="gradient-text">{user.company_name} Yönetim Paneli</h1>
         <p className="text-muted">Şantiyelerinizdeki son hareketleri, çalışan durumlarını ve verimliliği izleyin.</p>
       </header>
+
+      {/* İlk kullanım rehberi: hiç lokasyon ve hiç personel yoksa göster */}
+      {!loadingData && locations.length === 0 && employees.length === 0 && (
+        <div className="glass-card" style={{ marginBottom: '2rem', padding: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--brand-gradient)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Rocket size={22} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--text-primary)' }}>Başlarken</h2>
+              <p className="text-muted" style={{ margin: 0, fontSize: '0.9rem' }}>Mesai takibini başlatmak için üç kısa adım.</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
+            {/* Adım 1 */}
+            <Link to="/locations" style={{ textDecoration: 'none' }}>
+              <div className="glass-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', border: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--brand-primary)' }}>
+                  <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(14,165,233,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem' }}>1</span>
+                  <MapPin size={18} />
+                </div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Çalışma alanı ekleyin</div>
+                <p className="text-muted" style={{ margin: 0, fontSize: '0.85rem', flex: 1 }}>Şantiye veya ofisinizin konumunu ve giriş toleransını tanımlayın.</p>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--brand-primary)', fontSize: '0.85rem', fontWeight: 600 }}>
+                  Lokasyon ekle <ArrowRight size={14} />
+                </span>
+              </div>
+            </Link>
+
+            {/* Adım 2 */}
+            <Link to="/employees" style={{ textDecoration: 'none' }}>
+              <div className="glass-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', border: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--brand-primary)' }}>
+                  <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(14,165,233,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem' }}>2</span>
+                  <Users size={18} />
+                </div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Personel ekleyin</div>
+                <p className="text-muted" style={{ margin: 0, fontSize: '0.85rem', flex: 1 }}>Saha personellerinizi telefon numaralarıyla birlikte kaydedin.</p>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--brand-primary)', fontSize: '0.85rem', fontWeight: 600 }}>
+                  Personel ekle <ArrowRight size={14} />
+                </span>
+              </div>
+            </Link>
+
+            {/* Adım 3 */}
+            <div className="glass-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', border: '1px solid var(--glass-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--brand-primary)' }}>
+                <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(14,165,233,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem' }}>3</span>
+                <Smartphone size={18} />
+              </div>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Mesai başlasın</div>
+              <p className="text-muted" style={{ margin: 0, fontSize: '0.85rem', flex: 1 }}>Personel telefonundan şantiyedeki QR kodu okutarak giriş yapıp mesaisini başlatır.</p>
+              <span className="text-muted" style={{ fontSize: '0.8rem' }}>Kayıtlar otomatik oluşur.</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
@@ -365,7 +432,8 @@ export default function Dashboard({ user }) {
           </div>
         </div>
 
-        {/* Right Side: Quick Simulation Panel */}
+        {/* Right Side: Quick Simulation Panel - sadece geliştirici modunda */}
+        {isDevMode && (
         <div className="glass-card" style={{ border: '1px solid var(--brand-secondary)' }}>
           <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
             <QrCode size={18} color="var(--brand-secondary)" /> Geliştirici & Test Simülatörü
@@ -422,6 +490,7 @@ export default function Dashboard({ user }) {
             </button>
           </form>
         </div>
+        )}
 
       </div>
 

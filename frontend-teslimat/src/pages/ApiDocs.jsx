@@ -1,6 +1,7 @@
 import { Copy, CheckCircle, Eye, EyeOff, Save, Lock } from 'lucide-react';
 import { useState } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { getApiUrl } from '../config';
 
 export default function ApiDocs({ user, onLogout }) {
@@ -19,7 +20,7 @@ export default function ApiDocs({ user, onLogout }) {
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     if (!currentPassword || !newPassword) {
-      alert('Tüm alanları doldurmanız gerekmektedir.');
+      toast.error('Tüm alanları doldurmanız gerekmektedir.');
       return;
     }
 
@@ -29,11 +30,11 @@ export default function ApiDocs({ user, onLogout }) {
         current_api_key: currentPassword,
         new_api_key: newPassword
       });
-      
-      alert('Şifreniz başarıyla değiştirildi. Lütfen yeni şifrenizle tekrar giriş yapın.');
+
+      toast.success('Şifreniz başarıyla değiştirildi. Lütfen yeni şifrenizle tekrar giriş yapın.');
       onLogout();
     } catch (err) {
-      alert('Hata: ' + (err.response?.data?.error || err.message));
+      toast.error('Hata: ' + (err.response?.data?.error || err.message));
     } finally {
       setUpdating(false);
     }

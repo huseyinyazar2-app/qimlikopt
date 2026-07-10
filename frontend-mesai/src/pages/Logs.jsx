@@ -30,6 +30,8 @@ import {
   CheckCircle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import toast from 'react-hot-toast';
+import EmptyState from '../components/EmptyState';
 
 export default function Logs({ user }) {
   const [logs, setLogs] = useState([]);
@@ -85,9 +87,9 @@ export default function Logs({ user }) {
       });
       setShowLeaveModal(false);
       setLeaveStart(''); setLeaveEnd('');
-      alert('İzin talebiniz gönderildi.');
+      toast.success('İzin talebiniz gönderildi.');
     } catch (err) {
-      alert(err.response?.data?.error || 'Hata oluştu');
+      toast.error(err.response?.data?.error || 'Hata oluştu');
     }
   };
 
@@ -217,8 +219,12 @@ export default function Logs({ user }) {
                 })}
                 {logs.length === 0 && (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">
-                      Henüz mesai giriş/çıkış kaydı bulunmuyor.
+                    <td colSpan="6" style={{ padding: 0 }}>
+                      <EmptyState
+                        icon={FileText}
+                        title="Henüz mesai kaydı yok"
+                        description="Personeliniz şantiyedeki QR kodu okutup giriş/çıkış yaptıkça tüm hareketler konum bilgisiyle birlikte burada listelenecek."
+                      />
                     </td>
                   </tr>
                 )}
@@ -261,7 +267,15 @@ export default function Logs({ user }) {
                     </tr>
                   ))}
                   {leaves.length === 0 && (
-                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">Kayıtlı izin talebi yok.</td></tr>
+                    <tr>
+                      <td colSpan="6" style={{ padding: 0 }}>
+                        <EmptyState
+                          icon={Calendar}
+                          title="Bekleyen izin talebi yok"
+                          description="Personelleriniz uygulamadan yıllık izin, rapor veya ücretsiz izin talebi oluşturduğunda onayınız için burada listelenir."
+                        />
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -312,8 +326,12 @@ export default function Logs({ user }) {
                 ))}
                 {logs.length === 0 && (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">
-                      Henüz mesai giriş/çıkış kaydınız bulunmuyor.
+                    <td colSpan="5" style={{ padding: 0 }}>
+                      <EmptyState
+                        icon={Calendar}
+                        title="Henüz giriş/çıkış kaydınız yok"
+                        description="Şantiyedeki QR kodu telefonunuzla okutarak ilk mesainizi başlatın. Tüm giriş/çıkış geçmişiniz burada görünecek."
+                      />
                     </td>
                   </tr>
                 )}

@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { MessageSquare, CheckCircle, XCircle, RefreshCw, Smartphone, QrCode, ArrowRight } from 'lucide-react';
+import { MessageSquare, CheckCircle, XCircle, RefreshCw, QrCode, ArrowRight, Rocket, KeyRound, Webhook, PlayCircle } from 'lucide-react';
 import { getApiUrl } from '../config';
 
 export default function Dashboard({ user }) {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ total: 0, successful: 0, failed: 0 });
+  const [statsLoaded, setStatsLoaded] = useState(false);
 
   // WhatsApp Simulator State
   const [gatewayPhone, setGatewayPhone] = useState(() => {
@@ -19,6 +22,8 @@ export default function Dashboard({ user }) {
       setStats(res.data);
     } catch (err) {
       console.error(err);
+    } finally {
+      setStatsLoaded(true);
     }
   };
 
@@ -84,6 +89,99 @@ export default function Dashboard({ user }) {
         <h1 className="gradient-text">Merhaba, {user?.company_name}</h1>
         <p className="text-muted">Aylık başarılı/başarısız OTP işlemlerini buradan takip edebilirsiniz.</p>
       </header>
+
+      {/* Getting Started Card - only shown until the first verification arrives */}
+      {statsLoaded && stats.total === 0 && (
+        <div className="glass-card" style={{ marginBottom: '2.5rem', padding: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+            <Rocket size={24} style={{ color: 'var(--brand-primary)' }} />
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Başlarken</h2>
+          </div>
+          <p className="text-muted" style={{ fontSize: '0.9rem', marginBottom: '1.75rem', lineHeight: 1.5 }}>
+            Qimlik OTP doğrulamasını sisteminize bağlamak için aşağıdaki üç adımı tamamlayın. İlk doğrulama geldiğinde bu kart otomatik olarak kaybolur.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+            {[
+              {
+                num: 1,
+                icon: <KeyRound size={20} />,
+                title: 'Bilgilerinizi alın',
+                desc: 'Firma ön ekinizi (prefix) ve API anahtarınızı görüntüleyin.',
+                action: 'API Bilgilerine Git',
+                to: '/api',
+              },
+              {
+                num: 2,
+                icon: <Webhook size={20} />,
+                title: "Webhook'unuzu bağlayın",
+                desc: "Doğrulanan kodların iletileceği webhook'unuzu entegre edin.",
+                action: 'Entegrasyon Rehberi',
+                to: '/integration',
+              },
+              {
+                num: 3,
+                icon: <PlayCircle size={20} />,
+                title: 'İlk doğrulamayı test edin',
+                desc: 'Açılır pencere akışıyla ilk doğrulamanızı canlı deneyin.',
+                action: 'Testi Aç',
+                to: '/popup-guide',
+              },
+            ].map((step) => (
+              <div
+                key={step.num}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.6rem',
+                  padding: '1.25rem',
+                  background: 'rgba(255,255,255,0.7)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      background: 'rgba(14, 165, 233, 0.1)',
+                      color: 'var(--brand-primary)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {step.num}
+                  </div>
+                  <span style={{ color: 'var(--brand-primary)' }}>{step.icon}</span>
+                </div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{step.title}</div>
+                <p className="text-muted" style={{ fontSize: '0.85rem', lineHeight: 1.5, margin: 0, flex: 1 }}>
+                  {step.desc}
+                </p>
+                <button
+                  onClick={() => navigate(step.to)}
+                  className="btn-primary"
+                  style={{
+                    alignSelf: 'flex-start',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontSize: '0.85rem',
+                    padding: '0.5rem 1rem',
+                    marginTop: '0.25rem',
+                  }}
+                >
+                  {step.action} <ArrowRight size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ClipboardList, Plus, Trash, Check, HelpCircle, Edit, Eye, EyeOff } from 'lucide-react';
 import { getApiUrl } from '../config';
+import EmptyState from '../components/EmptyState';
 
 export default function Forms({ user }) {
   const [forms, setForms] = useState([]);
@@ -209,10 +210,14 @@ export default function Forms({ user }) {
         ))}
 
         {forms.length === 0 && (
-          <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 1rem' }}>
-            <ClipboardList size={48} className="text-muted" style={{ margin: '0 auto 1rem auto' }} />
-            <p className="text-muted">Kayıtlı kontrol formu şablonu bulunamadı. Hemen ilk şablonunuzu tasarlayın.</p>
-          </div>
+          <EmptyState
+            fullSpan
+            icon={ClipboardList}
+            title="Henüz form şablonu yok"
+            description="Farklı makine tipleriniz için teknisyenlerin sahada dolduracağı kontrol formlarını tasarlayın. Oluşturduğunuz şablonu makinelere bağlayabilirsiniz."
+            actionLabel="Yeni Şablon Oluştur"
+            onAction={handleOpenNew}
+          />
         )}
       </div>
 

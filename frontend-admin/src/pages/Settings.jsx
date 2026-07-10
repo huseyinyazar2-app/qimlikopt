@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { Save, Lock, User } from 'lucide-react';
 import { getApiUrl } from '../config';
 
@@ -29,16 +30,16 @@ export default function Settings() {
   const handleSave = async (key, value) => {
     try {
       await axios.put(`${getApiUrl()}/api/admin/settings/${key}`, { value });
-      alert('Ayar başarıyla kaydedildi.');
+      toast.success('Ayar başarıyla kaydedildi.');
     } catch (err) {
-      alert('Hata: ' + err.message);
+      toast.error('Hata: ' + (err.response?.data?.error || err.message));
     }
   };
 
   const handleUpdateCredentials = async (e) => {
     e.preventDefault();
     if (!adminUser.trim()) {
-      alert('Kullanıcı adı boş bırakılamaz.');
+      toast.error('Kullanıcı adı boş bırakılamaz.');
       return;
     }
 
@@ -52,16 +53,16 @@ export default function Settings() {
 
       if (newPassword) {
         await axios.put(`${getApiUrl()}/api/admin/settings/ADMIN_PASSWORD`, { value: newPassword });
-        alert('Giriş bilgileri başarıyla güncellendi. Yeni şifrenizle giriş yapmanız gerekiyor.');
+        toast.success('Giriş bilgileri güncellendi. Yeni şifrenizle giriş yapmanız gerekiyor.');
         localStorage.removeItem('qimlik_admin_token');
         localStorage.removeItem('qimlik_admin_username');
-        window.location.reload();
+        setTimeout(() => window.location.reload(), 1200);
         return;
       }
 
-      alert('Giriş bilgileri başarıyla güncellendi.');
+      toast.success('Giriş bilgileri başarıyla güncellendi.');
     } catch (err) {
-      alert('Giriş bilgileri güncellenirken hata oluştu: ' + (err.response?.data?.error || err.message));
+      toast.error('Giriş bilgileri güncellenirken hata oluştu: ' + (err.response?.data?.error || err.message));
     } finally {
       setUpdatingCreds(false);
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -31,6 +32,18 @@ function App() {
 
   return (
     <BrowserRouter>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            borderRadius: '10px',
+            background: '#ffffff',
+            color: '#0f172a',
+            border: '1px solid rgba(15, 23, 42, 0.08)',
+            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.12)',
+          },
+        }}
+      />
       <Routes>
         {/* Public Courier Delivery Scan & Signature Screen */}
         <Route path="/deliver/:packageId" element={<DeliverPage user={user} />} />

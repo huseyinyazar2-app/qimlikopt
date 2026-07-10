@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pause, Play } from 'lucide-react';
+import { Plus, Pause, Play, Users } from 'lucide-react';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { getApiUrl } from '../config';
+import EmptyState from '../components/EmptyState';
 
 export default function Clients() {
   const [clients, setClients] = useState([]);
@@ -27,8 +29,9 @@ export default function Clients() {
       await axios.post(`${getApiUrl()}/api/admin/clients`, newClient);
       setShowModal(false);
       fetchClients();
+      toast.success('Müşteri başarıyla eklendi.');
     } catch (err) {
-      alert("Hata: " + err.message);
+      toast.error('Hata: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -53,7 +56,17 @@ export default function Clients() {
         </button>
       </header>
 
-      <div className="glass-card">
+      <div className="glass-card" style={clients.length === 0 ? { padding: 0 } : undefined}>
+        {clients.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="Henüz müşteri eklenmemiş"
+            description="Sisteme OTP hizmeti alacak ilk firmayı ekleyerek başlayın. Firma bilgilerini ve Prefix'ini tanımladığınızda burada listelenecektir."
+            actionLabel="İlk müşteriyi ekle"
+            actionIcon={Plus}
+            onAction={() => setShowModal(true)}
+          />
+        ) : (
         <div className="table-container">
           <table>
             <thead>
@@ -96,14 +109,10 @@ export default function Clients() {
                   </td>
                 </tr>
               ))}
-              {clients.length === 0 && (
-                <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }} className="text-muted">Kayıtlı müşteri bulunamadı.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* Basic Modal */}

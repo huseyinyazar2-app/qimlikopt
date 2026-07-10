@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Battery, Wifi } from 'lucide-react';
+import { Battery, Wifi, Smartphone } from 'lucide-react';
 import { getApiUrl } from '../config';
+import EmptyState from '../components/EmptyState';
 
 export default function Devices() {
   const [devices, setDevices] = useState([]);
@@ -76,7 +77,13 @@ export default function Devices() {
         })}
         
         {devices.length === 0 && (
-          <div className="text-muted">Sisteme kayıtlı gateway cihazı bulunamadı. Cihazlar heartbeat gönderdiğinde burada belirecektir.</div>
+          <div className="glass-card" style={{ gridColumn: '1 / -1', padding: 0 }}>
+            <EmptyState
+              icon={Smartphone}
+              title="Henüz gateway cihazı bağlanmadı"
+              description="Android gateway uygulamasının sunucuya bağlanmasını bekleyin. Cihazlar canlılık sinyali (heartbeat) gönderdiğinde otomatik olarak burada listelenecek ve pil/ağ durumları anlık izlenecektir."
+            />
+          </div>
         )}
       </div>
     </div>

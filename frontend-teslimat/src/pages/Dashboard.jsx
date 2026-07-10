@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
@@ -7,15 +8,18 @@ import {
   Search,
   Command,
   Box,
-  Truck, 
-  CheckCircle2, 
-  MapPin, 
-  Phone, 
-  ExternalLink, 
-  User, 
-  ClipboardList, 
-  AlertCircle, 
-  RefreshCw 
+  Truck,
+  CheckCircle2,
+  MapPin,
+  Phone,
+  ExternalLink,
+  User,
+  ClipboardList,
+  AlertCircle,
+  RefreshCw,
+  Users,
+  Rocket,
+  ArrowRight
 } from 'lucide-react';
 import { getApiUrl } from '../config';
 
@@ -35,6 +39,9 @@ export default function Dashboard({ user }) {
 
   const host = getApiUrl();
   const token = user?.token;
+
+  // Sadece geliştirici modunda (yerelde) görünsün; canlıda (qimlik.com) gizle.
+  const isDevMode = typeof window !== 'undefined' && !window.location.hostname.endsWith('qimlik.com');
 
   const fetchCompanyData = async () => {
     try {
@@ -212,6 +219,45 @@ export default function Dashboard({ user }) {
         <p className="text-muted">Zimmet durumlarını, kurye koordinat teslimat loglarını ve teslimat kanıtlarını izleyin.</p>
       </header>
 
+      {/* Getting started guide: only when there is no data yet */}
+      {packages.length === 0 && couriers.length === 0 && (
+        <div className="glass-card" style={{ marginBottom: '2rem', border: '1px solid var(--brand-primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--brand-gradient)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Rocket size={20} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', margin: 0 }}>Başlarken</h3>
+              <p className="text-muted" style={{ fontSize: '0.85rem', margin: 0 }}>Sistemi kullanmaya başlamak için şu 3 adımı tamamlayın.</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginTop: '1.25rem' }}>
+            {[
+              { n: 1, to: '/couriers', icon: <Users size={18} />, title: 'Kurye ekleyin', desc: 'Paketleri zimmetleyeceğiniz kurye personelini tanımlayın.', action: 'Kurye Yönetimi' },
+              { n: 2, to: '/packages', icon: <Package size={18} />, title: 'Paket / gönderi oluşturun', desc: 'Alıcı ve adres bilgileriyle ilk teslimat gönderinizi kaydedin.', action: 'Paket Yönetimi' },
+              { n: 3, to: '/packages', icon: <Truck size={18} />, title: 'Paketi kuryeye zimmetleyin', desc: 'Gönderiyi aktif bir kuryeye atayın; dağıtım süreci başlasın.', action: 'Zimmetle' },
+            ].map(step => (
+              <Link
+                key={step.n}
+                to={step.to}
+                style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem', borderRadius: 12, border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.6)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--brand-gradient)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0 }}>{step.n}</span>
+                  <span style={{ color: 'var(--brand-primary)', display: 'flex', alignItems: 'center' }}>{step.icon}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{step.title}</span>
+                </div>
+                <p className="text-muted" style={{ fontSize: '0.82rem', lineHeight: 1.45, margin: 0 }}>{step.desc}</p>
+                <span style={{ marginTop: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--brand-primary)', fontSize: '0.82rem', fontWeight: 600, paddingTop: '0.25rem' }}>
+                  {step.action} <ArrowRight size={14} />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
         <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -329,7 +375,8 @@ export default function Dashboard({ user }) {
           </div>
         </div>
 
-        {/* Right column: Developer scan simulator */}
+        {/* Right column: Developer scan simulator - sadece geliştirici modunda */}
+        {isDevMode && (
         <div className="glass-card" style={{ border: '1px solid var(--brand-secondary)' }}>
           <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Truck size={18} color="var(--brand-secondary)" /> Kurye Teslimat Simülatörü
@@ -371,6 +418,7 @@ export default function Dashboard({ user }) {
             </button>
           </form>
         </div>
+        )}
 
       </div>
 
