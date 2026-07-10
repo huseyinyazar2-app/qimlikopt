@@ -135,7 +135,7 @@ export default function Home() {
                 </div>
                 <h3>qimlik Mesai</h3>
                 <p className="text-muted" style={{ fontSize: '0.95rem', marginBottom: '1.5rem' }}>
-                  Konum doğrulamalı saha sınır uyumlu, sahte GPS (Fake GPS) korumalı personel giriş-çıkış takibi. Şantiye veya ofis sınırlarına giren personelin mesaisini güvenle loglayın.
+                  Konum doğrulamalı personel giriş-çıkış takibi. Her işlem, tanımlı şantiye alanına olan mesafesiyle kaydedilir; sınır dışı girişler işaretlenerek mesai güvenle raporlanır.
                 </p>
               </div>
               <Link to="/urunler/mesai" className="btn btn-outline" style={{ width: '100%', fontSize: '0.9rem', padding: '0.6rem', textDecoration: 'none' }}>Detayları İncele</Link>
@@ -177,7 +177,7 @@ export default function Home() {
               </li>
               <li>
                 <Lock size={18} color="#0ea5e9" style={{ marginTop: '0.2rem', flexShrink: 0 }} />
-                <span><strong>SIM Klonlama Koruması:</strong> SIM swapping ve oltalama (Phishing) saldırılarına karşı üst düzey koruma sağlar.</span>
+                <span><strong>Tek Kullanımlık Güvenli Kod:</strong> Her doğrulama kodu sunucuda üretilir, 5 dakika geçerlidir ve yalnızca bir kez kullanılabilir.</span>
               </li>
               <li>
                 <Globe size={18} color="#0ea5e9" style={{ marginTop: '0.2rem', flexShrink: 0 }} />
@@ -238,16 +238,16 @@ export default function Home() {
             </div>
             <h2 className="product-showcase-title">qimlik Mesai</h2>
             <p className="product-showcase-desc">
-              Personelinizin mesai başlangıç ve bitişlerini güvenli konum doğrulamalı teknolojiyle yönetin. GPS doğrulaması sayesinde saha dışında giriş yapılmasını engelleyin.
+              Personelinizin mesai başlangıç ve bitişlerini konum doğrulamalı olarak yönetin. Her giriş-çıkış, tanımlı şantiye alanına olan mesafesiyle birlikte kaydedilir; sınır dışından yapılan işlemler otomatik işaretlenir.
             </p>
             <ul className="product-showcase-list">
               <li>
                 <MapPin size={18} color="#10b981" style={{ marginTop: '0.2rem', flexShrink: 0 }} />
-                <span><strong>Konum Doğrulamalı Sınırlar:</strong> Personel sadece sizin belirlediğiniz koordinat alanı içerisindeyken giriş-çıkış yapabilir.</span>
+                <span><strong>Konum Doğrulamalı Kayıt:</strong> Her giriş-çıkış, tanımladığınız şantiye koordinatına olan mesafesiyle birlikte kaydedilir.</span>
               </li>
               <li>
                 <Lock size={18} color="#10b981" style={{ marginTop: '0.2rem', flexShrink: 0 }} />
-                <span><strong>Sahte GPS (Fake GPS) Koruması:</strong> Üçüncü parti konum değiştirici uygulamaların kullanılmasını algılar ve engeller.</span>
+                <span><strong>Sınır Dışı Uyarısı:</strong> Tanımlı alan dışından yapılan girişler "şantiye dışında" olarak işaretlenir ve sapma mesafesi rapora yansır.</span>
               </li>
               <li>
                 <Clock size={18} color="#10b981" style={{ marginTop: '0.2rem', flexShrink: 0 }} />
@@ -337,7 +337,7 @@ export default function Home() {
               <div>
                 <Clock size={36} color="#10b981" style={{ margin: '0 auto 1rem auto' }} />
                 <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Mesai Saha Paneli</h4>
-                <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Konum doğrulamalı koordinat ayarları, sahte GPS logları ve mesai raporları.</p>
+                <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Konum doğrulamalı koordinat ayarları, sınır dışı kayıt işaretleme ve mesai raporları.</p>
               </div>
               <a href={getAppUrl(5005, 'mesai')} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ display: 'inline-flex', width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}>
                 Yönetime Giriş <ExternalLink size={14} />

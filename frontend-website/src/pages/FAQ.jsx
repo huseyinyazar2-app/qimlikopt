@@ -19,7 +19,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Mesai modülünde GPS konum doğrulaması nasıl çalışır?',
-    a: 'qimlik Mesai\'de her çalışma alanı için bir coğrafi sınır (geofence) tanımlarsınız. Personel telefonundan giriş veya çıkış yaptığında konumu alınır ve bu tanımlı alana olan mesafesiyle birlikte kaydedilir. Böylece personel yalnızca gerçekten sahadayken mesai açabilir. Sistem ayrıca sahte konum (fake GPS) uygulamalarını algılamaya yönelik korumalar içerir.',
+    a: 'qimlik Mesai\'de her çalışma alanı için bir coğrafi sınır (geofence) tanımlarsınız. Personel telefonundan giriş veya çıkış yaptığında konumu alınır ve bu tanımlı alana olan mesafesiyle birlikte kaydedilir. Tanımlı alan dışından yapılan girişler otomatik olarak "sınır dışı" işaretlenir ve sapma mesafesi rapora yansır; böylece saha dışı işlemler yöneticiye görünür olur.',
   },
   {
     q: 'Teslimat modülünde imza ve teslim kanıtı nasıl saklanıyor?',
