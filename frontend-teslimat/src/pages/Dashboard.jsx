@@ -314,7 +314,7 @@ export default function Dashboard({ user }) {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '1.5rem', alignItems: 'start', flexWrap: 'wrap' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isDevMode ? '1.3fr 1fr' : '1fr', gap: '1.5rem', alignItems: 'start', flexWrap: 'wrap' }}>
         
         {/* Left column: Company Packages list */}
         <div className="glass-card">

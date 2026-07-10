@@ -377,7 +377,7 @@ export default function Dashboard({ user }) {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isDevMode ? '1.2fr 1fr' : '1fr', gap: '1.5rem', alignItems: 'start' }}>
         
         {/* Left Side: Recent Activity Logs */}
         <div className="glass-card">
