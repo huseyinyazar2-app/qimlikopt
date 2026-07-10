@@ -6,10 +6,12 @@ import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { getApiUrl } from '../config';
+import { isReadOnly } from '../utils/role';
 import EmptyState from '../components/EmptyState';
 
 export default function Dashboard({ user }) {
   const isCompany = user?.role === 'company';
+  const readOnly = isReadOnly();
   const navigate = useNavigate();
   
   const [machines, setMachines] = useState([]);
@@ -285,10 +287,10 @@ export default function Dashboard({ user }) {
           >
             <Download size={18} /> Excel İndir
           </button>
-          {activeTab === 'machines' && (
-            <button 
-              onClick={() => setShowAddModal(true)} 
-              className="btn-primary" 
+          {activeTab === 'machines' && !readOnly && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn-primary"
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
               <Plus size={18} /> Yeni Makine Ekle
@@ -301,7 +303,7 @@ export default function Dashboard({ user }) {
       {analytics && <AnalyticsSection data={analytics} loading={loadingData} />}
 
       {/* İlk kullanım rehberi: hiç makine yokken göster, veri girildikçe kaybolur */}
-      {!loadingData && machines.length === 0 && (
+      {!loadingData && !readOnly && machines.length === 0 && (
         <div className="glass-card" style={{ marginBottom: '2rem', padding: '2rem', background: 'var(--brand-gradient-soft, rgba(2,132,199,0.04))', border: '1px solid var(--glass-border)' }}>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '0.35rem' }}>Başlarken</h2>
           <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>
@@ -556,7 +558,7 @@ export default function Dashboard({ user }) {
                       </span>
                     </td>
                     <td style={{ padding: '0.75rem 0' }}>
-                      {i.status === 'pending' && (
+                      {i.status === 'pending' && !readOnly && (
                         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                           <button
                             onClick={async () => {
@@ -599,6 +601,7 @@ export default function Dashboard({ user }) {
       {/* SPARE PARTS TAB */}
       {activeTab === 'spareParts' && (
         <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+          {!readOnly && (
           <div className="glass-card" style={{ padding: '1.5rem', flex: '1 1 300px' }}>
             <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Yeni Yedek Parça Tanımla</h2>
             <form onSubmit={async (e) => {
@@ -621,6 +624,7 @@ export default function Dashboard({ user }) {
               <button type="submit" className="btn-primary">Stoğa Ekle</button>
             </form>
           </div>
+          )}
 
           <div className="glass-card" style={{ padding: '1.5rem', flex: '2 1 500px' }}>
             <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Stok Durumu</h2>
@@ -636,7 +640,7 @@ export default function Dashboard({ user }) {
                   <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}>
                     <th style={{ padding: '0.75rem 0' }}>Parça Adı</th>
                     <th style={{ padding: '0.75rem 0' }}>Mevcut Stok</th>
-                    <th style={{ padding: '0.75rem 0' }}>Stok Ekle</th>
+                    {!readOnly && <th style={{ padding: '0.75rem 0' }}>Stok Ekle</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -646,6 +650,7 @@ export default function Dashboard({ user }) {
                       <td style={{ padding: '0.75rem 0' }}>
                         <span className={`badge ${p.stock_quantity > 5 ? 'success' : p.stock_quantity > 0 ? 'warning' : 'error'}`}>{p.stock_quantity} Adet</span>
                       </td>
+                      {!readOnly && (
                       <td style={{ padding: '0.75rem 0' }}>
                         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                           <input
@@ -660,6 +665,7 @@ export default function Dashboard({ user }) {
                           <button onClick={() => handleAddStock(p.id)} className="btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>+ Ekle</button>
                         </div>
                       </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -679,11 +685,15 @@ export default function Dashboard({ user }) {
                <div style={{ fontSize: '0.75rem', background: 'rgba(0,0,0,0.05)', padding: '0.2rem 0.5rem', borderRadius: 4, color: 'var(--text-muted)' }}>ESC</div>
             </div>
             <div className="cmd-palette-list">
-               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', padding: '0.5rem 1rem' }}>Hızlı İşlemler</div>
-               <div className="cmd-palette-item" onClick={() => { setShowCmd(false); setShowAddModal(true); }}>
-                 <Plus size={16} /> Yeni Makine Ekle
-               </div>
-               
+               {!readOnly && (
+                 <>
+                   <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', padding: '0.5rem 1rem' }}>Hızlı İşlemler</div>
+                   <div className="cmd-palette-item" onClick={() => { setShowCmd(false); setShowAddModal(true); }}>
+                     <Plus size={16} /> Yeni Makine Ekle
+                   </div>
+                 </>
+               )}
+
                {cmdSearch && <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', padding: '1rem 1rem 0.5rem 1rem', borderTop: '1px solid var(--glass-border)', marginTop: '0.5rem' }}>Arama Sonuçları</div>}
                {machines.filter(m => m.machine_name.toLowerCase().includes(cmdSearch.toLowerCase()) || m.machine_code.toLowerCase().includes(cmdSearch.toLowerCase())).slice(0, 5).map(m => (
                  <div key={m.id} className="cmd-palette-item" onClick={() => { setShowCmd(false); window.open(`/m/${m.machine_code}`, '_blank'); }}>

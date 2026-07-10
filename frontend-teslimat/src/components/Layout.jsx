@@ -1,8 +1,12 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Package, Truck, AlertTriangle, Award } from 'lucide-react';
+import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Package, Truck, AlertTriangle, Award, Eye, UserCog } from 'lucide-react';
+import { getRole, isOwner, isReadOnly, roleLabel } from '../utils/role';
 
 export default function Layout({ user, onLogout }) {
   const isCompany = user?.role === 'company';
+  const role = getRole();
+  const owner = isOwner();
+  const readOnly = isReadOnly();
 
   const companyMenuItems = [
     { path: '/dashboard', name: 'Teslimat Takip', icon: <MapPin size={20} /> },
@@ -10,6 +14,8 @@ export default function Layout({ user, onLogout }) {
     { path: '/packages', name: 'Paket Yönetimi', icon: <Package size={20} /> },
     { path: '/basarisiz', name: 'Başarısız Teslimler', icon: <AlertTriangle size={20} /> },
     { path: '/karne', name: 'Kurye Karnesi', icon: <Award size={20} /> },
+    // Kullanıcı yönetimi sadece firma sahibine görünür
+    ...(owner ? [{ path: '/kullanicilar', name: 'Kullanıcılar', icon: <UserCog size={20} /> }] : []),
   ];
 
   const courierMenuItems = [
@@ -17,6 +23,8 @@ export default function Layout({ user, onLogout }) {
   ];
 
   const menuItems = isCompany ? companyMenuItems : courierMenuItems;
+  // Panel personeli için görünecek isim: personel adı varsa onu, yoksa firma adını göster
+  const displayName = isCompany ? (user.staff?.name || user.company_name) : `${user.name} ${user.surname}`;
 
   return (
     <div className="admin-layout">
@@ -26,6 +34,13 @@ export default function Layout({ user, onLogout }) {
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--brand-gradient)' }}></div>
           <h2 style={{ letterSpacing: '-0.05em' }}>Qimlik <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>Teslimat v1.7.10</span></h2>
         </div>
+
+        {/* İzleyici (salt-okunur) rozeti */}
+        {isCompany && readOnly && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.75rem', marginBottom: '0.75rem', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: 8, color: '#b45309', fontSize: '0.8rem', fontWeight: 600 }}>
+            <Eye size={16} /> İzleyici — salt-okunur
+          </div>
+        )}
 
         <nav style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 4 }}>
           {menuItems.map(item => (
@@ -41,11 +56,12 @@ export default function Layout({ user, onLogout }) {
         </nav>
 
         <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.8)', borderRadius: 8 }}>
-          <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: 4 }}>
-            {isCompany ? 'Firma Yetkilisi' : 'Kurye Personeli'}
+          <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: 4, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {isCompany ? 'Firma Paneli' : 'Kurye Personeli'}
+            {isCompany && <span className="badge" style={{ background: 'rgba(15,23,42,0.06)', fontSize: '0.7rem' }}>{roleLabel(role)}</span>}
           </div>
           <div style={{ fontWeight: 600, marginBottom: '1rem', fontSize: '0.95rem' }}>
-            {isCompany ? user.company_name : `${user.name} ${user.surname}`}
+            {displayName}
           </div>
           <button 
             onClick={onLogout}

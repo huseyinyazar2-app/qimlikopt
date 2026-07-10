@@ -5,8 +5,10 @@ import { Users, Plus, Phone, User, Camera, Calendar, Clock, Pause, Play, Chevron
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import EmptyState from '../components/EmptyState';
+import { isReadOnly } from '../utils/role';
 
 export default function Employees({ user }) {
+  const readOnly = isReadOnly();
   const [employees, setEmployees] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState(null); // Employee selected for report
@@ -227,13 +229,15 @@ export default function Employees({ user }) {
             <h1 className="gradient-text">Personel Yönetimi</h1>
             <p className="text-muted">Saha personellerinizi listeleyin ve durumlarını yönetin.</p>
           </div>
-          <button 
-            onClick={() => setShowAddModal(true)} 
-            className="btn-primary" 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
-          >
-            <Plus size={18} /> Yeni Personel Ekle
-          </button>
+          {!readOnly && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+            >
+              <Plus size={18} /> Yeni Personel Ekle
+            </button>
+          )}
         </header>
 
         <div className="glass-card">
@@ -297,8 +301,8 @@ export default function Employees({ user }) {
                         icon={Users}
                         title="Henüz personel eklenmemiş"
                         description="Saha personellerinizi ekleyerek giriş/çıkış takibine başlayın. Eklediğiniz personel, telefon numarasıyla mesaisini başlatabilir."
-                        actionLabel="Yeni Personel Ekle"
-                        onAction={() => setShowAddModal(true)}
+                        actionLabel={readOnly ? undefined : "Yeni Personel Ekle"}
+                        onAction={readOnly ? undefined : () => setShowAddModal(true)}
                       />
                     </td>
                   </tr>
@@ -337,21 +341,25 @@ export default function Employees({ user }) {
                   <Download size={14} /> Excel Raporu
                 </button>
               )}
-              <button
-                onClick={() => openEdit(selectedEmp)}
-                className="btn-outline"
-                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
-              >
-                <Pencil size={14} /> Düzenle
-              </button>
-              <button
-                onClick={() => toggleStatus(selectedEmp.id, selectedEmp.is_active)}
-                className={selectedEmp.is_active ? "btn-outline" : "btn-primary"}
-                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
-              >
-                {selectedEmp.is_active ? <Pause size={14} /> : <Play size={14} />}
-                {selectedEmp.is_active ? 'Askıya Al' : 'Aktifleştir'}
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => openEdit(selectedEmp)}
+                  className="btn-outline"
+                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  <Pencil size={14} /> Düzenle
+                </button>
+              )}
+              {!readOnly && (
+                <button
+                  onClick={() => toggleStatus(selectedEmp.id, selectedEmp.is_active)}
+                  className={selectedEmp.is_active ? "btn-outline" : "btn-primary"}
+                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  {selectedEmp.is_active ? <Pause size={14} /> : <Play size={14} />}
+                  {selectedEmp.is_active ? 'Askıya Al' : 'Aktifleştir'}
+                </button>
+              )}
               <button 
                 onClick={() => setSelectedEmp(null)} 
                 style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}

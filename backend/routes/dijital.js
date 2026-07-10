@@ -1,7 +1,8 @@
 const express = require('express');
 const db = require('../db');
-const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard } = require('../auth');
+const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard, panelWriteGuard } = require('../auth');
 const { createOtp, verifyOtp } = require('../otp');
+const { mountPanelUsers } = require('../panelUsers');
 
 // Haversine formula for distance calculation (in meters)
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -23,6 +24,9 @@ const router = express.Router();
 
 const companyAuth = companyGuard('dijital', 'dijital_companies');
 const technicianAuth = workerGuard('dijital');
+
+// Faz 3: 'viewer' rolü tüm yazma isteklerinde reddedilir (public/login etkilenmez)
+router.use(panelWriteGuard('dijital'));
 
 function sanitizeCompany(company) {
     if (!company) return company;
@@ -50,7 +54,7 @@ router.post('/company/register', async (req, res) => {
 
         const { rows } = await db.query('SELECT * FROM dijital_companies WHERE phone_number = ?', [phone_number]);
         const company = rows[0];
-        const token = signToken({ role: 'company', module: 'dijital', id: company.id });
+        const token = signToken({ role: 'company', module: 'dijital', id: company.id, tier: 'owner' });
         res.status(201).json({ message: 'Şirket başarıyla oluşturuldu.', company: sanitizeCompany(company), token });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -71,7 +75,7 @@ router.post('/company/login', async (req, res) => {
         if (!company.is_active) {
             return res.status(403).json({ error: 'Hesap askıya alınmıştır.' });
         }
-        const token = signToken({ role: 'company', module: 'dijital', id: company.id });
+        const token = signToken({ role: 'company', module: 'dijital', id: company.id, tier: 'owner' });
         res.json({ message: 'Giriş başarılı.', company: sanitizeCompany(company), token });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -785,5 +789,8 @@ router.put('/technician/work-orders/:id/status', technicianAuth, async (req, res
         res.status(500).json({ error: err.message });
     }
 });
+
+// Faz 3: panel alt kullanıcı girişi + yönetimi (sahip)
+mountPanelUsers(router, { module: 'dijital', companyTable: 'dijital_companies', companyAuth });
 
 module.exports = router;

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { getApiUrl } from '../config';
 import toast from 'react-hot-toast';
 import { Settings as SettingsIcon, Save, Info, Calculator, CalendarDays, Plus, Trash2, Lock } from 'lucide-react';
+import { isReadOnly } from '../utils/role';
 
 const WEEKDAYS = [
   { v: '1', l: 'Pzt' },
@@ -16,6 +17,7 @@ const WEEKDAYS = [
 const f2 = (n) => (Number(n) || 0).toFixed(2);
 
 export default function Settings({ user }) {
+  const readOnly = isReadOnly();
   const [shiftType, setShiftType] = useState('company_wide');
   const [shiftStart, setShiftStart] = useState('09:00');
   const [shiftEnd, setShiftEnd] = useState('18:00');
@@ -259,7 +261,7 @@ export default function Settings({ user }) {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button type="submit" className="btn-primary" disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button type="submit" className="btn-primary" disabled={loading || readOnly} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: readOnly ? 0.5 : 1 }}>
               <Save size={18} /> {loading ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
             </button>
           </div>
@@ -327,7 +329,7 @@ export default function Settings({ user }) {
             </p>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="btn-primary" disabled={payrollLoading} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button type="submit" className="btn-primary" disabled={payrollLoading || readOnly} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: readOnly ? 0.5 : 1 }}>
               <Save size={18} /> {payrollLoading ? 'Kaydediliyor...' : 'Çarpanları Kaydet'}
             </button>
           </div>
@@ -361,7 +363,7 @@ export default function Settings({ user }) {
               onChange={e => setNewHoliday(h => ({ ...h, is_half_day: e.target.checked }))} />
             <label htmlFor="halfDay" style={{ fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>Yarım gün</label>
           </div>
-          <button type="submit" className="btn-primary" disabled={holidayLoading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button type="submit" className="btn-primary" disabled={holidayLoading || readOnly} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: readOnly ? 0.5 : 1 }}>
             <Plus size={16} /> Ekle
           </button>
         </form>
@@ -395,7 +397,7 @@ export default function Settings({ user }) {
                     )}
                   </td>
                   <td>
-                    {!h.is_official && (
+                    {!h.is_official && !readOnly && (
                       <button onClick={() => deleteHoliday(h.id)} title="Sil"
                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--status-error)', display: 'flex', alignItems: 'center' }}>
                         <Trash2 size={16} />

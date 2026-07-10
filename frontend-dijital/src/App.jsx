@@ -9,7 +9,9 @@ import Logs from './pages/Logs';
 import Forms from './pages/Forms';
 import Technicians from './pages/Technicians';
 import WorkOrders from './pages/WorkOrders';
+import Users from './pages/Users';
 import PublicMachine from './pages/PublicMachine';
+import { isOwner, clearRole } from './utils/role';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -29,6 +31,7 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('qimlik_dijital_user');
+    clearRole();
   };
 
   return (
@@ -45,6 +48,7 @@ function App() {
             <Route path="dashboard" element={<Dashboard user={user} />} />
             <Route path="forms" element={user.role === 'company' ? <Forms user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="technicians" element={user.role === 'company' ? <Technicians user={user} /> : <Navigate to="/dashboard" />} />
+            <Route path="kullanicilar" element={user.role === 'company' && isOwner() ? <Users user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="is-emirleri" element={<WorkOrders user={user} />} />
             <Route path="logs" element={<Logs user={user} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

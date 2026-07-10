@@ -350,4 +350,21 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
 );
 CREATE INDEX IF NOT EXISTS idx_webhook_pending ON webhook_deliveries (status, next_attempt_at);
 
+-- --- FAZ 3: Panel alt kullanicilari (cok kullanicili + rol) ---
+-- Mevcut sirket hesabi ortuk 'owner'; ek personel burada tutulur.
+-- role: 'owner'|'manager'|'operator'|'viewer'. Giris e-posta+sifre ile.
+CREATE TABLE IF NOT EXISTS panel_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    module VARCHAR(20) NOT NULL,       -- 'mesai'|'dijital'|'teslimat'
+    company_id INTEGER NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'operator',
+    is_active BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (module, email)
+);
+CREATE INDEX IF NOT EXISTS idx_panel_users_company ON panel_users (module, company_id);
+
 

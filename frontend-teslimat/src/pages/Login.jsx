@@ -1,7 +1,7 @@
 import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { KeyRound, Phone, Building2, User, QrCode, MessageSquare, Clock, ShieldCheck } from 'lucide-react';
+import { KeyRound, Phone, Building2, User, QrCode, MessageSquare, Clock, ShieldCheck, Mail } from 'lucide-react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { getApiUrl } from '../config';
 
@@ -9,9 +9,12 @@ export default function Login({ onLogin }) {
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') === 'courier' ? 'courier_login' : 'company_login';
   const [activeTab, setActiveTab] = useState(initialTab); // 'company_login', 'courier_login'
-  
+  // Firma girişi alt kipi: 'owner' (telefon+şifre) veya 'staff' (e-posta+şifre)
+  const [companyMode, setCompanyMode] = useState('owner');
+
   // Form states
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -67,10 +70,19 @@ export default function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      if (activeTab === 'company_login') {
+      if (activeTab === 'company_login' && companyMode === 'owner') {
+        // Yönetici (sahip) girişi: telefon + şifre
         const res = await axios.post(`${host}/api/teslimat/company/login`, { phone_number: phone, password });
+        localStorage.setItem('teslimat_role', 'owner');
         onLogin({ ...res.data.company, token: res.data.token, role: 'company' });
+      } else if (activeTab === 'company_login' && companyMode === 'staff') {
+        // Personel (alt kullanıcı) girişi: e-posta + şifre
+        const res = await axios.post(`${host}/api/teslimat/company/users/login`, { email, password });
+        localStorage.setItem('teslimat_role', res.data.user?.role || 'viewer');
+        onLogin({ ...res.data.company, token: res.data.token, role: 'company', staff: res.data.user });
       } else if (activeTab === 'courier_login') {
+        // Kurye girişi (WhatsApp reverse-OTP) — rol sistemi dışında
+        localStorage.removeItem('teslimat_role');
         const res = await axios.post(`${host}/api/teslimat/courier/login/request`, { phone_number: phone });
         setVerifyDetails(res.data);
         setCourierStatus('waiting');
@@ -175,22 +187,61 @@ export default function Login({ onLogin }) {
         ) : (
           /* Normal logins */
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>
-                {activeTab === 'courier_login' ? 'Kurye Telefon Numarası' : 'Firma Telefon Numarası'}
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Phone size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input 
-                  type="text" 
-                  required 
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="Örn: +905XXXXXXXXX"
-                  style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
-                />
+            {/* Firma girişi alt kipi: Yönetici (telefon) / Personel (e-posta) */}
+            {activeTab === 'company_login' && (
+              <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.06)', padding: 4, borderRadius: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setCompanyMode('owner')}
+                  style={{ flex: 1, padding: '0.5rem 0.2rem', borderRadius: 6, border: 'none', background: companyMode === 'owner' ? 'var(--brand-gradient)' : 'transparent', color: companyMode === 'owner' ? '#fff' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
+                >
+                  Yönetici Girişi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCompanyMode('staff')}
+                  style={{ flex: 1, padding: '0.5rem 0.2rem', borderRadius: 6, border: 'none', background: companyMode === 'staff' ? 'var(--brand-gradient)' : 'transparent', color: companyMode === 'staff' ? '#fff' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
+                >
+                  Personel Girişi
+                </button>
               </div>
-            </div>
+            )}
+
+            {activeTab === 'company_login' && companyMode === 'staff' ? (
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>
+                  Personel E-postası
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="ornek@firma.com"
+                    style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>
+                  {activeTab === 'courier_login' ? 'Kurye Telefon Numarası' : 'Firma Telefon Numarası'}
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Phone size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    required
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder="Örn: +905XXXXXXXXX"
+                    style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+            )}
 
             {activeTab !== 'courier_login' && (
               <div>
@@ -213,10 +264,15 @@ export default function Login({ onLogin }) {
               {loading ? 'İşlem yapılıyor...' : activeTab === 'courier_login' ? 'WhatsApp ile Giriş İste' : 'Giriş Yap'}
             </button>
 
-            {activeTab === 'company_login' && (
+            {activeTab === 'company_login' && companyMode === 'owner' && (
               <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.9rem' }}>
                 <span className="text-muted">Hesabınız yok mu? </span>
                 <Link to="/register" style={{ color: 'var(--brand-primary)', fontWeight: 600, textDecoration: 'none' }}>Kayıt Olun</Link>
+              </div>
+            )}
+            {activeTab === 'company_login' && companyMode === 'staff' && (
+              <div style={{ textAlign: 'center', marginTop: '0.25rem', fontSize: '0.8rem' }}>
+                <span className="text-muted">Personel hesabınızı firma sahibi oluşturur.</span>
               </div>
             )}
           </form>

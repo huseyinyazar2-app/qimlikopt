@@ -32,8 +32,10 @@ import {
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import EmptyState from '../components/EmptyState';
+import { isReadOnly } from '../utils/role';
 
 export default function Logs({ user }) {
+  const readOnly = isReadOnly();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMap, setSelectedMap] = useState(null);
@@ -256,10 +258,14 @@ export default function Logs({ user }) {
                       <td>{lv.end_date}</td>
                       <td>
                         {lv.status === 'pending' ? (
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={() => handleUpdateLeave(lv.id, 'approved')} style={{ background: 'var(--status-success)', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: '0.8rem' }}>Onayla</button>
-                            <button onClick={() => handleUpdateLeave(lv.id, 'rejected')} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: '0.8rem' }}>Reddet</button>
-                          </div>
+                          readOnly ? (
+                            <span className="badge warning">Bekliyor</span>
+                          ) : (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button onClick={() => handleUpdateLeave(lv.id, 'approved')} style={{ background: 'var(--status-success)', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: '0.8rem' }}>Onayla</button>
+                              <button onClick={() => handleUpdateLeave(lv.id, 'rejected')} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: '0.8rem' }}>Reddet</button>
+                            </div>
+                          )
                         ) : (
                           <span className={`badge ${lv.status === 'approved' ? 'success' : 'error'}`}>{lv.status === 'approved' ? 'Onaylandı' : 'Reddedildi'}</span>
                         )}

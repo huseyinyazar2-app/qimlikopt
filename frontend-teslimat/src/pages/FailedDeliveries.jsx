@@ -6,6 +6,7 @@ import {
   Clock, Calendar, RotateCcw, PackageX
 } from 'lucide-react';
 import { getApiUrl } from '../config';
+import { isReadOnly } from '../utils/role';
 import EmptyState from '../components/EmptyState';
 
 const FAIL_REASON_LABELS = {
@@ -29,6 +30,7 @@ export default function FailedDeliveries({ user }) {
   const [reassignPackId, setReassignPackId] = useState(null);
   const [selectedCourierId, setSelectedCourierId] = useState('');
 
+  const readOnly = isReadOnly();
   const host = getApiUrl();
   const token = user?.token;
   const headers = { Authorization: `Bearer ${token}` };
@@ -132,13 +134,15 @@ export default function FailedDeliveries({ user }) {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: 180 }}>
-                  <button
-                    onClick={() => { setReassignPackId(p.id); setSelectedCourierId(''); }}
-                    className="btn-primary"
-                    style={{ padding: '0.55rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                  >
-                    <RotateCcw size={15} /> Yeniden Ata
-                  </button>
+                  {!readOnly && (
+                    <button
+                      onClick={() => { setReassignPackId(p.id); setSelectedCourierId(''); }}
+                      className="btn-primary"
+                      style={{ padding: '0.55rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    >
+                      <RotateCcw size={15} /> Yeniden Ata
+                    </button>
+                  )}
                   <button
                     onClick={() => toggleAttempts(p.id)}
                     className="btn-outline"

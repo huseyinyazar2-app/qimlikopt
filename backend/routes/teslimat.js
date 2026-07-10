@@ -1,12 +1,16 @@
 const express = require('express');
 const db = require('../db');
-const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard } = require('../auth');
+const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard, panelWriteGuard } = require('../auth');
 const { createOtp, verifyOtp } = require('../otp');
+const { mountPanelUsers } = require('../panelUsers');
 
 const router = express.Router();
 
 const companyAuth = companyGuard('teslimat', 'teslimat_companies');
 const courierAuth = workerGuard('teslimat');
+
+// Faz 3: 'viewer' rolü tüm yazma isteklerinde reddedilir (public/login etkilenmez)
+router.use(panelWriteGuard('teslimat'));
 
 function sanitizeCompany(company) {
     if (!company) return company;
@@ -34,7 +38,7 @@ router.post('/company/register', async (req, res) => {
 
         const { rows } = await db.query('SELECT * FROM teslimat_companies WHERE phone_number = ?', [phone_number]);
         const company = rows[0];
-        const token = signToken({ role: 'company', module: 'teslimat', id: company.id });
+        const token = signToken({ role: 'company', module: 'teslimat', id: company.id, tier: 'owner' });
         res.status(201).json({ message: 'Şirket başarıyla oluşturuldu.', company: sanitizeCompany(company), token });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -55,7 +59,7 @@ router.post('/company/login', async (req, res) => {
         if (!company.is_active) {
             return res.status(403).json({ error: 'Hesap askıya alınmıştır.' });
         }
-        const token = signToken({ role: 'company', module: 'teslimat', id: company.id });
+        const token = signToken({ role: 'company', module: 'teslimat', id: company.id, tier: 'owner' });
         res.json({ message: 'Giriş başarılı.', company: sanitizeCompany(company), token });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -583,5 +587,8 @@ router.get('/company/courier-scorecard', companyAuth, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// Faz 3: panel alt kullanıcı girişi + yönetimi (sahip)
+mountPanelUsers(router, { module: 'teslimat', companyTable: 'teslimat_companies', companyAuth });
 
 module.exports = router;

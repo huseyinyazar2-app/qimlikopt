@@ -1,16 +1,20 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Settings, Calculator } from 'lucide-react';
+import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Settings, Calculator, UserCog, Eye } from 'lucide-react';
+import { getRole, ROLE_LABELS, ROLE_COLORS, canSeeSettings, canSeePayroll, canManageUsers, isReadOnly } from '../utils/role';
 
 export default function Layout({ user, onLogout }) {
   const isCompany = user?.role === 'company';
+  const role = getRole();
+  const readOnly = isCompany && isReadOnly(role);
 
   const companyMenuItems = [
-    { path: '/dashboard', name: 'Şantiyeler', icon: <MapPin size={20} /> },
-    { path: '/employees', name: 'Çalışanlar', icon: <Users size={20} /> },
-    { path: '/bordro', name: 'Bordro', icon: <Calculator size={20} /> },
-    { path: '/logs', name: 'Mesai Kayıtları', icon: <FileText size={20} /> },
-    { path: '/settings', name: 'Ayarlar', icon: <Settings size={20} /> },
-  ];
+    { path: '/dashboard', name: 'Şantiyeler', icon: <MapPin size={20} />, show: true },
+    { path: '/employees', name: 'Çalışanlar', icon: <Users size={20} />, show: true },
+    { path: '/bordro', name: 'Bordro', icon: <Calculator size={20} />, show: canSeePayroll(role) },
+    { path: '/logs', name: 'Mesai Kayıtları', icon: <FileText size={20} />, show: true },
+    { path: '/settings', name: 'Ayarlar', icon: <Settings size={20} />, show: canSeeSettings(role) },
+    { path: '/kullanicilar', name: 'Kullanıcılar', icon: <UserCog size={20} />, show: canManageUsers(role) },
+  ].filter(i => i.show);
 
   const employeeMenuItems = [
     { path: '/dashboard', name: 'Mesai Giriş/Çıkış', icon: <CalendarDays size={20} /> },
@@ -18,6 +22,7 @@ export default function Layout({ user, onLogout }) {
   ];
 
   const menuItems = isCompany ? companyMenuItems : employeeMenuItems;
+  const roleColor = ROLE_COLORS[role] || ROLE_COLORS.owner;
 
   return (
     <div className="admin-layout">
@@ -42,11 +47,20 @@ export default function Layout({ user, onLogout }) {
         </nav>
 
         <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.8)', borderRadius: 8 }}>
-          <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: 4 }}>
-            {isCompany ? 'Firma Yetkilisi' : 'Saha Personeli'}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
+            <span className="text-muted" style={{ fontSize: '0.8rem' }}>
+              {isCompany ? 'Firma Paneli' : 'Saha Personeli'}
+            </span>
+            {isCompany && (
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 999, background: roleColor.bg, color: roleColor.fg }}>
+                {ROLE_LABELS[role] || 'Sahip'}
+              </span>
+            )}
           </div>
           <div style={{ fontWeight: 600, marginBottom: '1rem', fontSize: '0.95rem' }}>
-            {isCompany ? user.company_name : `${user.name} ${user.surname}`}
+            {isCompany
+              ? (user.user_name ? user.user_name : user.company_name)
+              : `${user.name} ${user.surname}`}
           </div>
           <button 
             onClick={onLogout}
@@ -59,6 +73,11 @@ export default function Layout({ user, onLogout }) {
 
       {/* Main Content */}
       <main className="main-content">
+        {readOnly && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0.6rem 1rem', marginBottom: '1.25rem', borderRadius: 8, background: ROLE_COLORS.viewer.bg, color: ROLE_COLORS.viewer.fg, fontSize: '0.85rem', fontWeight: 600 }}>
+            <Eye size={16} /> İzleyici — salt-okunur mod. Değişiklik yapma yetkiniz yok.
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

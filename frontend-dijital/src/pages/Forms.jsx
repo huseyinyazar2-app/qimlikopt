@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ClipboardList, Plus, Trash, Check, HelpCircle, Edit, Eye, EyeOff } from 'lucide-react';
 import { getApiUrl } from '../config';
+import { isReadOnly } from '../utils/role';
 import EmptyState from '../components/EmptyState';
 
 export default function Forms({ user }) {
+  const readOnly = isReadOnly();
   const [forms, setForms] = useState([]);
   const [showModal, setShowModal] = useState(false);
   
@@ -133,13 +135,15 @@ export default function Forms({ user }) {
           <h1 className="gradient-text">Dinamik Kontrol Formları</h1>
           <p className="text-muted">Farklı makine tipleriniz için teknisyenlerin sahada dolduracağı özel form şablonları tasarlayın.</p>
         </div>
-        <button 
-          onClick={handleOpenNew} 
-          className="btn-primary" 
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          <Plus size={18} /> Yeni Şablon Oluştur
-        </button>
+        {!readOnly && (
+          <button
+            onClick={handleOpenNew}
+            className="btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <Plus size={18} /> Yeni Şablon Oluştur
+          </button>
+        )}
       </header>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
@@ -167,13 +171,15 @@ export default function Forms({ user }) {
                 >
                   {previewFormId === f.id ? <><EyeOff size={14}/> Gizle</> : <><Eye size={14}/> Gör</>}
                 </button>
-                <button 
-                  onClick={() => handleEdit(f)} 
-                  className="btn-outline" 
-                  style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
-                >
-                  <Edit size={14} /> Düzenle
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => handleEdit(f)}
+                    className="btn-outline"
+                    style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+                  >
+                    <Edit size={14} /> Düzenle
+                  </button>
+                )}
               </div>
 
               {previewFormId === f.id && (
@@ -215,8 +221,8 @@ export default function Forms({ user }) {
             icon={ClipboardList}
             title="Henüz form şablonu yok"
             description="Farklı makine tipleriniz için teknisyenlerin sahada dolduracağı kontrol formlarını tasarlayın. Oluşturduğunuz şablonu makinelere bağlayabilirsiniz."
-            actionLabel="Yeni Şablon Oluştur"
-            onAction={handleOpenNew}
+            actionLabel={readOnly ? undefined : 'Yeni Şablon Oluştur'}
+            onAction={readOnly ? undefined : handleOpenNew}
           />
         )}
       </div>

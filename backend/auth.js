@@ -67,10 +67,57 @@ function companyGuard(module, table) {
                 return res.status(403).json({ error: 'Hesap askıya alınmıştır.' });
             }
             req.company = company;
+            // Faz 3: rol (tier) + alt kullanıcı bilgisi. Eski (tier'sız) token'lar owner sayılır.
+            req.actor = {
+                tier: payload.tier || 'owner',
+                user_id: payload.user_id || null,
+                name: payload.name || null,
+            };
             next();
         } catch (err) {
             return res.status(500).json({ error: 'Sunucu hatası.' });
         }
+    };
+}
+
+// Rol kademeleri (büyük = daha yetkili)
+const TIER_RANK = { viewer: 0, operator: 1, manager: 2, owner: 3 };
+
+/**
+ * Minimum rol koruması. companyGuard'dan SONRA zincirlenir; req.actor.tier'a bakar.
+ * Örn: requireTier('manager') -> viewer/operator reddedilir.
+ */
+function requireTier(minTier) {
+    const min = TIER_RANK[minTier] ?? 0;
+    return (req, res, next) => {
+        const tier = req.actor?.tier || 'owner';
+        if ((TIER_RANK[tier] ?? 0) < min) {
+            return res.status(403).json({ error: 'Bu işlem için yetkiniz yok.' });
+        }
+        next();
+    };
+}
+
+/**
+ * Router seviyesinde salt-okunur koruması: 'viewer' rolündeki panel kullanıcısı
+ * yazma (GET dışı) isteği yapamaz. Public/login rotaları (token yok) etkilenmez.
+ * Router'ın en başına router.use(panelWriteGuard('mesai')) olarak takılır.
+ */
+function panelWriteGuard(module) {
+    return (req, res, next) => {
+        if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+        const token = readBearer(req);
+        if (!token) return next(); // public/login rotaları kendi doğrulamasını yapar
+        let payload;
+        try {
+            payload = jwt.verify(token, JWT_SECRET);
+        } catch (err) {
+            return next(); // geçersiz token'ı ilgili guard reddeder
+        }
+        if (payload.role === 'company' && payload.module === module && payload.tier === 'viewer') {
+            return res.status(403).json({ error: 'İzleyici rolü salt-okunurdur.' });
+        }
+        next();
     };
 }
 
@@ -105,6 +152,9 @@ module.exports = {
     signToken,
     companyGuard,
     workerGuard,
+    requireTier,
+    panelWriteGuard,
+    TIER_RANK,
     readBearer,
     JWT_SECRET,
 };

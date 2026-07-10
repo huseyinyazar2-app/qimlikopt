@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ClipboardList, Plus, AlertTriangle, Clock, Wrench, CheckCircle, Play, UserPlus, ShieldAlert, CalendarClock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getApiUrl } from '../config';
+import { isReadOnly } from '../utils/role';
 import EmptyState from '../components/EmptyState';
 
 // --- Durum & öncelik yardımcıları ---
@@ -35,6 +36,7 @@ function slaRemaining(due_at) {
 
 export default function WorkOrders({ user }) {
   const isCompany = user?.role === 'company';
+  const readOnly = isReadOnly();
   const host = getApiUrl();
   const token = user?.token;
   const authHeader = { headers: { Authorization: `Bearer ${token}` } };
@@ -202,7 +204,7 @@ export default function WorkOrders({ user }) {
             </span>
 
             {/* Firma aksiyonları */}
-            {isCompany && o.status !== 'done' && o.status !== 'cancelled' && (
+            {isCompany && !readOnly && o.status !== 'done' && o.status !== 'cancelled' && (
               <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {!o.technician_id && techs.length > 0 && (
                   <select
@@ -279,9 +281,11 @@ export default function WorkOrders({ user }) {
           <h1 className="gradient-text">İş Emirleri & SLA</h1>
           <p className="text-muted">Önleyici ve düzeltici bakım iş emirlerini yönetin, teknisyen atayın, SLA sürelerini takip edin.</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Plus size={18} /> Yeni İş Emri
-        </button>
+        {!readOnly && (
+          <button onClick={() => setShowModal(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Plus size={18} /> Yeni İş Emri
+          </button>
+        )}
       </header>
 
       {/* ÖNLEYİCİ BAKIM ADAY LİSTESİ */}
@@ -312,9 +316,11 @@ export default function WorkOrders({ user }) {
                       Sonraki bakım: <strong style={{ color: overdue ? '#ef4444' : '#b45309' }}>{m.next_due}</strong> • Periyot: {m.maintenance_interval_days} gün
                     </div>
                   </div>
-                  <button onClick={() => createPreventive(m)} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0.4rem 0.75rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                    <Plus size={14} /> Önleyici İş Emri Oluştur
-                  </button>
+                  {!readOnly && (
+                    <button onClick={() => createPreventive(m)} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0.4rem 0.75rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                      <Plus size={14} /> Önleyici İş Emri Oluştur
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -348,8 +354,8 @@ export default function WorkOrders({ user }) {
           icon={ClipboardList}
           title="Henüz iş emri yok"
           description="Yeni iş emri oluşturarak makine bakım ve arıza süreçlerini SLA takibiyle yönetmeye başlayın. Müşteri arıza taleplerini de tek tıkla düzeltici iş emrine çevirebilirsiniz."
-          actionLabel="Yeni İş Emri"
-          onAction={() => setShowModal(true)}
+          actionLabel={readOnly ? undefined : 'Yeni İş Emri'}
+          onAction={readOnly ? undefined : () => setShowModal(true)}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

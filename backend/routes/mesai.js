@@ -1,9 +1,13 @@
 const express = require('express');
 const db = require('../db');
-const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard } = require('../auth');
+const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard, requireTier, panelWriteGuard } = require('../auth');
 const { createOtp, verifyOtp } = require('../otp');
+const { mountPanelUsers } = require('../panelUsers');
 
 const router = express.Router();
+
+// Faz 3: 'viewer' rolü tüm yazma isteklerinde reddedilir (public/login etkilenmez)
+router.use(panelWriteGuard('mesai'));
 
 // --- COMPANY AUTH MIDDLEWARE ---
 const companyAuth = companyGuard('mesai', 'mesai_companies');
@@ -36,7 +40,7 @@ router.post('/company/register', async (req, res) => {
 
         const { rows } = await db.query('SELECT * FROM mesai_companies WHERE phone_number = ?', [phone_number]);
         const company = rows[0];
-        const token = signToken({ role: 'company', module: 'mesai', id: company.id });
+        const token = signToken({ role: 'company', module: 'mesai', id: company.id, tier: 'owner' });
         res.status(201).json({ message: 'Şirket başarıyla oluşturuldu.', company: sanitizeCompany(company), token });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -57,7 +61,7 @@ router.post('/company/login', async (req, res) => {
         if (!company.is_active) {
             return res.status(403).json({ error: 'Hesap askıya alınmıştır.' });
         }
-        const token = signToken({ role: 'company', module: 'mesai', id: company.id });
+        const token = signToken({ role: 'company', module: 'mesai', id: company.id, tier: 'owner' });
         res.json({ message: 'Giriş başarılı.', company: sanitizeCompany(company), token });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -65,7 +69,7 @@ router.post('/company/login', async (req, res) => {
 });
 
 // --- COMPANY SETTINGS ---
-router.put('/company/settings', companyAuth, async (req, res) => {
+router.put('/company/settings', companyAuth, requireTier('manager'), async (req, res) => {
     const { shift_type, shift_start_time, shift_end_time, tolerance_minutes, deduct_break_time } = req.body;
     try {
         await db.query(
@@ -697,7 +701,7 @@ router.get('/company/payroll-settings', companyAuth, async (req, res) => {
     });
 });
 
-router.put('/company/payroll-settings', companyAuth, async (req, res) => {
+router.put('/company/payroll-settings', companyAuth, requireTier('manager'), async (req, res) => {
     const { overtime_multiplier, weekend_multiplier, holiday_multiplier, daily_normal_hours, annual_leave_days, weekend_days } = req.body;
     try {
         await db.query(
@@ -819,6 +823,9 @@ router.get('/worker/leave-balance', employeeAuth, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// Faz 3: panel alt kullanıcı girişi + yönetimi (sahip)
+mountPanelUsers(router, { module: 'mesai', companyTable: 'mesai_companies', companyAuth });
 
 // Test amaçlı iç fonksiyon erişimi (bordro motoru doğrulaması)
 router._calculateEmployeeReport = calculateEmployeeReport;

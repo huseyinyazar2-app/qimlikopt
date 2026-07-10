@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Users, Plus, Phone, User, Pause, Play, X, Search, ShieldCheck } from 'lucide-react';
 import { getApiUrl } from '../config';
+import { isReadOnly } from '../utils/role';
 import EmptyState from '../components/EmptyState';
 
 export default function Couriers({ user }) {
+  const readOnly = isReadOnly();
   const [couriers, setCouriers] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,13 +85,15 @@ export default function Couriers({ user }) {
           <h1 className="gradient-text">Kurye Personel Yönetimi</h1>
           <p className="text-muted">Paketlerinizi zimmetleyeceğiniz kuryeleri tanımlayın ve durumlarını yönetin.</p>
         </div>
-        <button 
-          onClick={() => setShowAddModal(true)} 
-          className="btn-primary" 
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
-        >
-          <Plus size={18} /> Yeni Kurye Tanımla
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+          >
+            <Plus size={18} /> Yeni Kurye Tanımla
+          </button>
+        )}
       </header>
 
       {/* Search Bar */}
@@ -113,8 +117,8 @@ export default function Couriers({ user }) {
             icon={<Users size={40} />}
             title="Henüz kurye yok"
             description="Paketlerinizi zimmetleyebilmek için önce bir kurye personeli tanımlayın. Kurye, teslimat ekranına telefonuyla giriş yapar."
-            actionLabel="Yeni Kurye Tanımla"
-            onAction={() => setShowAddModal(true)}
+            actionLabel={readOnly ? undefined : 'Yeni Kurye Tanımla'}
+            onAction={readOnly ? undefined : () => setShowAddModal(true)}
           />
         ) : (
         <div className="table-container">
@@ -125,7 +129,7 @@ export default function Couriers({ user }) {
                 <th>Telefon</th>
                 <th>Kayıt Tarihi</th>
                 <th>Durum</th>
-                <th>İşlemler</th>
+                {!readOnly && <th>İşlemler</th>}
               </tr>
             </thead>
             <tbody>
@@ -146,21 +150,23 @@ export default function Couriers({ user }) {
                       {c.is_active ? 'Aktif' : 'Askıda'}
                     </span>
                   </td>
-                  <td>
-                    <button 
-                      onClick={() => toggleStatus(c.id, c.is_active)}
-                      className={c.is_active ? "btn-outline" : "btn-primary"}
-                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: 4, width: '100px', justifyContent: 'center' }}
-                    >
-                      {c.is_active ? <Pause size={12} /> : <Play size={12} />}
-                      {c.is_active ? 'Askıya Al' : 'Aktifleştir'}
-                    </button>
-                  </td>
+                  {!readOnly && (
+                    <td>
+                      <button
+                        onClick={() => toggleStatus(c.id, c.is_active)}
+                        className={c.is_active ? "btn-outline" : "btn-primary"}
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: 4, width: '100px', justifyContent: 'center' }}
+                      >
+                        {c.is_active ? <Pause size={12} /> : <Play size={12} />}
+                        {c.is_active ? 'Askıya Al' : 'Aktifleştir'}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filteredCouriers.length === 0 && (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '2.5rem' }} className="text-muted">Aramanızla eşleşen kurye bulunamadı.</td>
+                  <td colSpan={readOnly ? 4 : 5} style={{ textAlign: 'center', padding: '2.5rem' }} className="text-muted">Aramanızla eşleşen kurye bulunamadı.</td>
                 </tr>
               )}
             </tbody>

@@ -3,9 +3,11 @@ import axios from 'axios';
 import { Package, Plus, Clipboard, User, MapPin, Phone, Search, HelpCircle, Truck, ExternalLink, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { getApiUrl } from '../config';
+import { isReadOnly } from '../utils/role';
 import EmptyState from '../components/EmptyState';
 
 export default function Packages({ user }) {
+  const readOnly = isReadOnly();
   const [packages, setPackages] = useState([]);
   const [couriers, setCouriers] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -130,13 +132,15 @@ export default function Packages({ user }) {
           <button onClick={exportExcel} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}>
             <Download size={16} /> Excel İndir
           </button>
-          <button 
-            onClick={() => { setShowAddModal(true); generateDummyTrackingCode(); }} 
-            className="btn-primary" 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
-          >
-            <Plus size={18} /> Yeni Gönderi Oluştur
-          </button>
+          {!readOnly && (
+            <button
+              onClick={() => { setShowAddModal(true); generateDummyTrackingCode(); }}
+              className="btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+            >
+              <Plus size={18} /> Yeni Gönderi Oluştur
+            </button>
+          )}
         </div>
       </header>
 
@@ -202,10 +206,10 @@ export default function Packages({ user }) {
 
               {/* Courier Assignment and QR label code */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {p.status === 'created' && (
-                  <button 
+                {p.status === 'created' && !readOnly && (
+                  <button
                     onClick={() => { setSelectedPackId(p.id); setShowAssignModal(true); }}
-                    className="btn-primary" 
+                    className="btn-primary"
                     style={{ padding: '0.55rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
                   >
                     <Truck size={16} /> Kuryeye Zimmetle
@@ -234,8 +238,8 @@ export default function Packages({ user }) {
               icon={<Package size={40} />}
               title="Henüz paket yok"
               description="Dağıtılacak ilk gönderinizi oluşturun. Alıcı bilgilerini girdiğinizde otomatik olarak teslim QR etiketi ve takip bağlantısı üretilir."
-              actionLabel="Yeni Gönderi Oluştur"
-              onAction={() => { setShowAddModal(true); generateDummyTrackingCode(); }}
+              actionLabel={readOnly ? undefined : 'Yeni Gönderi Oluştur'}
+              onAction={readOnly ? undefined : () => { setShowAddModal(true); generateDummyTrackingCode(); }}
             />
           </div>
         )}

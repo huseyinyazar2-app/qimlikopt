@@ -1,18 +1,24 @@
 import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { KeyRound, Phone, Building2, User, QrCode, MessageSquare, Clock, ShieldCheck } from 'lucide-react';
+import { KeyRound, Phone, Building2, User, QrCode, MessageSquare, Clock, ShieldCheck, Mail } from 'lucide-react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { getApiUrl } from '../config';
 
 export default function Login({ onLogin }) {
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'employee' ? 'employee_login' : 'company_login';
-  const [activeTab, setActiveTab] = useState(initialTab); // 'company_login', 'employee_login'
-  
+  const initialTab = searchParams.get('tab') === 'employee'
+    ? 'field_login'
+    : searchParams.get('tab') === 'staff'
+      ? 'staff_login'
+      : 'company_login';
+  // 'company_login' (Yönetici/telefon), 'staff_login' (Personel/e-posta), 'field_login' (Saha personeli/WhatsApp)
+  const [activeTab, setActiveTab] = useState(initialTab);
+
   // Form states
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -68,9 +74,23 @@ export default function Login({ onLogin }) {
 
     try {
       if (activeTab === 'company_login') {
+        // Yönetici (sahip) girişi — telefon + şifre. Örtük owner rolü.
         const res = await axios.post(`${host}/api/mesai/company/login`, { phone_number: phone, password });
-        onLogin({ ...res.data.company, token: res.data.token, role: 'company' });
-      } else if (activeTab === 'employee_login') {
+        onLogin({ ...res.data.company, token: res.data.token, role: 'company', mesaiRole: 'owner' });
+      } else if (activeTab === 'staff_login') {
+        // Personel (alt kullanıcı) girişi — e-posta + şifre. Rol yanıttan gelir.
+        const res = await axios.post(`${host}/api/mesai/company/users/login`, { email, password });
+        onLogin({
+          ...res.data.company,
+          token: res.data.token,
+          role: 'company',
+          mesaiRole: res.data.user?.role,
+          user_id: res.data.user?.id,
+          user_name: res.data.user?.name,
+          user_email: res.data.user?.email,
+        });
+      } else if (activeTab === 'field_login') {
+        // Saha personeli — WhatsApp ters-OTP akışı.
         const res = await axios.post(`${host}/api/mesai/employee/login/request`, { phone_number: phone });
         setVerifyDetails(res.data);
         setEmpStatus('waiting');
@@ -108,19 +128,26 @@ export default function Login({ onLogin }) {
         {/* Tab Selection */}
         {empStatus !== 'waiting' && (
           <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.3)', padding: 4, borderRadius: 8, marginBottom: '1.5rem' }}>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => { setActiveTab('company_login'); }}
-              style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'company_login' ? 'var(--brand-gradient)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+              style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'company_login' ? 'var(--brand-gradient)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
             >
-              Firma Girişi
+              Yönetici
             </button>
-            <button 
-              type="button" 
-              onClick={() => { setActiveTab('employee_login'); }}
-              style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'employee_login' ? 'var(--brand-gradient)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+            <button
+              type="button"
+              onClick={() => { setActiveTab('staff_login'); }}
+              style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'staff_login' ? 'var(--brand-gradient)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
             >
-              Personel Girişi
+              Personel
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab('field_login'); }}
+              style={{ flex: 1, padding: '0.6rem 0.2rem', borderRadius: 6, border: 'none', background: activeTab === 'field_login' ? 'var(--brand-gradient)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+            >
+              Saha
             </button>
           </div>
         )}
@@ -175,31 +202,50 @@ export default function Login({ onLogin }) {
         ) : (
           /* Normal logins */
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>
-                {activeTab === 'employee_login' ? 'Personel Telefon Numarası' : 'Firma Telefon Numarası'}
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Phone size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input 
-                  type="text" 
-                  required 
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="Örn: +905XXXXXXXXX"
-                  style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none' }}
-                />
+            {activeTab === 'staff_login' ? (
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>
+                  E-posta Adresi
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="ornek@firma.com"
+                    style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none' }}
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>
+                  {activeTab === 'field_login' ? 'Personel Telefon Numarası' : 'Firma Telefon Numarası'}
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Phone size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    required
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder="Örn: +905XXXXXXXXX"
+                    style={{ width: '100%', padding: '0.85rem 0.85rem 0.85rem 2.5rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: 8, outline: 'none' }}
+                  />
+                </div>
+              </div>
+            )}
 
-            {activeTab !== 'employee_login' && (
+            {activeTab !== 'field_login' && (
               <div>
                 <label className="text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>Şifre</label>
                 <div style={{ position: 'relative' }}>
                   <KeyRound size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input 
-                    type="password" 
-                    required 
+                  <input
+                    type="password"
+                    required
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
@@ -210,8 +256,14 @@ export default function Login({ onLogin }) {
             )}
 
             <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '0.5rem', padding: '0.85rem' }}>
-              {loading ? 'İşlem yapılıyor...' : activeTab === 'employee_login' ? 'WhatsApp ile Giriş İste' : 'Giriş Yap'}
+              {loading ? 'İşlem yapılıyor...' : activeTab === 'field_login' ? 'WhatsApp ile Giriş İste' : 'Giriş Yap'}
             </button>
+
+            {activeTab === 'staff_login' && (
+              <p className="text-muted" style={{ textAlign: 'center', fontSize: '0.8rem', margin: 0 }}>
+                Personel hesapları firma sahibi tarafından oluşturulur.
+              </p>
+            )}
 
             {activeTab === 'company_login' && (
               <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.9rem' }}>

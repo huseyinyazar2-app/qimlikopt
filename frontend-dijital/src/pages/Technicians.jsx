@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Users, Plus, Phone, User, CheckCircle, Pause, Play } from 'lucide-react';
 import { getApiUrl } from '../config';
+import { isReadOnly } from '../utils/role';
 import EmptyState from '../components/EmptyState';
 
 export default function Technicians({ user }) {
+  const readOnly = isReadOnly();
   const [techs, setTechs] = useState([]);
   const [showModal, setShowModal] = useState(false);
   
@@ -76,13 +78,15 @@ export default function Technicians({ user }) {
           <h1 className="gradient-text">Teknisyen Yönetimi</h1>
           <p className="text-muted">Sahada makine bakımı yapacak yetkili teknik personellerinizi yönetin.</p>
         </div>
-        <button 
-          onClick={() => setShowModal(true)} 
-          className="btn-primary" 
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          <Plus size={18} /> Yeni Teknisyen
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <Plus size={18} /> Yeni Teknisyen
+          </button>
+        )}
       </header>
 
       {techs.length === 0 ? (
@@ -90,8 +94,8 @@ export default function Technicians({ user }) {
           icon={Users}
           title="Henüz teknisyen yok"
           description="Sahada makine bakımı yapacak teknik personelinizi ekleyin. Teknisyenler telefon numarasıyla WhatsApp üzerinden giriş yapıp QR okutarak servis verir."
-          actionLabel="Yeni Teknisyen"
-          onAction={() => setShowModal(true)}
+          actionLabel={readOnly ? undefined : 'Yeni Teknisyen'}
+          onAction={readOnly ? undefined : () => setShowModal(true)}
         />
       ) : (
         <div className="glass-card">
@@ -118,13 +122,17 @@ export default function Technicians({ user }) {
                       </span>
                     </td>
                     <td>
-                      <button
-                        onClick={() => toggleStatus(t.id, t.is_active)}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: 4 }}
-                        title={t.is_active ? "Askıya Al" : "Aktifleştir"}
-                      >
-                        {t.is_active ? <Pause size={18} /> : <Play size={18} />}
-                      </button>
+                      {readOnly ? (
+                        <span className="text-muted">-</span>
+                      ) : (
+                        <button
+                          onClick={() => toggleStatus(t.id, t.is_active)}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: 4 }}
+                          title={t.is_active ? "Askıya Al" : "Aktifleştir"}
+                        >
+                          {t.is_active ? <Pause size={18} /> : <Play size={18} />}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
