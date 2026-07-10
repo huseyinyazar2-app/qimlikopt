@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import ScrollManager from './components/ScrollManager';
 import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import Verify from './pages/Verify';
 import ProductPage from './pages/ProductPage';
 import Pricing from './pages/Pricing';
@@ -19,6 +21,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
+          <Route path="giris" element={<Login />} />
+          <Route path="kayit" element={<Register />} />
           <Route path="urunler/:slug" element={<ProductPage />} />
           <Route path="fiyatlandirma" element={<Pricing />} />
           <Route path="hakkimizda" element={<About />} />

@@ -121,7 +121,7 @@ export default function Pricing() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      EN ÇOK TERCİH EDİLEN
+                      ÖNERİLEN
                     </div>
                   )}
 

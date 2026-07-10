@@ -1,6 +1,7 @@
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { ShieldCheck, MapPin, Truck, QrCode, Check, ArrowRight } from 'lucide-react';
 import PageHero from '../components/PageHero';
+import ProductMock from '../components/ProductMock';
 import { getProduct, PRODUCTS } from '../data/products';
 
 const ICONS = { ShieldCheck, MapPin, Truck, QrCode };
@@ -26,6 +27,15 @@ export default function ProductPage() {
         subtitle={product.short}
         accent={product.color}
       />
+
+      {/* Panel onizleme */}
+      <section style={{ padding: '2.5rem 0 0.5rem' }}>
+        <div className="container" style={{ maxWidth: 660, margin: '0 auto' }}>
+          <div className="glass-card" style={{ padding: '1rem', border: `1px solid ${hexToRgba(product.color, 0.18)}` }}>
+            <ProductMock type={product.slug} />
+          </div>
+        </div>
+      </section>
 
       {/* Sorun / Çözüm */}
       <section style={{ padding: '4rem 0' }}>
@@ -90,7 +100,7 @@ export default function ProductPage() {
           <p className="text-muted" style={{ fontSize: '1.1rem', marginBottom: '2rem' }}>Size özel demo ve teklif için birkaç dakikada bize ulaşın.</p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/iletisim" className="btn btn-primary" style={{ textDecoration: 'none' }}>Teklif Al</Link>
-            <Link to="/#kayit" className="btn btn-outline" style={{ textDecoration: 'none' }}>Hemen Başla</Link>
+            <Link to="/kayit" className="btn btn-outline" style={{ textDecoration: 'none' }}>Hemen Başla</Link>
           </div>
         </div>
       </section>

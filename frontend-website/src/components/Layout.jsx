@@ -36,8 +36,8 @@ export default function Layout() {
             <NavLink to="/fiyatlandirma" className="nav-link">Fiyatlandırma</NavLink>
             <NavLink to="/hakkimizda" className="nav-link">Hakkımızda</NavLink>
             <NavLink to="/iletisim" className="nav-link">İletişim</NavLink>
-            <Link to="/#giris" className="nav-link">Giriş Yap</Link>
-            <Link to="/#kayit" className="btn btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem', textDecoration: 'none' }}>Hemen Başla</Link>
+            <NavLink to="/giris" className="nav-link">Giriş Yap</NavLink>
+            <Link to="/kayit" className="btn btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem', textDecoration: 'none' }}>Hemen Başla</Link>
           </div>
 
           <button className="nav-mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menü">
@@ -55,8 +55,8 @@ export default function Layout() {
             <Link to="/fiyatlandirma" className="nav-mobile-link" onClick={close}>Fiyatlandırma</Link>
             <Link to="/hakkimizda" className="nav-mobile-link" onClick={close}>Hakkımızda</Link>
             <Link to="/iletisim" className="nav-mobile-link" onClick={close}>İletişim</Link>
-            <Link to="/#giris" className="nav-mobile-link" onClick={close}>Giriş Yap</Link>
-            <Link to="/#kayit" className="btn btn-primary" style={{ textDecoration: 'none', marginTop: '0.5rem' }} onClick={close}>Hemen Başla</Link>
+            <Link to="/giris" className="nav-mobile-link" onClick={close}>Giriş Yap</Link>
+            <Link to="/kayit" className="btn btn-primary" style={{ textDecoration: 'none', marginTop: '0.5rem' }} onClick={close}>Hemen Başla</Link>
           </div>
         )}
       </nav>
