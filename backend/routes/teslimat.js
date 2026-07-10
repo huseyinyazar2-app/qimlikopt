@@ -315,8 +315,8 @@ router.post('/deliver/confirm', courierAuth, async (req, res) => {
         }
 
         await db.query(
-            "INSERT INTO teslimat_logs (package_id, log_type, gps_latitude, gps_longitude, recipient_signature_base64) VALUES (?, ?, ?, ?, ?)",
-            [package_id, logType, parseFloat(gps_latitude), parseFloat(gps_longitude), recipient_signature_base64 || null]
+            "INSERT INTO teslimat_logs (package_id, courier_id, log_type, gps_latitude, gps_longitude, recipient_signature_base64) VALUES (?, ?, ?, ?, ?, ?)",
+            [package_id, req.worker.id, logType, parseFloat(gps_latitude), parseFloat(gps_longitude), recipient_signature_base64 || null]
         );
 
         res.json({ message: msg });
@@ -455,8 +455,8 @@ router.post('/courier/packages/:id/fail', courierAuth, async (req, res) => {
         );
 
         await db.query(
-            "INSERT INTO teslimat_logs (package_id, log_type, gps_latitude, gps_longitude) VALUES (?, 'delivery_failed', ?, ?)",
-            [id, parseFloat(gps_latitude), parseFloat(gps_longitude)]
+            "INSERT INTO teslimat_logs (package_id, courier_id, log_type, gps_latitude, gps_longitude) VALUES (?, ?, 'delivery_failed', ?, ?)",
+            [id, req.worker.id, parseFloat(gps_latitude), parseFloat(gps_longitude)]
         );
 
         // Firmaya bildirim (başarısız teslim). Her deneme ayrı bildirim (dedup: attempt no).
@@ -595,6 +595,78 @@ router.get('/company/courier-scorecard', companyAuth, async (req, res) => {
         });
 
         res.json(scorecard);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- FAZ 5: HARİTA & KONUM ---
+// Seçilen gündeki teslimat hareketleri, kurye bazında kronolojik rota olarak döner.
+// Kurye, olay anında yazılan courier_id'den alınır; eski kayıtlarda paketin güncel kuryesine düşülür.
+router.get('/company/map/data', companyAuth, async (req, res) => {
+    const cid = req.company.id;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : null;
+    try {
+        const params = [cid];
+        let dateFilter = "date(l.created_at) = date('now')";
+        if (date) {
+            dateFilter = 'date(l.created_at) = ?';
+            params.push(date);
+        }
+
+        const { rows } = await db.query(
+            `SELECT l.id, l.log_type, l.gps_latitude, l.gps_longitude, l.created_at,
+                    p.id AS package_id, p.package_code, p.recipient_name, p.delivery_address,
+                    COALESCE(l.courier_id, p.courier_id) AS courier_id,
+                    c.name AS courier_name, c.surname AS courier_surname,
+                    (SELECT a.reason FROM teslimat_delivery_attempts a
+                      WHERE a.package_id = l.package_id AND a.created_at <= l.created_at
+                      ORDER BY a.created_at DESC, a.id DESC LIMIT 1) AS fail_reason
+             FROM teslimat_logs l
+             JOIN teslimat_packages p ON l.package_id = p.id
+             LEFT JOIN teslimat_couriers c ON c.id = COALESCE(l.courier_id, p.courier_id)
+             WHERE p.company_id = ? AND ${dateFilter}
+             ORDER BY l.created_at ASC
+             LIMIT 2000`,
+            params
+        );
+
+        // Kurye bazında grupla — her grubun noktaları zaten kronolojik.
+        const byCourier = new Map();
+        for (const r of rows) {
+            const key = r.courier_id == null ? 'unassigned' : String(r.courier_id);
+            if (!byCourier.has(key)) {
+                byCourier.set(key, {
+                    courier_id: r.courier_id ?? null,
+                    courier_name: r.courier_id ? `${r.courier_name || ''} ${r.courier_surname || ''}`.trim() : 'Atanmamış',
+                    points: [],
+                });
+            }
+            byCourier.get(key).points.push({
+                id: r.id,
+                package_id: r.package_id,
+                package_code: r.package_code,
+                recipient_name: r.recipient_name,
+                delivery_address: r.delivery_address,
+                log_type: r.log_type,
+                fail_reason: r.log_type === 'delivery_failed' ? r.fail_reason : null,
+                latitude: r.gps_latitude,
+                longitude: r.gps_longitude,
+                created_at: r.created_at,
+            });
+        }
+
+        const routes = [...byCourier.values()];
+        res.json({
+            date: date || null,
+            routes,
+            summary: {
+                couriers: routes.length,
+                points: rows.length,
+                delivered: rows.filter(r => r.log_type === 'delivered_success').length,
+                failed: rows.filter(r => r.log_type === 'delivery_failed').length,
+            },
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

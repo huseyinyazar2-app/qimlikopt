@@ -60,6 +60,11 @@ async function runMigrations() {
     await addColumn('mesai_employees', 'annual_leave_days', 'INTEGER'); // NULL = şirket varsayılanı
     await addColumn('mesai_employees', 'hire_date', 'DATE');
 
+    // Faz 5: teslimat hareketini olayın gerçekleştiği andaki kuryeye sabitle.
+    // Paket başka kuryeye devredilince geçmiş rota yanlış kuryeye kaymasın diye.
+    // Eski satırlarda NULL kalır; okumada paketin güncel kuryesine düşülür.
+    await addColumn('teslimat_logs', 'courier_id', 'INTEGER REFERENCES teslimat_couriers(id)');
+
     // Resmi tatilleri tohumla (yalnızca bir kez; global = company_id NULL)
     await seedHolidays();
 }

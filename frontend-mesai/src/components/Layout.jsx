@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Settings, Calculator, UserCog, Eye } from 'lucide-react';
+import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Settings, Calculator, UserCog, Eye, Map } from 'lucide-react';
 import { getRole, ROLE_LABELS, ROLE_COLORS, canSeeSettings, canSeePayroll, canManageUsers, isReadOnly } from '../utils/role';
 import NotificationBell from './NotificationBell';
 
@@ -11,6 +11,7 @@ export default function Layout({ user, onLogout }) {
   const companyMenuItems = [
     { path: '/dashboard', name: 'Şantiyeler', icon: <MapPin size={20} />, show: true },
     { path: '/employees', name: 'Çalışanlar', icon: <Users size={20} />, show: true },
+    { path: '/harita', name: 'Saha Haritası', icon: <Map size={20} />, show: true },
     { path: '/bordro', name: 'Bordro', icon: <Calculator size={20} />, show: canSeePayroll(role) },
     { path: '/logs', name: 'Mesai Kayıtları', icon: <FileText size={20} />, show: true },
     { path: '/settings', name: 'Ayarlar', icon: <Settings size={20} />, show: canSeeSettings(role) },

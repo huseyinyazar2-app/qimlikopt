@@ -163,12 +163,41 @@ router.post('/locations', companyAuth, async (req, res) => {
     }
 });
 
+// Kısmi güncelleme: yalnızca gönderilen alanlar değişir.
+// (Faz 5: harita üzerinden pin sürükleyerek koordinat/yarıçap düzeltilebilsin diye genişletildi.)
 router.put('/locations/:id', companyAuth, async (req, res) => {
     const { id } = req.params;
-    const { shift_start_time, shift_end_time } = req.body;
+    const { location_name, latitude, longitude, allowed_radius, shift_start_time, shift_end_time } = req.body;
+
+    const sets = [];
+    const params = [];
+    const push = (col, val) => { sets.push(`${col} = ?`); params.push(val); };
+
+    if (location_name !== undefined) push('location_name', location_name);
+    if (latitude !== undefined) {
+        const lat = parseFloat(latitude);
+        if (isNaN(lat) || lat < -90 || lat > 90) return res.status(400).json({ error: 'Geçersiz enlem.' });
+        push('latitude', lat);
+    }
+    if (longitude !== undefined) {
+        const lng = parseFloat(longitude);
+        if (isNaN(lng) || lng < -180 || lng > 180) return res.status(400).json({ error: 'Geçersiz boylam.' });
+        push('longitude', lng);
+    }
+    if (allowed_radius !== undefined) {
+        const r = parseInt(allowed_radius, 10);
+        if (isNaN(r) || r < 5 || r > 100000) return res.status(400).json({ error: 'Yarıçap 5 ile 100000 metre arasında olmalı.' });
+        push('allowed_radius', r);
+    }
+    if (shift_start_time !== undefined) push('shift_start_time', shift_start_time);
+    if (shift_end_time !== undefined) push('shift_end_time', shift_end_time);
+
+    if (sets.length === 0) return res.status(400).json({ error: 'Güncellenecek alan gönderilmedi.' });
+
+    params.push(id, req.company.id);
     try {
-        await db.query('UPDATE mesai_locations SET shift_start_time = ?, shift_end_time = ? WHERE id = ? AND company_id = ?', [shift_start_time, shift_end_time, id, req.company.id]);
-        res.json({ message: 'Lokasyon mesai saatleri güncellendi.' });
+        await db.query(`UPDATE mesai_locations SET ${sets.join(', ')} WHERE id = ? AND company_id = ?`, params);
+        res.json({ message: 'Çalışma alanı güncellendi.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -832,6 +861,60 @@ router.get('/worker/leave-balance', employeeAuth, async (req, res) => {
     try {
         const balance = await computeLeaveBalance(req.worker.id);
         res.json(balance);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- FAZ 5: HARİTA & KONUM ---
+// Şantiyeler (merkez + tolerans yarıçapı) ve seçilen günün giriş/çıkış noktaları.
+// outside=true ise personel yarıçapın dışında okutmuş demektir.
+router.get('/company/map/data', companyAuth, async (req, res) => {
+    const cid = req.company.id;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : null;
+    try {
+        const { rows: locations } = await db.query(
+            'SELECT id, location_name, latitude, longitude, allowed_radius FROM mesai_locations WHERE company_id = ? ORDER BY location_name ASC',
+            [cid]
+        );
+
+        const params = [cid];
+        let dateFilter = "date(l.created_at) = date('now')";
+        if (date) {
+            dateFilter = 'date(l.created_at) = ?';
+            params.push(date);
+        }
+
+        const { rows: raw } = await db.query(
+            `SELECT l.id, l.employee_id, e.name || ' ' || e.surname AS employee_name,
+                    l.location_id, loc.location_name, loc.allowed_radius,
+                    l.log_type, l.gps_latitude, l.gps_longitude, l.calculated_distance, l.created_at
+             FROM mesai_logs l
+             JOIN mesai_employees e ON l.employee_id = e.id
+             JOIN mesai_locations loc ON l.location_id = loc.id
+             WHERE e.company_id = ? AND ${dateFilter}
+             ORDER BY l.created_at ASC
+             LIMIT 2000`,
+            params
+        );
+
+        const checkins = raw.map(r => ({
+            ...r,
+            latitude: r.gps_latitude,
+            longitude: r.gps_longitude,
+            outside: Number(r.calculated_distance) > Number(r.allowed_radius),
+        }));
+
+        res.json({
+            date: date || null,
+            locations,
+            checkins,
+            summary: {
+                locations: locations.length,
+                checkins: checkins.length,
+                outside: checkins.filter(c => c.outside).length,
+            },
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

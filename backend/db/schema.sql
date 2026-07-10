@@ -267,6 +267,7 @@ CREATE TABLE IF NOT EXISTS teslimat_packages (
 CREATE TABLE IF NOT EXISTS teslimat_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     package_id INTEGER REFERENCES teslimat_packages(id),
+    courier_id INTEGER REFERENCES teslimat_couriers(id), -- olay anindaki kurye (rota gecmisi icin)
     log_type VARCHAR(50) NOT NULL, -- 'picked_up', 'delivered_success', 'delivery_failed'
     gps_latitude REAL NOT NULL,
     gps_longitude REAL NOT NULL,

@@ -9,6 +9,7 @@ import Couriers from './pages/Couriers';
 import Packages from './pages/Packages';
 import FailedDeliveries from './pages/FailedDeliveries';
 import Scorecard from './pages/Scorecard';
+import RouteMap from './pages/RouteMap';
 import Users from './pages/Users';
 import DeliverPage from './pages/DeliverPage';
 import TrackPage from './pages/TrackPage';
@@ -65,6 +66,7 @@ function App() {
             <Route path="packages" element={user.role === 'company' ? <Packages user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="basarisiz" element={user.role === 'company' ? <FailedDeliveries user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="karne" element={user.role === 'company' ? <Scorecard user={user} /> : <Navigate to="/dashboard" />} />
+            <Route path="harita" element={user.role === 'company' ? <RouteMap user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="kullanicilar" element={user.role === 'company' && isOwner() ? <Users user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>

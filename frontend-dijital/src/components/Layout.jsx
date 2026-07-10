@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, ClipboardList, Users, Wrench, LogOut, ClipboardCheck, ShieldUser, Eye } from 'lucide-react';
+import { LayoutDashboard, FileText, ClipboardList, Users, Wrench, LogOut, ClipboardCheck, ShieldUser, Eye, Map } from 'lucide-react';
 import { getRole, isOwner, isReadOnly, ROLE_LABELS, ROLE_BADGE } from '../utils/role';
 import NotificationBell from './NotificationBell';
 
@@ -14,6 +14,7 @@ export default function Layout({ user, onLogout }) {
     { path: '/forms', name: 'Kontrol Formları', icon: <ClipboardList size={20} /> },
     { path: '/technicians', name: 'Teknisyenler', icon: <Users size={20} /> },
     { path: '/is-emirleri', name: 'İş Emirleri', icon: <ClipboardCheck size={20} /> },
+    { path: '/harita', name: 'Makine Haritası', icon: <Map size={20} /> },
     { path: '/logs', name: 'Bakım Kayıtları', icon: <FileText size={20} /> },
     // Kullanıcılar yönetimi sadece sahip (owner) için.
     ...(owner ? [{ path: '/kullanicilar', name: 'Kullanıcılar', icon: <ShieldUser size={20} /> }] : []),

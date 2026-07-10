@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../config';
-import { MapPin, Plus, Map, Info, Compass, HelpCircle } from 'lucide-react';
+import { MapPin, Plus, Map, Info, Compass, HelpCircle, Crosshair } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import { Marker, Circle } from 'react-leaflet';
+import MapView from '../components/MapView';
+import { pinIcon } from '../utils/mapIcons';
 
 export default function Locations({ user }) {
   const [locations, setLocations] = useState([]);
@@ -17,6 +20,7 @@ export default function Locations({ user }) {
   const [shiftEnd, setShiftEnd] = useState('18:00');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   const host = getApiUrl();
   const token = user?.token;
@@ -80,6 +84,30 @@ export default function Locations({ user }) {
     setLatitude('39.92077');
     setLongitude('32.85411');
   };
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      setError('Tarayıcınız konum servisini desteklemiyor.');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setLatitude(pos.coords.latitude.toFixed(6));
+        setLongitude(pos.coords.longitude.toFixed(6));
+        setLocating(false);
+      },
+      () => {
+        setError('Konum alınamadı. Tarayıcı izinlerini kontrol edin.');
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const pickedLat = parseFloat(latitude);
+  const pickedLng = parseFloat(longitude);
+  const hasPick = !isNaN(pickedLat) && !isNaN(pickedLng);
 
   return (
     <div>
@@ -147,8 +175,8 @@ export default function Locations({ user }) {
       </div>
 
       {showModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="glass-card" style={{ width: 450 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem', overflowY: 'auto' }}>
+          <div className="glass-card" style={{ width: 520, maxHeight: '92vh', overflowY: 'auto' }}>
             <h2 style={{ marginBottom: '0.5rem' }}>Yeni Lokasyon Tanımla</h2>
             <p className="text-muted" style={{ fontSize: '0.8rem', marginBottom: '1.5rem' }}>Personelinizin sadece bu sınırlar içinde check-in yapmasına izin verilir.</p>
 
@@ -164,6 +192,30 @@ export default function Locations({ user }) {
                 <input required style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="Örn: Kadıköy Şantiyesi veya A Ofisi" />
               </div>
 
+              <div>
+                <label className="text-muted" style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem' }}>
+                  Haritadan Seç <span style={{ opacity: 0.7 }}>— haritaya tıklayarak şantiyenin merkezini işaretleyin</span>
+                </label>
+                <MapView
+                  height={240}
+                  center={hasPick ? [pickedLat, pickedLng] : undefined}
+                  zoom={hasPick ? 16 : undefined}
+                  fitPoints={hasPick ? [[pickedLat, pickedLng]] : undefined}
+                  onPick={(lat, lng) => { setLatitude(lat.toFixed(6)); setLongitude(lng.toFixed(6)); }}
+                >
+                  {hasPick && (
+                    <>
+                      <Circle
+                        center={[pickedLat, pickedLng]}
+                        radius={parseInt(radius) || 50}
+                        pathOptions={{ color: '#6366f1', fillColor: '#6366f1', fillOpacity: 0.15, weight: 1.5 }}
+                      />
+                      <Marker position={[pickedLat, pickedLng]} icon={pinIcon('#6366f1')} />
+                    </>
+                  )}
+                </MapView>
+              </div>
+
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <div style={{ flex: 1 }}>
                   <label className="text-muted" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>Enlem (Latitude)</label>
@@ -175,9 +227,12 @@ export default function Locations({ user }) {
                 </div>
               </div>
 
-              <div style={{ textAlign: 'right', marginTop: -5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', marginTop: -5 }}>
+                <button type="button" onClick={useMyLocation} disabled={locating} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: 'none', fontSize: '0.75rem', cursor: 'pointer', color: 'var(--brand-primary)', padding: 0 }}>
+                  <Crosshair size={13} /> {locating ? 'Konum alınıyor…' : 'Bulunduğum Konumu Kullan'}
+                </button>
                 <button type="button" onClick={fillDummyCoordinates} className="text-muted" style={{ background: 'transparent', border: 'none', fontSize: '0.75rem', cursor: 'pointer', color: 'var(--brand-primary)' }}>
-                  Örnek Koordinatları Doldur (Ankara Merkez)
+                  Örnek Koordinat (Ankara Merkez)
                 </button>
               </div>
 

@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Package, Truck, AlertTriangle, Award, Eye, UserCog } from 'lucide-react';
+import { LayoutDashboard, FileText, MapPin, Users, CalendarDays, LogOut, Package, Truck, AlertTriangle, Award, Eye, UserCog, Map } from 'lucide-react';
 import { getRole, isOwner, isReadOnly, roleLabel } from '../utils/role';
 import NotificationCenter from './NotificationCenter';
 
@@ -15,6 +15,7 @@ export default function Layout({ user, onLogout }) {
     { path: '/packages', name: 'Paket Yönetimi', icon: <Package size={20} /> },
     { path: '/basarisiz', name: 'Başarısız Teslimler', icon: <AlertTriangle size={20} /> },
     { path: '/karne', name: 'Kurye Karnesi', icon: <Award size={20} /> },
+    { path: '/harita', name: 'Rota Haritası', icon: <Map size={20} /> },
     // Kullanıcı yönetimi sadece firma sahibine görünür
     ...(owner ? [{ path: '/kullanicilar', name: 'Kullanıcılar', icon: <UserCog size={20} /> }] : []),
   ];

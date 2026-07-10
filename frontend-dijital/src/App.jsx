@@ -10,6 +10,7 @@ import Forms from './pages/Forms';
 import Technicians from './pages/Technicians';
 import WorkOrders from './pages/WorkOrders';
 import Users from './pages/Users';
+import MachineMap from './pages/MachineMap';
 import PublicMachine from './pages/PublicMachine';
 import { isOwner, clearRole } from './utils/role';
 
@@ -50,6 +51,7 @@ function App() {
             <Route path="technicians" element={user.role === 'company' ? <Technicians user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="kullanicilar" element={user.role === 'company' && isOwner() ? <Users user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="is-emirleri" element={<WorkOrders user={user} />} />
+            <Route path="harita" element={user.role === 'company' ? <MachineMap user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="logs" element={<Logs user={user} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>

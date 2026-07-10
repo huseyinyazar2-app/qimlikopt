@@ -801,6 +801,103 @@ router.put('/technician/work-orders/:id/status', technicianAuth, async (req, res
     }
 });
 
+// --- FAZ 5: HARİTA & KONUM ---
+// Makine konumları (durum + bakım gecikmesi) ve son N gündeki bakım noktaları.
+router.get('/company/map/data', companyAuth, async (req, res) => {
+    const cid = req.company.id;
+    let days = parseInt(req.query.days, 10);
+    if (isNaN(days) || days < 1 || days > 365) days = 7;
+    try {
+        const { rows: machines } = await db.query(
+            `SELECT m.id, m.machine_code, m.machine_name, m.location, m.status,
+                    m.gps_latitude, m.gps_longitude, m.allowed_radius, m.require_location_match,
+                    m.maintenance_interval_days, m.last_maintenance_date,
+                    CASE WHEN m.maintenance_interval_days IS NULL OR m.last_maintenance_date IS NULL THEN NULL
+                         ELSE date(m.last_maintenance_date, '+' || m.maintenance_interval_days || ' days')
+                    END AS next_maintenance_date,
+                    (SELECT COUNT(*) FROM dijital_work_orders w
+                      WHERE w.machine_id = m.id AND w.status NOT IN ('done','cancelled')) AS open_orders,
+                    (SELECT COUNT(*) FROM dijital_work_orders w
+                      WHERE w.machine_id = m.id AND w.status NOT IN ('done','cancelled')
+                        AND w.due_at IS NOT NULL AND w.due_at < datetime('now')) AS overdue_orders
+             FROM dijital_machines m
+             WHERE m.company_id = ?
+             ORDER BY m.machine_name ASC`,
+            [cid]
+        );
+
+        const located = machines.filter(m => m.gps_latitude != null && m.gps_longitude != null);
+
+        const { rows: maintenance } = await db.query(
+            `SELECT ml.id, ml.machine_id, m.machine_name, m.machine_code,
+                    t.name || ' ' || t.surname AS technician_name,
+                    ml.technician_latitude AS latitude, ml.technician_longitude AS longitude,
+                    ml.calculated_distance, ml.status_after, ml.created_at
+             FROM dijital_maintenance_logs ml
+             JOIN dijital_machines m ON ml.machine_id = m.id
+             LEFT JOIN dijital_technicians t ON ml.technician_id = t.id
+             WHERE m.company_id = ?
+               AND ml.technician_latitude IS NOT NULL AND ml.technician_longitude IS NOT NULL
+               AND ml.created_at >= datetime('now', '-' || ? || ' days')
+             ORDER BY ml.created_at ASC
+             LIMIT 1000`,
+            [cid, days]
+        );
+
+        const withFlags = located.map(m => ({
+            ...m,
+            maintenance_overdue: m.next_maintenance_date ? m.next_maintenance_date < new Date().toISOString().slice(0, 10) : false,
+        }));
+
+        res.json({
+            days,
+            machines: withFlags,
+            maintenance,
+            summary: {
+                total_machines: machines.length,
+                located: located.length,
+                unlocated: machines.length - located.length,
+                maintenance_points: maintenance.length,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Makine konumunu haritadan güncelle (pin sürükleme / harita tıklaması)
+router.put('/machines/:id/location', companyAuth, async (req, res) => {
+    const { id } = req.params;
+    const { gps_latitude, gps_longitude, allowed_radius, require_location_match } = req.body;
+
+    const lat = parseFloat(gps_latitude);
+    const lng = parseFloat(gps_longitude);
+    if (isNaN(lat) || lat < -90 || lat > 90) return res.status(400).json({ error: 'Geçersiz enlem.' });
+    if (isNaN(lng) || lng < -180 || lng > 180) return res.status(400).json({ error: 'Geçersiz boylam.' });
+
+    const sets = ['gps_latitude = ?', 'gps_longitude = ?'];
+    const params = [lat, lng];
+
+    if (allowed_radius !== undefined) {
+        const r = parseInt(allowed_radius, 10);
+        if (isNaN(r) || r < 5 || r > 100000) return res.status(400).json({ error: 'Yarıçap 5 ile 100000 metre arasında olmalı.' });
+        sets.push('allowed_radius = ?');
+        params.push(r);
+    }
+    if (require_location_match !== undefined) {
+        sets.push('require_location_match = ?');
+        params.push(require_location_match ? 1 : 0);
+    }
+
+    params.push(id, req.company.id);
+    try {
+        await db.query(`UPDATE dijital_machines SET ${sets.join(', ')} WHERE id = ? AND company_id = ?`, params);
+        res.json({ message: 'Makine konumu güncellendi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Faz 3: panel alt kullanıcı girişi + yönetimi (sahip)
 mountPanelUsers(router, { module: 'dijital', companyTable: 'dijital_companies', companyAuth });
 // Faz 4: bildirim merkezi uçları

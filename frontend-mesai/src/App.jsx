@@ -12,6 +12,7 @@ import CheckPage from './pages/CheckPage';
 import Settings from './pages/Settings';
 import Payroll from './pages/Payroll';
 import Users from './pages/Users';
+import MapPage from './pages/MapPage';
 import { setRole, clearRole, canSeeSettings, canSeePayroll, canManageUsers } from './utils/role';
 
 function App() {
@@ -54,6 +55,7 @@ function App() {
             <Route path="dashboard" element={<Dashboard user={user} />} />
             <Route path="locations" element={user.role === 'company' ? <Locations user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="employees" element={user.role === 'company' ? <Employees user={user} /> : <Navigate to="/dashboard" />} />
+            <Route path="harita" element={user.role === 'company' ? <MapPage user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="bordro" element={user.role === 'company' && canSeePayroll() ? <Payroll user={user} /> : <Navigate to="/dashboard" />} />
             <Route path="logs" element={<Logs user={user} />} />
             <Route path="settings" element={user.role === 'company' && canSeeSettings() ? <Settings user={user} /> : <Navigate to="/dashboard" />} />

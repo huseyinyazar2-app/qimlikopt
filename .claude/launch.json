@@ -6,6 +6,24 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "frontend-website", "run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "mesai",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend-mesai", "run", "dev", "--", "--port", "5174", "--strictPort"],
+      "port": 5174
+    },
+    {
+      "name": "dijital",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend-dijital", "run", "dev", "--", "--port", "5175", "--strictPort"],
+      "port": 5175
+    },
+    {
+      "name": "teslimat",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend-teslimat", "run", "dev", "--", "--port", "5176", "--strictPort"],
+      "port": 5176
     }
   ]
 }
