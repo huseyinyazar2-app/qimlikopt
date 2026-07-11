@@ -117,8 +117,48 @@ async function runMigrations() {
     // Eski paketlere takip jetonu üret (yeni public/track ucu jetonla çalışır).
     await backfillTrackingTokens();
 
+    // logs tablosunun bozuk foreign key'ini onar (aşağıya bak).
+    await fixLogsForeignKey();
+
     // Web sitesindeki canlı deneme bölümü için "DEMO" ön ekli aktif bir firma.
     await seedDemoClient();
+}
+
+// Kendi kendini onaran göç: eski migrate_remove_unique.js `clients` tablosunu
+// yeniden kurarken (`clients`→`clients_old`→yeni `clients`), SQLite `logs`'un
+// foreign key'ini `clients_old`'a kaydırdı; `clients_old` sonra silinince bağ
+// havada kaldı. foreign_keys=ON olduğu için `logs`'a client_id dolu HER kayıt
+// "no such table: clients_old" ile patlıyordu — yani tüm ters-OTP doğrulaması.
+// Burada bağ `clients_old`'a bakıyorsa tabloyu doğru FK ile yeniden kurarız.
+// Tabloya bağlı `webhook_deliveries.log_id` isimle çözüldüğü için sağlam kalır;
+// `logs` üzerinde ikincil index yoktur.
+async function fixLogsForeignKey() {
+    try {
+        const { rows } = await db.client.execute('PRAGMA foreign_key_list(logs)');
+        const broken = rows.some(r => r.table === 'clients_old');
+        if (!broken) return;
+
+        console.warn("logs.client_id bozuk FK (clients_old) tespit edildi — tablo yeniden kuruluyor.");
+        // migrate(): ifadeleri foreign_keys KAPALI ve tek işlemde çalıştırır.
+        await db.client.migrate([
+            `CREATE TABLE logs_fixed (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id INTEGER REFERENCES clients(id),
+                phone_number VARCHAR(50) NOT NULL,
+                message_body TEXT,
+                status VARCHAR(50) NOT NULL,
+                error_details TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+            `INSERT INTO logs_fixed (id, client_id, phone_number, message_body, status, error_details, created_at)
+                SELECT id, client_id, phone_number, message_body, status, error_details, created_at FROM logs`,
+            `DROP TABLE logs`,
+            `ALTER TABLE logs_fixed RENAME TO logs`,
+        ]);
+        console.log('logs tablosu doğru FK (clients) ile yeniden kuruldu.');
+    } catch (err) {
+        console.error('logs FK onarımı başarısız:', err.message);
+    }
 }
 
 // Web sitesi /dene bölümü: ziyaretçi "DEMO <kod>" mesajını gateway'e gönderir,
