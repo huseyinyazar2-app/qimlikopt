@@ -1,9 +1,16 @@
 import { useState } from 'react';
-import { BookOpen, Code, Terminal, Smartphone, Monitor, Globe, CheckCircle, Copy } from 'lucide-react';
+import { BookOpen, Globe, Smartphone, Monitor, CheckCircle, Copy, Zap, Server, MousePointerClick } from 'lucide-react';
+
+// Aktif Qimlik Gateway telefonu (uluslararası, + olmadan). Kullanıcılar mesajı buraya gönderir.
+const GATEWAY_PHONE = '905404234000';
+const API_BASE = 'https://api.qimlik.com';
 
 export default function IntegrationGuide({ user }) {
   const [activeTab, setActiveTab] = useState('nodejs');
   const [copiedText, setCopiedText] = useState('');
+
+  const PREFIX = user?.prefix || 'PREFIX';
+  const API_KEY = user?.api_key || 'API_ANAHTARINIZ';
 
   const handleCopy = (text, key) => {
     navigator.clipboard.writeText(text);
@@ -11,320 +18,261 @@ export default function IntegrationGuide({ user }) {
     setTimeout(() => setCopiedText(''), 2000);
   };
 
+  // --- Yöntem 1: Polling (önerilen) örnek kodu ---
+  const pollingCode = `// 1) Her doğrulama için 6 haneli rastgele kod üretin
+const code = String(Math.floor(100000 + Math.random() * 900000));
+const mesaj = "${PREFIX} " + code;                 // ör: "${PREFIX} 483920"
+
+// 2) Kullanıcıya iki gönderim butonu gösterin (mesajı otomatik hazırlar)
+const waLink  = "https://wa.me/${GATEWAY_PHONE}?text=" + encodeURIComponent(mesaj);
+const smsLink = "sms:+${GATEWAY_PHONE}?body=" + encodeURIComponent(mesaj);
+
+// 3) Doğrulanana kadar durumu sorgulayın (2 sn'de bir, ~3 dk)
+const userPhone = ""; // opsiyonel: "+9053..." verirseniz GÖNDEREN de eşleşmeli
+const timer = setInterval(async () => {
+  let url = "${API_BASE}/api/client/verify-status?prefix=${PREFIX}&code=" + code;
+  if (userPhone) url += "&phone=" + encodeURIComponent(userPhone);
+
+  const { verified } = await (await fetch(url)).json();
+  if (verified) {
+    clearInterval(timer);
+    // TODO: kullanıcının telefonunu doğrulanmış say, akışa devam et
+  }
+}, 2000);`;
+
+  // --- Yöntem 3: Webhook (sunucu-taraflı) örnekleri ---
   const codeTemplates = {
     nodejs: `const express = require('express');
 const app = express();
 app.use(express.json());
 
-// Qimlik'ten gelen webhook bildirimlerini yakalayan endpoint
-app.post('/webhook/${user?.prefix || 'PREFIX'}', (req, res) => {
-  // 1. Güvenlik Kontrolü: İstek başlığındaki API anahtarını doğrulayın
-  const qimlikKey = req.headers['x-qimlik-key'];
-  if (qimlikKey !== '${user?.api_key || 'API_KEYINIZ'}') {
+// qimlik, doğrulama başarılı olunca bu adrese POST atar.
+// (Adresi panelde "Hesap & Entegrasyon" sayfasından tanımlarsınız.)
+app.post('/qimlik-webhook', (req, res) => {
+  // 1) Güvenlik: anahtar HEADER'da gelir (x-qimlik-key)
+  if (req.headers['x-qimlik-key'] !== '${API_KEY}') {
     return res.status(401).send('Yetkisiz İstek');
   }
 
-  const { prefix, user_phone, code, status } = req.body;
-
-  // 2. Doğrulama Durumu Kontrolü
+  const { prefix, user_phone, code, full_message, status } = req.body;
   if (status === 'verified') {
-    console.log(\`\${user_phone} numaralı kullanıcı \${code} kodunu başarıyla doğruladı.\`);
-    
-    // TODO: Burada veritabanınızda ilgili kullanıcının oturumunu aktif edin
-    // veya OTP kodunu doğrulanmış olarak işaretleyin.
+    // TODO: user_phone + code eşleşmesini kendi oturumunuzla doğrulayın,
+    //       ardından kullanıcıyı doğrulanmış olarak işaretleyin.
+    console.log(\`\${user_phone} -> \${code} doğrulandı\`);
   }
 
-  // Qimlik sunucusuna başarılı yanıt dönün
-  res.sendStatus(200);
+  res.sendStatus(200); // 2xx dönmezseniz qimlik yeniden dener
 });
 
-app.listen(3000, () => console.log('Webhook dinleniyor: Port 3000'));`,
+app.listen(3000);`,
 
     php: `<?php
-// Qimlik'ten gelen webhook bildirimlerini yakalayan PHP scripti
-
-// 1. Güvenlik Kontrolü: İstek başlığındaki API anahtarını doğrulayın
-$headers = getallheaders();
-$qimlikKey = isset($headers['x-qimlik-key']) ? $headers['x-qimlik-key'] : '';
-
-if ($qimlikKey !== '${user?.api_key || 'API_KEYINIZ'}') {
+// qimlik webhook alıcısı
+$headers = array_change_key_case(getallheaders(), CASE_LOWER);
+if (($headers['x-qimlik-key'] ?? '') !== '${API_KEY}') {
     http_response_code(401);
     exit('Yetkisiz İstek');
 }
 
-// 2. Gelen JSON verisini oku
-$input = file_get_contents('php://input');
-$data = json_decode($input, true);
-
-if ($data && $data['status'] === 'verified') {
-    $prefix = $data['prefix'];
+$data = json_decode(file_get_contents('php://input'), true);
+if (($data['status'] ?? '') === 'verified') {
     $phone = $data['user_phone'];
-    $code = $data['code'];
-    
-    // TODO: Burada veritabanınızda ilgili kullanıcının oturumunu aktif edin
-    // veya OTP kodunu doğrulanmış olarak işaretleyin.
+    $code  = $data['code'];
+    // TODO: $phone + $code eşleşmesini oturumunuzla doğrulayın.
 }
 
-// Qimlik sunucusuna başarılı yanıt dönün
 http_response_code(200);
-echo json_encode(["status" => "success"]);
-?>`,
+echo json_encode(["status" => "ok"]);`,
 
     python: `from flask import Flask, request, jsonify
 app = Flask(__name__)
 
-# Qimlik'ten gelen webhook bildirimlerini yakalayan Python/Flask endpointi
-@app.route('/webhook/${user?.prefix || 'PREFIX'}', methods=['POST'])
+@app.route('/qimlik-webhook', methods=['POST'])
 def qimlik_webhook():
-    # 1. Güvenlik Kontrolü: API anahtarını doğrulayın
-    qimlik_key = request.headers.get('x-qimlik-key')
-    if qimlik_key != '${user?.api_key || 'API_KEYINIZ'}':
+    # Güvenlik: anahtar HEADER'da gelir
+    if request.headers.get('x-qimlik-key') != '${API_KEY}':
         return 'Yetkisiz Istek', 401
-    
-    data = request.json
-    if data and data.get('status') == 'verified':
-        prefix = data.get('prefix')
+
+    data = request.json or {}
+    if data.get('status') == 'verified':
         phone = data.get('user_phone')
         code = data.get('code')
-        
-        # TODO: Burada veritabanınızda ilgili kullanıcının oturumunu aktif edin
-        # veya OTP kodunu doğrulanmış olarak işaretleyin.
-        print(f"{phone} kullanıcısı {code} kodunu doğruladı.")
-        
-    return jsonify({'status': 'success'}), 200
+        # TODO: phone + code eşleşmesini oturumunuzla doğrulayın.
+
+    return jsonify(status='ok'), 200
 
 if __name__ == '__main__':
     app.run(port=3000)`,
 
-    csharp: `using Microsoft.AspNetCore.Mvc;
-
-[ApiController]
-[Route("webhook")]
-public class QimlikWebhookController : ControllerBase
+    csharp: `[ApiController]
+[Route("qimlik-webhook")]
+public class QimlikWebhook : ControllerBase
 {
-    // Qimlik'ten gelen webhook bildirimlerini yakalayan .NET Core Controller
-    [HttpPost("${user?.prefix || "PREFIX"}")]
-    public IActionResult HandleWebhook([FromBody] WebhookPayload payload)
+    [HttpPost]
+    public IActionResult Handle([FromBody] Payload p)
     {
-        // 1. Güvenlik Kontrolü: API anahtarını doğrulayın
-        if (!Request.Headers.TryGetValue("x-qimlik-key", out var qimlikKey) || 
-            qimlikKey != "${user?.api_key || "API_KEYINIZ"}")
-        {
-            return Unauthorized("Yetkisiz Istek");
-        }
+        // Güvenlik: anahtar HEADER'da gelir
+        if (!Request.Headers.TryGetValue("x-qimlik-key", out var k) || k != "${API_KEY}")
+            return Unauthorized();
 
-        // 2. Doğrulama Durumu Kontrolü
-        if (payload.Status == "verified")
+        if (p.Status == "verified")
         {
-            // TODO: Burada veritabanınızda ilgili kullanıcının oturumunu aktif edin
-            // veya OTP kodunu doğrulanmış olarak işaretleyin.
+            // TODO: p.User_Phone + p.Code eşleşmesini oturumunuzla doğrulayın.
         }
-
-        return Ok(new { status = "success" });
+        return Ok(new { status = "ok" });
     }
 }
 
-public class WebhookPayload
+public class Payload
 {
     public string Prefix { get; set; }
     public string User_Phone { get; set; }
     public string Code { get; set; }
     public string Full_Message { get; set; }
     public string Status { get; set; }
-}`
+}`,
   };
 
+  const CodeBlock = ({ code, k }) => (
+    <div style={{ background: '#0d1117', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', position: 'relative' }}>
+      <button
+        onClick={() => handleCopy(code, k)}
+        style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', background: 'rgba(255,255,255,0.08)', border: 'none', color: '#e6edf3', padding: '0.4rem 0.65rem', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem' }}
+      >
+        {copiedText === k ? <CheckCircle size={14} color="#10b981" /> : <Copy size={14} />}
+        {copiedText === k ? 'Kopyalandı' : 'Kopyala'}
+      </button>
+      <pre style={{ margin: 0, color: '#e6edf3', fontFamily: 'monospace', fontSize: '0.82rem', lineHeight: 1.55, overflowX: 'auto', whiteSpace: 'pre' }}>{code}</pre>
+    </div>
+  );
+
   return (
-    <div style={{ maxWidth: '1000px' }}>
+    <div style={{ maxWidth: 1000 }}>
       <header style={{ marginBottom: '2rem' }}>
         <h1 className="gradient-text" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <BookOpen size={32} /> Qimlik Entegrasyon Rehberi
+          <BookOpen size={32} /> Entegrasyon Rehberi
         </h1>
-        <p className="text-muted">Kendi sistemlerinizde Qimlik altyapısını kullanarak sıfır maliyetli doğrulama gerçekleştirmek için aşağıdaki adımları izleyin.</p>
+        <p className="text-muted">Kendi sitenize veya uygulamanıza SMS gideri olmadan doğrulama eklemek için aşağıdaki adımları izleyin. Prefix ve API anahtarınız otomatik olarak örneklere yerleştirilmiştir.</p>
       </header>
 
-      {/* Steps List */}
+      {/* Çalışma akışı */}
       <div className="glass-card" style={{ marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem' }}>Çalışma Akışı</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-          <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
-            <div style={{ color: 'var(--brand-primary)', fontWeight: 700, fontSize: '1.2rem', marginBottom: '0.5rem' }}>1. Kod Üretin</div>
-            <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
-              Kullanıcınız web sitenizde veya uygulamanızda doğrulama talep ettiğinde, arka planda 6 haneli rastgele bir sayı üretin (Örn: <code>791104</code>) ve bunu kullanıcının oturumuyla ilişkilendirin.
-            </p>
-          </div>
-          
-          <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
-            <div style={{ color: 'var(--brand-primary)', fontWeight: 700, fontSize: '1.2rem', marginBottom: '0.5rem' }}>2. Yönlendirin</div>
-            <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
-              Kullanıcıyi WhatsApp butonuyla Gateway cihazınıza yönlendirin. Gönderilecek hazır mesaj <strong>Firma Ön Eki + Kodu</strong> olmalıdır (Örn: <code>{user?.prefix || 'ASHE'} 791104</code>).
-            </p>
-          </div>
-
-          <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
-            <div style={{ color: 'var(--brand-primary)', fontWeight: 700, fontSize: '1.2rem', marginBottom: '0.5rem' }}>3. Webhook Dinleyin</div>
-            <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
-              Kullanıcı mesajı gönderdiği anda, Qimlik Gateway mesajı okur ve tanımladığınız Webhook adresine doğrulanmış veriyi anında iletir. Sunucunuzda oturumu açarsınız.
-            </p>
-          </div>
+        <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem' }}>Nasıl çalışır? (Ters-OTP)</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' }}>
+          {[
+            ['1. Kod üretin', <>Doğrulama anında 6 haneli rastgele bir kod üretin (ör. <code>483920</code>) ve kullanıcının oturumuyla ilişkilendirin.</>],
+            ['2. Kullanıcı göndersin', <>Kullanıcı, <strong>{PREFIX} 483920</strong> mesajını <strong>WhatsApp veya SMS</strong> ile Gateway numaranıza gönderir. SMS gideri kullanıcının hattından çıkar — size maliyeti <strong>₺0</strong>.</>],
+            ['3. Siz doğrulayın', <>qimlik mesajı anında yakalar. Sonucu ister sorgulayarak (polling), ister webhook ile öğrenirsiniz.</>],
+          ].map(([t, d], i) => (
+            <div key={i} style={{ background: 'rgba(255,255,255,0.8)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
+              <div style={{ color: 'var(--brand-primary)', fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>{t}</div>
+              <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>{d}</p>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Code Snippets Section */}
-      <div className="glass-card" style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <h2 style={{ fontSize: '1.2rem' }}>Arka Plan (Backend) Webhook Kod Örnekleri</h2>
-          
-          {/* Language Tabs */}
-          <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: 4, borderRadius: 8 }}>
-            {Object.keys(codeTemplates).map(lang => (
-              <button
-                key={lang}
-                onClick={() => setActiveTab(lang)}
-                style={{
-                  padding: '0.5rem 1rem',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: activeTab === lang ? 'var(--brand-gradient)' : 'transparent',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  transition: 'background var(--transition-fast)'
-                }}
-              >
-                {lang.toUpperCase() === 'NODEJS' ? 'Node.js' : lang.toUpperCase() === 'CSHARP' ? 'C# .NET' : lang.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Code display */}
-        <div style={{ background: '#0d1117', padding: '1.5rem', borderRadius: 8, border: '1px solid var(--glass-border)', position: 'relative' }}>
-          <button 
-            onClick={() => handleCopy(codeTemplates[activeTab], activeTab)}
-            style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(15,23,42,0.05)', border: 'none', color: 'var(--text-primary)', padding: '0.5rem 0.75rem', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}
-          >
-            {copiedText === activeTab ? <CheckCircle size={14} color="var(--status-success)" /> : <Copy size={14} />}
-            {copiedText === activeTab ? 'Kopyalandı' : 'Kodu Kopyala'}
-          </button>
-          <pre style={{ margin: 0, color: '#e6edf3', fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: '1.5', overflowX: 'auto' }}>
-            {codeTemplates[activeTab]}
-          </pre>
-        </div>
-      </div>
-
-      {/* Platform specific guides */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-        
-        {/* Web Sitesi Entegrasyonu */}
-        <div className="glass-card">
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Globe size={18} color="var(--brand-primary)" /> Web Siteleri İçin
-          </h3>
-          <p className="text-muted" style={{ fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '1rem' }}>
-            Kullanıcı web sayfanızda iken "WhatsApp ile Doğrula" butonuna tıklar. Sayfada bir "Sinyal Bekleniyor..." göstergesi açılır ve arka planda sunucunuza doğrulama durumunu soran kısa aralıklarla (polling) istekler gönderilir.
-          </p>
-          <div style={{ background: '#0d1117', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.5rem', fontFamily: 'monospace' }}>HTML Linki:</div>
-            <pre style={{ margin: 0, fontSize: '0.75rem', fontFamily: 'monospace', color: '#e6edf3', overflowX: 'auto' }}>
-{`<a href="https://wa.me/CIHAZ_NUMARASI?text=${user?.prefix || 'PREFIX'}+791104" target="_blank" class="btn">
-  WhatsApp ile Giriş Yap
-</a>`}
-            </pre>
-          </div>
-        </div>
-
-        {/* Mobil Uygulama Entegrasyonu */}
-        <div className="glass-card">
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Smartphone size={18} color="var(--brand-primary)" /> Mobil Uygulamalar İçin
-          </h3>
-          <p className="text-muted" style={{ fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '1rem' }}>
-            React Native veya Flutter gibi frameworklerde, WhatsApp derin linkini (Deep Link) tetikleyerek kullanıcıyı doğrudan WhatsApp uygulamasına yönlendirebilirsiniz.
-          </p>
-          <div style={{ background: '#0d1117', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.5rem', fontFamily: 'monospace' }}>React Native Yönlendirme:</div>
-            <pre style={{ margin: 0, fontSize: '0.75rem', fontFamily: 'monospace', color: '#e6edf3', overflowX: 'auto' }}>
-{`import { Linking } from 'react-native';
-
-const launchQimlik = (code) => {
-  const url = \`https://wa.me/CIHAZ_NUMARASI?text=${user?.prefix || 'PREFIX'}+\${code}\`;
-  Linking.openURL(url);
-};`}
-            </pre>
-          </div>
-        </div>
-
-        {/* Masaüstü Entegrasyonu */}
-        <div className="glass-card">
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Monitor size={18} color="var(--brand-primary)" /> Masaüstü Yazılımları İçin
-          </h3>
-          <p className="text-muted" style={{ fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '1rem' }}>
-            Windows, macOS veya Linux tabanlı (C#, Java, Electron vb.) masaüstü yazılımlarında, varsayılan tarayıcıyı WhatsApp linki ile açarak kullanıcının mobil veya masaüstü WhatsApp üzerinden mesaj göndermesini sağlayabilirsiniz.
-          </p>
-          <div style={{ background: '#0d1117', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.5rem', fontFamily: 'monospace' }}>C# .NET Process Start:</div>
-            <pre style={{ margin: 0, fontSize: '0.75rem', fontFamily: 'monospace', color: '#e6edf3', overflowX: 'auto' }}>
-{`using System.Diagnostics;
-
-void OpenWhatsApp(string code) {
-    string url = $"https://wa.me/CIHAZ_NUMARASI?text=${user?.prefix || "PREFIX"}+{code}";
-    Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-}`}
-            </pre>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Popup / Modal Integration Card */}
-      <div className="glass-card" style={{ marginBottom: '2rem', marginTop: '2rem' }}>
-        <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Globe size={20} color="var(--brand-primary)" /> Popup (Pencere) ile Kolay Doğrulama
+      {/* YÖNTEM 1: Polling */}
+      <div className="glass-card" style={{ marginBottom: '2rem', border: '1px solid rgba(14,165,233,0.35)' }}>
+        <h2 style={{ fontSize: '1.2rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Zap size={20} color="var(--brand-primary)" /> Yöntem 1 — Durum Sorgulama (Polling) <span style={{ fontSize: '0.7rem', background: 'var(--brand-primary)', color: '#fff', padding: '0.15rem 0.5rem', borderRadius: 999 }}>ÖNERİLEN</span>
         </h2>
-        <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.5, marginBottom: '1.5rem' }}>
-          Kullanıcı deneyimini en üst düzeye çıkarmak için (tıpkı 3D Secure kart ödeme sayfalarında olduğu gibi) web sitenizde bir popup penceresi açabilirsiniz. Kullanıcı pencerede doğrulama işlemini tamamladığında, pencere otomatik olarak kapanacak ve sitenizdeki ana pencereye (parent window) doğrulandı bildirimi gönderilecektir.
+        <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+          En kolay yol — kendi sunucunuza webhook kurmanız gerekmez, tamamen ön yüzden (frontend) çalışır. Kodu gösterip aşağıdaki ucu sorgularsınız:
+        </p>
+        <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1rem 1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', marginBottom: '1.25rem', fontFamily: 'monospace', fontSize: '0.85rem', overflowX: 'auto' }}>
+          <div><span style={{ color: '#10b981', fontWeight: 700 }}>GET</span> {API_BASE}/api/client/verify-status?prefix=<b>{PREFIX}</b>&code=<b>483920</b></div>
+          <div className="text-muted" style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>Yanıt: <code>{'{ "verified": true }'}</code> veya <code>{'{ "verified": false }'}</code></div>
+          <div className="text-muted" style={{ marginTop: '0.35rem', fontSize: '0.8rem' }}>Opsiyonel <code>&amp;phone=+9053...</code> eklerseniz, kodu <b>gönderen numara</b> da bu numarayla eşleşmezse doğrulanmaz (gerçek telefon-sahipliği).</div>
+        </div>
+        <CodeBlock code={pollingCode} k="polling" />
+        <p className="text-muted" style={{ fontSize: '0.82rem', marginTop: '0.85rem', lineHeight: 1.5 }}>
+          Kod <strong>5 dakika</strong> geçerlidir; arayüzde 3 dakikalık bir geri sayım iyi olur. Mobil uygulamada da aynı mantık: kod üret → WhatsApp/SMS bağlantısını aç → aynı ucu sorgula.
+        </p>
+      </div>
+
+      {/* YÖNTEM 2: Popup */}
+      <div className="glass-card" style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.2rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <MousePointerClick size={20} color="var(--brand-primary)" /> Yöntem 2 — Hazır Doğrulama Penceresi
+        </h2>
+        <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+          Hiç arayüz yazmak istemiyorsanız, qimlik'in hazır doğrulama sayfasını bir popup ya da iframe olarak açın. Kullanıcı tamamlayınca pencere ana sayfanıza <code>postMessage</code> ile "doğrulandı" bildirir.
+        </p>
+        <CodeBlock k="popup" code={`// 1) Hazır doğrulama penceresini açın
+const code = String(Math.floor(100000 + Math.random() * 900000));
+const url = "https://qimlik.com/verify?prefix=${PREFIX}&code=" + code
+          + "&gateway_phone=${GATEWAY_PHONE}";
+const win = window.open(url, "Qimlik", "width=460,height=680");
+
+// 2) Sonucu dinleyin
+window.addEventListener("message", (e) => {
+  if (e.origin !== "https://qimlik.com") return;
+  if (e.data.type === "qimlik_verification" && e.data.status === "verified") {
+    // TODO: kullanıcıyı içeri alın
+  }
+});`} />
+      </div>
+
+      {/* YÖNTEM 3: Webhook */}
+      <div className="glass-card" style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.2rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Server size={20} color="var(--brand-primary)" /> Yöntem 3 — Webhook (sunucu-taraflı)
+        </h2>
+        <p className="text-muted" style={{ fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1rem' }}>
+          En sağlam yol: doğrulama başarılı olunca qimlik <strong>sizin sunucunuza</strong> anında <code>POST</code> atar (sorgulamaya gerek kalmaz).
+          Önce <strong>Hesap &amp; Entegrasyon</strong> sayfasından <strong>Webhook URL</strong> alanına kendi adresinizi yazın. Güvenlik anahtarı istek başlığında (<code>x-qimlik-key</code>) gelir; tekrarları ayırmak için <code>x-qimlik-delivery-id</code> başlığı da gönderilir.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem' }}>
-          <div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>Aşama 1: Sitenizde Popup Açın ve Dinleyin (Javascript)</div>
-            <div style={{ background: '#0d1117', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)', position: 'relative' }}>
-              <pre style={{ margin: 0, fontSize: '0.75rem', fontFamily: 'monospace', color: '#e6edf3', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
-{`// 1. Popup penceresini açın
-const popupUrl = "https://qimlik.com/verify?prefix=${user?.prefix || 'PREFIX'}&code=791104&gateway_phone=905404234000";
-const popup = window.open(popupUrl, "Qimlik OTP", "width=500,height=650,resizable=yes");
-
-// 2. Doğrulama sonucunu dinleyin
-window.addEventListener("message", (event) => {
-  // Sadece Qimlik'ten gelen mesajları kabul edin
-  if (event.origin !== "https://qimlik.com") return;
-  
-  if (event.data.type === "qimlik_verification" && event.data.status === "verified") {
-    console.log("Kullanıcı doğrulandı! Kod: " + event.data.code);
-    // TODO: Kullanıcıyı sitenizde içeri alın veya işlemi tamamlayın
-  }
-});`}
-              </pre>
-            </div>
-          </div>
-
-          <div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>Popup Link Yapısı Parametreleri</div>
-            <div style={{ background: 'rgba(255,255,255,0.8)', padding: '1.25rem', borderRadius: 8, border: '1px solid var(--glass-border)', height: 'calc(100% - 1.5rem)' }}>
-              <ul style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6', paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <li><strong><code>prefix</code></strong>: Firmanızın ön eki (örn: <code>{user?.prefix || 'ASHE'}</code>) - <em>Zorunlu</em></li>
-                <li><strong><code>code</code></strong>: Ürettiğiniz 6 haneli doğrulama kodu - <em>Zorunlu</em></li>
-                <li><strong><code>gateway_phone</code></strong>: Aktif Qimlik Gateway telefon numaranız (örn: <code>905404234000</code>) - <em>İsteğe Bağlı</em></li>
-                <li><strong><code>phone</code></strong>: Kullanıcının kendi telefon numarası (örn: <code>+905555555555</code>, ekranda göstermek için) - <em>İsteğe Bağlı</em></li>
-              </ul>
-            </div>
-          </div>
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          {Object.keys(codeTemplates).map(lang => (
+            <button
+              key={lang}
+              onClick={() => setActiveTab(lang)}
+              style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: '1px solid var(--glass-border)', background: activeTab === lang ? 'var(--brand-gradient)' : 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
+            >
+              {lang === 'nodejs' ? 'Node.js' : lang === 'csharp' ? 'C# .NET' : lang.charAt(0).toUpperCase() + lang.slice(1)}
+            </button>
+          ))}
         </div>
+        <CodeBlock code={codeTemplates[activeTab]} k={'wh-' + activeTab} />
       </div>
 
+      {/* Platform bağlantıları */}
+      <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Gönderim bağlantıları (WhatsApp &amp; SMS)</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+        {[
+          [<Globe size={18} />, 'Web', 'HTML linki'],
+          [<Smartphone size={18} />, 'Mobil', 'React Native / Flutter'],
+          [<Monitor size={18} />, 'Masaüstü', 'C# / Electron'],
+        ].map(([icon, title, sub], i) => (
+          <div className="glass-card" key={i}>
+            <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ color: 'var(--brand-primary)' }}>{icon}</span> {title} <span className="text-muted" style={{ fontSize: '0.75rem' }}>· {sub}</span>
+            </h3>
+            <CodeBlock k={'plat-' + i} code={
+              i === 0
+                ? `<a href="https://wa.me/${GATEWAY_PHONE}?text=${PREFIX}%20483920">WhatsApp ile Doğrula</a>
+<a href="sms:+${GATEWAY_PHONE}?body=${PREFIX}%20483920">SMS ile Doğrula</a>`
+                : i === 1
+                ? `import { Linking } from 'react-native';
+
+const mesaj = encodeURIComponent("${PREFIX} " + code);
+Linking.openURL("https://wa.me/${GATEWAY_PHONE}?text=" + mesaj); // WhatsApp
+// veya SMS:
+Linking.openURL("sms:+${GATEWAY_PHONE}?body=" + mesaj);`
+                : `using System.Diagnostics;
+
+var mesaj = Uri.EscapeDataString($"${PREFIX} {code}");
+Process.Start(new ProcessStartInfo(
+    $"https://wa.me/${GATEWAY_PHONE}?text={mesaj}") { UseShellExecute = true });`
+            } />
+          </div>
+        ))}
+      </div>
+      <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '1rem', lineHeight: 1.5 }}>
+        Not: SMS bağlantısında iOS için <code>?body=</code> yerine <code>&amp;body=</code> kullanılır. WhatsApp bağlantısı her platformda aynıdır. Boşluk yerine daima <code>%20</code> (veya <code>encodeURIComponent</code>) kullanın.
+      </p>
     </div>
   );
 }

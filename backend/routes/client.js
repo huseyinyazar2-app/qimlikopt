@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { signToken, companyGuard } = require('../auth');
+const { samePhone } = require('../otp');
 
 const router = express.Router();
 
@@ -119,9 +120,13 @@ router.post('/webhook/:prefix', (req, res) => {
 });
 
 
-// --- PUBLIC VERIFICATION STATUS CHECK (FOR POPUPS) ---
+// --- PUBLIC VERIFICATION STATUS CHECK (FOR POPUPS / POLLING) ---
+// Opsiyonel `phone`: verilirse, kodu GÖNDEREN numaranın da bu numarayla (son 9
+// hane) eşleşmesi gerekir. Böylece "bu koda sahip biri" yerine "bu telefonun
+// sahibi" doğrulanır (gerçek telefon-sahipliği). Geriye uyumlu: phone yoksa
+// eski davranış (yalnız kod eşleşmesi) korunur.
 router.get('/verify-status', async (req, res) => {
-    const { prefix, code } = req.query;
+    const { prefix, code, phone } = req.query;
 
     if (!prefix || !code) {
         return res.status(400).json({ error: 'Prefix ve doğrulama kodu zorunludur.' });
@@ -131,11 +136,16 @@ router.get('/verify-status', async (req, res) => {
         const targetMessage = `${prefix.trim().toUpperCase()} ${code.trim()}`;
 
         const { rows } = await db.query(
-            "SELECT id FROM logs WHERE UPPER(message_body) = ? AND status = 'success' AND created_at >= datetime('now', '-5 minutes') LIMIT 1",
+            "SELECT phone_number FROM logs WHERE UPPER(message_body) = ? AND status = 'success' AND created_at >= datetime('now', '-5 minutes') ORDER BY id DESC LIMIT 10",
             [targetMessage]
         );
 
-        res.json({ verified: rows.length > 0 });
+        let verified = rows.length > 0;
+        if (verified && phone) {
+            verified = rows.some(r => samePhone(r.phone_number, phone));
+        }
+
+        res.json({ verified });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -174,6 +184,25 @@ router.put('/:clientId/api-key', async (req, res) => {
 
         await db.query('UPDATE clients SET api_key = ? WHERE id = ?', [new_api_key, clientId]);
         res.json({ message: 'Şifreniz başarıyla değiştirildi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- CLIENT WEBHOOK URL UPDATE ---
+// Doğrulama olunca qimlik'in POST atacağı adres. Boş bırakılırsa webhook gönderilmez.
+router.put('/:clientId/webhook', async (req, res) => {
+    const { clientId } = req.params;
+    let { webhook_url } = req.body;
+    webhook_url = (webhook_url || '').trim();
+
+    if (webhook_url && !/^https?:\/\/.+/i.test(webhook_url)) {
+        return res.status(400).json({ error: 'Geçerli bir http(s) webhook adresi giriniz.' });
+    }
+
+    try {
+        await db.query('UPDATE clients SET webhook_url = ? WHERE id = ?', [webhook_url, clientId]);
+        res.json({ message: 'Webhook adresi güncellendi.', webhook_url });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

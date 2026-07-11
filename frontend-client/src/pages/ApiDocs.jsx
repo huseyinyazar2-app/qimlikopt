@@ -10,6 +10,20 @@ export default function ApiDocs({ user, onLogout }) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState(user?.webhook_url || '');
+  const [savingWebhook, setSavingWebhook] = useState(false);
+
+  const handleWebhookSave = async () => {
+    setSavingWebhook(true);
+    try {
+      await axios.put(`${getApiUrl()}/api/client/${user.id}/webhook`, { webhook_url: webhookUrl.trim() });
+      toast.success('Webhook adresi güncellendi.');
+    } catch (err) {
+      toast.error('Hata: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setSavingWebhook(false);
+    }
+  };
 
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
@@ -93,12 +107,26 @@ export default function ApiDocs({ user, onLogout }) {
             </div>
 
             <div>
-              <div className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Kayıtlı Webhook URL</div>
-              <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--text-primary)' }}>
-                {user?.webhook_url}
+              <div className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Webhook URL (opsiyonel)</div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <input
+                  type="url"
+                  value={webhookUrl}
+                  onChange={e => setWebhookUrl(e.target.value)}
+                  placeholder="https://sizin-sunucunuz.com/qimlik-webhook"
+                  style={{ flex: 1, padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--text-primary)', outline: 'none', fontFamily: 'monospace', fontSize: '0.9rem' }}
+                />
+                <button
+                  onClick={handleWebhookSave}
+                  disabled={savingWebhook}
+                  className="btn-primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+                >
+                  <Save size={16} /> {savingWebhook ? 'Kaydediliyor…' : 'Kaydet'}
+                </button>
               </div>
               <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
-                Doğrulanan kodlar bu adrese POST isteği olarak iletilir.
+                Bir doğrulama başarılı olduğunda, qimlik bu adrese <code>POST</code> isteğiyle bildirim gönderir (sunucu-taraflı akış). Kullanmıyorsanız boş bırakabilirsiniz; o zaman doğrulamayı <code>verify-status</code> ile kendiniz sorgularsınız.
               </p>
             </div>
           </div>
