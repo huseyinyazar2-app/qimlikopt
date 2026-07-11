@@ -1,14 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   ShieldCheck, MapPin, Truck, QrCode, Building2, Phone, User, Lock,
-  ArrowLeft, ArrowRight, CheckCircle, ExternalLink,
+  ArrowLeft, ArrowRight, CheckCircle, ExternalLink, MessageSquare, Smartphone, Clock,
 } from 'lucide-react';
 import { PRODUCTS } from '../data/products';
 import { getApiUrl, getPanelUrl } from '../config';
 
 const ICONS = { ShieldCheck, MapPin, Truck, QrCode };
+
+// qimlik'in kendi kaydında telefon doğrulaması (dogfooding): kullanıcı "QMLK <kod>"
+// mesajını gateway'e WhatsApp/SMS ile gönderir, verify-status &phone= ile doğrularız.
+const SIGNUP_PREFIX = 'QMLK';
+const GATEWAY_PHONE = '905404234000';
+const genCode = () => String(Math.floor(100000 + Math.random() * 900000));
 
 export default function Register() {
   const [product, setProduct] = useState(null);
@@ -16,13 +22,20 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  // Telefon değişirse doğrulama sıfırlanır (başka numarayı doğrulanmış saymayalım).
+  const setPhone = (e) => { setForm((f) => ({ ...f, phone_number: e.target.value })); setPhoneVerified(false); };
 
   const endpointFor = (p) => (p.slug === 'otp' ? '/api/client/register' : `/api/${p.slug}/company/register`);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!phoneVerified) {
+      setError('Devam etmek için lütfen telefon numaranızı doğrulayın.');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
@@ -35,7 +48,7 @@ export default function Register() {
     }
   };
 
-  const reset = () => { setProduct(null); setResult(null); setError(''); setForm({ company_name: '', phone_number: '', contact_name: '', contact_surname: '', password: '' }); };
+  const reset = () => { setProduct(null); setResult(null); setError(''); setPhoneVerified(false); setForm({ company_name: '', phone_number: '', contact_name: '', contact_surname: '', password: '' }); };
 
   return (
     <div style={{ background: 'var(--bg-color)', minHeight: '100vh' }}>
@@ -96,10 +109,10 @@ export default function Register() {
                   <Field icon={User} label="Yetkili Adı" value={form.contact_name} onChange={set('contact_name')} placeholder="Ahmet" />
                   <Field icon={User} label="Yetkili Soyadı" value={form.contact_surname} onChange={set('contact_surname')} placeholder="Yılmaz" />
                 </div>
-                <Field icon={Phone} label="Firma Telefonu" value={form.phone_number} onChange={set('phone_number')} placeholder="+90 5xx xxx xx xx" />
+                <PhoneVerifyField value={form.phone_number} onChange={setPhone} verified={phoneVerified} onVerified={() => setPhoneVerified(true)} accent={product.color} />
                 <Field icon={Lock} label="Şifre" type="password" value={form.password} onChange={set('password')} placeholder="Giriş şifrenizi belirleyin" />
-                <button type="submit" className="btn btn-primary" disabled={loading} style={{ marginTop: '0.4rem', padding: '0.9rem', width: '100%', background: product.color }}>
-                  {loading ? 'Hesap oluşturuluyor...' : 'Ücretsiz kaydol'}
+                <button type="submit" className="btn btn-primary" disabled={loading || !phoneVerified} style={{ marginTop: '0.4rem', padding: '0.9rem', width: '100%', background: product.color, opacity: (loading || !phoneVerified) ? 0.55 : 1, cursor: (loading || !phoneVerified) ? 'not-allowed' : 'pointer' }}>
+                  {loading ? 'Hesap oluşturuluyor...' : phoneVerified ? 'Ücretsiz kaydol' : 'Önce telefonu doğrulayın'}
                 </button>
               </form>
             </div>
@@ -118,6 +131,102 @@ function Field({ icon: Icon, label, value, onChange, placeholder, type = 'text' 
         <Icon size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
         <input type={type} required value={value} onChange={onChange} placeholder={placeholder} className="glass-input" />
       </div>
+    </div>
+  );
+}
+
+// Zorunlu telefon alanı + ters-OTP doğrulaması (qimlik'in kendi ürününü kullanması).
+// "Doğrula" → kod üret → WhatsApp/SMS ile gönder → verify-status &phone= ile bağla.
+function PhoneVerifyField({ value, onChange, verified, onVerified, accent }) {
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState('');
+  const [status, setStatus] = useState('idle'); // idle | waiting | expired
+  const [timeLeft, setTimeLeft] = useState(180);
+  const [err, setErr] = useState('');
+  const pollRef = useRef(null);
+  const timerRef = useRef(null);
+
+  const cleanPhone = (value || '').replace(/\D/g, '');
+  const msg = `${SIGNUP_PREFIX} ${code}`;
+  const waLink = `https://wa.me/${GATEWAY_PHONE}?text=${encodeURIComponent(msg)}`;
+  const smsLink = `sms:+${GATEWAY_PHONE}?body=${encodeURIComponent(msg)}`;
+
+  const stop = () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+    pollRef.current = null; timerRef.current = null;
+  };
+  useEffect(() => () => stop(), []);
+
+  const start = () => {
+    setErr('');
+    if (cleanPhone.length < 10) { setErr('Geçerli bir telefon numarası girin.'); return; }
+    stop();
+    const c = genCode();
+    setCode(c); setStatus('waiting'); setTimeLeft(180); setOpen(true);
+
+    timerRef.current = setInterval(() => {
+      setTimeLeft((p) => { if (p <= 1) { stop(); setStatus('expired'); return 0; } return p - 1; });
+    }, 1000);
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const { data } = await axios.get(`${getApiUrl()}/api/client/verify-status`, {
+          params: { prefix: SIGNUP_PREFIX, code: c, phone: cleanPhone },
+        });
+        if (data.verified) { stop(); setStatus('idle'); setOpen(false); onVerified(); }
+      } catch { /* poll hatası yoksay */ }
+    }, 2000);
+  };
+
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  return (
+    <div>
+      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>
+        Firma Telefonu <span style={{ color: '#ef4444' }}>*</span>
+      </label>
+      <div style={{ display: 'flex', gap: '0.6rem' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <Phone size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+          <input type="tel" required value={value} onChange={onChange} placeholder="+90 5xx xxx xx xx" className="glass-input" disabled={verified} />
+        </div>
+        {verified ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 1rem', borderRadius: 10, background: 'rgba(16,185,129,0.12)', color: '#059669', fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+            <CheckCircle size={16} /> Doğrulandı
+          </div>
+        ) : (
+          <button type="button" onClick={start} style={{ padding: '0 1.1rem', borderRadius: 10, border: 'none', background: accent || '#0ea5e9', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Doğrula
+          </button>
+        )}
+      </div>
+      {err && <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.4rem' }}>{err}</div>}
+
+      {open && !verified && (
+        <div style={{ marginTop: '0.85rem', padding: '1.1rem', borderRadius: 12, background: 'rgba(15,23,42,0.03)', border: '1px dashed var(--glass-border)' }}>
+          {status === 'expired' ? (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: '#b45309', fontWeight: 600, marginBottom: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Clock size={16} /> Süre doldu</div>
+              <div><button type="button" onClick={start} style={{ background: 'none', border: 'none', color: accent || '#0ea5e9', fontWeight: 700, cursor: 'pointer' }}>Yeni kod üret</button></div>
+            </div>
+          ) : (
+            <>
+              <p className="text-muted" style={{ fontSize: '0.82rem', margin: '0 0 0.75rem', lineHeight: 1.5 }}>
+                Aşağıdaki mesajı <strong>WhatsApp veya SMS</strong> ile gönderin; numaranız otomatik doğrulanır. Mesajı gönderen taraf siz olduğunuz için SMS gideri size yansımaz.
+              </p>
+              <div style={{ textAlign: 'center', background: '#fff', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '0.6rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '1.15rem', fontWeight: 800, letterSpacing: '0.06em' }}>{msg}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '0.75rem' }}>
+                <a href={waLink} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '0.7rem', borderRadius: 8, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}><MessageSquare size={16} /> WhatsApp</a>
+                <a href={smsLink} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '0.7rem', borderRadius: 8, background: '#0ea5e9', color: '#fff', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}><Smartphone size={16} /> SMS</a>
+              </div>
+              <div style={{ textAlign: 'center', fontSize: '0.82rem', color: '#0369a1', fontWeight: 600 }}>Doğrulama bekleniyor… ({fmt(timeLeft)})</div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

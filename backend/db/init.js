@@ -120,8 +120,8 @@ async function runMigrations() {
     // logs tablosunun bozuk foreign key'ini onar (aşağıya bak).
     await fixLogsForeignKey();
 
-    // Web sitesindeki canlı deneme bölümü için "DEMO" ön ekli aktif bir firma.
-    await seedDemoClient();
+    // Sistem firmaları: canlı demo (DEMO) + qimlik kendi kaydının telefon doğrulaması (QMLK).
+    await seedSystemClients();
 }
 
 // Kendi kendini onaran göç: eski migrate_remove_unique.js `clients` tablosunu
@@ -161,23 +161,30 @@ async function fixLogsForeignKey() {
     }
 }
 
-// Web sitesi /dene bölümü: ziyaretçi "DEMO <kod>" mesajını gateway'e gönderir,
-// gateway bunu bu firmaya eşler ve logs'a "success" yazar → verify-status doğrular.
-// Ön ek DEMO herkese açıktır (gizli değil); demo amaçlı kasıtlı böyle.
-async function seedDemoClient() {
-    try {
-        const { rows } = await db.client.execute(
-            "SELECT id FROM clients WHERE prefix = 'DEMO'"
-        );
-        if (rows.length === 0) {
-            await db.client.execute({
-                sql: 'INSERT INTO clients (company_name, prefix, webhook_url, api_key, phone_number, contact_name, contact_surname, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
-                args: ['Qimlik Demo', 'DEMO', 'https://api.qimlik.com/api/client/webhook/DEMO', 'qimlik-demo-key', '905404234000', 'Qimlik', 'Demo'],
+// Ön ekleri herkese açık, aktif iki sistem firması:
+//  - DEMO: web sitesi /dene canlı denemesi ("DEMO <kod>").
+//  - QMLK: qimlik'in kendi /kayit telefon doğrulaması ("QMLK <kod>").
+// verify-status &phone= ile telefona bağlandığı için ön ekin açık olması sorun değil.
+async function seedSystemClients() {
+    const systems = [
+        ['Qimlik Demo', 'DEMO', 'qimlik-demo-key'],
+        ['Qimlik Kayıt', 'QMLK', 'qimlik-signup-key'],
+    ];
+    for (const [name, prefix, key] of systems) {
+        try {
+            const { rows } = await db.client.execute({
+                sql: 'SELECT id FROM clients WHERE prefix = ?', args: [prefix],
             });
-            console.log('Demo firması (DEMO) tohumlandı.');
+            if (rows.length === 0) {
+                await db.client.execute({
+                    sql: 'INSERT INTO clients (company_name, prefix, webhook_url, api_key, phone_number, contact_name, contact_surname, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
+                    args: [name, prefix, '', key, '905404234000', 'Qimlik', 'Sistem'],
+                });
+                console.log(`Sistem firması (${prefix}) tohumlandı.`);
+            }
+        } catch (err) {
+            console.warn(`Sistem firması (${prefix}) tohumlanamadı:`, err.message);
         }
-    } catch (err) {
-        console.warn('Demo firması tohumlanamadı:', err.message);
     }
 }
 
