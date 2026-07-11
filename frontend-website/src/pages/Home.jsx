@@ -46,7 +46,7 @@ export default function Home() {
             </p>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <Link to="/kayit" className="btn btn-primary" style={{ padding: '0.9rem 1.8rem', textDecoration: 'none' }}>Ücretsiz Başla</Link>
-              <Link to="/giris" className="btn btn-outline" style={{ padding: '0.9rem 1.8rem', textDecoration: 'none' }}>Panele Giriş</Link>
+              <Link to="/dene" className="btn btn-outline" style={{ padding: '0.9rem 1.8rem', textDecoration: 'none' }}>Canlı Demo Dene</Link>
             </div>
           </div>
           <div style={{ position: 'relative' }}>

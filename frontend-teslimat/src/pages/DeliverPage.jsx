@@ -301,7 +301,7 @@ export default function DeliverPage({ user }) {
   };
 
   const waMessage = `TSLM ${otpCode}`;
-  const waLink = `https://wa.me/905303700589?text=${encodeURIComponent(waMessage)}`;
+  const waLink = `https://wa.me/905404234000?text=${encodeURIComponent(waMessage)}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(waLink)}`;
 
   return (

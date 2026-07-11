@@ -362,7 +362,7 @@ router.post('/technician/login/request', async (req, res) => {
         if (checkClient.rows.length === 0) {
             await db.query(
                 "INSERT INTO clients (company_name, prefix, webhook_url, api_key, phone_number, is_active) VALUES (?, ?, ?, ?, ?, ?)",
-                ['Qimlik Digital System', 'DJTL', 'http://localhost:3303/api/client/webhook', 'djtlsystemkey123', '905303700589', 1]
+                ['Qimlik Digital System', 'DJTL', 'http://localhost:3303/api/client/webhook', 'djtlsystemkey123', '905404234000', 1]
             );
         }
 
@@ -370,7 +370,7 @@ router.post('/technician/login/request', async (req, res) => {
         res.json({
             prefix: 'DJTL',
             code,
-            gateway_phone: '905303700589'
+            gateway_phone: '905404234000'
         });
     } catch (err) {
         res.status(500).json({ error: err.message });

@@ -8,7 +8,7 @@ export default function Verify() {
   const [searchParams] = useSearchParams();
   const prefix = searchParams.get('prefix') || '';
   const code = searchParams.get('code') || '';
-  const gatewayPhone = searchParams.get('gateway_phone') || '905303700589';
+  const gatewayPhone = searchParams.get('gateway_phone') || '905404234000';
   const userPhone = searchParams.get('phone') || '';
 
   const [status, setStatus] = useState('waiting'); // 'waiting', 'success', 'expired', 'error'

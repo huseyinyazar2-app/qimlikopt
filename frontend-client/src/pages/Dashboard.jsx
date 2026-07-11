@@ -18,7 +18,7 @@ export default function Dashboard({ user }) {
 
   // WhatsApp Simulator State
   const [gatewayPhone, setGatewayPhone] = useState(() => {
-    return localStorage.getItem('sim_gateway_phone') || '+905303700589';
+    return localStorage.getItem('sim_gateway_phone') || '+905404234000';
   });
   const [otpCode, setOtpCode] = useState('');
   const [verificationStatus, setVerificationStatus] = useState('waiting'); // 'waiting', 'success', 'failed'

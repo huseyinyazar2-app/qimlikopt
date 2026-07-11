@@ -4,6 +4,7 @@ import ScrollManager from './components/ScrollManager';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import TryIt from './pages/TryIt';
 import Verify from './pages/Verify';
 import ProductPage from './pages/ProductPage';
 import Pricing from './pages/Pricing';
@@ -23,6 +24,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="giris" element={<Login />} />
           <Route path="kayit" element={<Register />} />
+          <Route path="dene" element={<TryIt />} />
           <Route path="urunler/:slug" element={<ProductPage />} />
           <Route path="fiyatlandirma" element={<Pricing />} />
           <Route path="hakkimizda" element={<About />} />

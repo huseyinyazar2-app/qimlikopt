@@ -190,7 +190,7 @@ router.post('/courier/login/request', async (req, res) => {
         if (checkClient.rows.length === 0) {
             await db.query(
                 "INSERT INTO clients (company_name, prefix, webhook_url, api_key, phone_number, is_active) VALUES (?, ?, ?, ?, ?, ?)",
-                ['Qimlik Teslimat System', 'TSLM', 'http://localhost:3303/api/client/webhook', 'tslmsystemkey123', '905303700589', 1]
+                ['Qimlik Teslimat System', 'TSLM', 'http://localhost:3303/api/client/webhook', 'tslmsystemkey123', '905404234000', 1]
             );
         }
 
@@ -198,7 +198,7 @@ router.post('/courier/login/request', async (req, res) => {
         res.json({
             prefix: 'TSLM',
             code,
-            gateway_phone: '905303700589'
+            gateway_phone: '905404234000'
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -258,7 +258,7 @@ router.post('/deliver/request', courierAuth, async (req, res) => {
         }
         const recipientPhone = rows[0].recipient_phone;
         const code = await createOtp('teslimat', 'delivery', recipientPhone, package_id);
-        res.json({ prefix: 'TSLM', code, gateway_phone: '905303700589', recipient_phone: recipientPhone });
+        res.json({ prefix: 'TSLM', code, gateway_phone: '905404234000', recipient_phone: recipientPhone });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

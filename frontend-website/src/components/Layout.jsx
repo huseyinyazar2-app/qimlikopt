@@ -33,6 +33,7 @@ export default function Layout() {
                 ))}
               </div>
             </div>
+            <NavLink to="/dene" className="nav-link" style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>Canlı Demo</NavLink>
             <NavLink to="/fiyatlandirma" className="nav-link">Fiyatlandırma</NavLink>
             <NavLink to="/hakkimizda" className="nav-link">Hakkımızda</NavLink>
             <NavLink to="/iletisim" className="nav-link">İletişim</NavLink>
@@ -52,6 +53,7 @@ export default function Layout() {
               <Link key={p.slug} to={`/urunler/${p.slug}`} className="nav-mobile-link" onClick={close}>{p.name}</Link>
             ))}
             <div style={{ height: 1, background: 'var(--border-light)', margin: '0.5rem 0' }} />
+            <Link to="/dene" className="nav-mobile-link" onClick={close} style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>Canlı Demo</Link>
             <Link to="/fiyatlandirma" className="nav-mobile-link" onClick={close}>Fiyatlandırma</Link>
             <Link to="/hakkimizda" className="nav-mobile-link" onClick={close}>Hakkımızda</Link>
             <Link to="/iletisim" className="nav-mobile-link" onClick={close}>İletişim</Link>

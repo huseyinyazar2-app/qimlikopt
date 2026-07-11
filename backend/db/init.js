@@ -116,6 +116,29 @@ async function runMigrations() {
 
     // Eski paketlere takip jetonu üret (yeni public/track ucu jetonla çalışır).
     await backfillTrackingTokens();
+
+    // Web sitesindeki canlı deneme bölümü için "DEMO" ön ekli aktif bir firma.
+    await seedDemoClient();
+}
+
+// Web sitesi /dene bölümü: ziyaretçi "DEMO <kod>" mesajını gateway'e gönderir,
+// gateway bunu bu firmaya eşler ve logs'a "success" yazar → verify-status doğrular.
+// Ön ek DEMO herkese açıktır (gizli değil); demo amaçlı kasıtlı böyle.
+async function seedDemoClient() {
+    try {
+        const { rows } = await db.client.execute(
+            "SELECT id FROM clients WHERE prefix = 'DEMO'"
+        );
+        if (rows.length === 0) {
+            await db.client.execute({
+                sql: 'INSERT INTO clients (company_name, prefix, webhook_url, api_key, phone_number, contact_name, contact_surname, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
+                args: ['Qimlik Demo', 'DEMO', 'https://api.qimlik.com/api/client/webhook/DEMO', 'qimlik-demo-key', '905404234000', 'Qimlik', 'Demo'],
+            });
+            console.log('Demo firması (DEMO) tohumlandı.');
+        }
+    } catch (err) {
+        console.warn('Demo firması tohumlanamadı:', err.message);
+    }
 }
 
 // Faz 6: tracking_token'i olmayan paketlere tahmin edilemez jeton yaz.
