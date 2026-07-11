@@ -18,15 +18,14 @@ class SmsReceiver : BroadcastReceiver() {
                 return
             }
 
-            for (sms in messages) {
-                val messageBody = sms.messageBody ?: continue
-                val senderPhone = sms.originatingAddress ?: "Unknown"
+            // Çok parçalı SMS'i birleştir (uzun mesaj birden fazla PDU gelebilir)
+            val fullBody = messages.joinToString("") { it.messageBody ?: "" }
+            val senderPhone = messages.firstOrNull()?.originatingAddress ?: "Unknown"
 
-                Log.d("QimlikGateway", "SMS alındı: $senderPhone -> $messageBody")
+            Log.d("QimlikGateway", "SMS alındı: $senderPhone -> $fullBody")
 
-                // Güvenilir kuyruğa ekle (ağ yoksa bile kaybolmaz)
-                ForwardMessageWorker.enqueue(context, senderPhone, messageBody)
-            }
+            // Ortak işleyici: OTP süzgeci + tekrar önleme (bildirim kanalıyla çakışmaz) + kuyruk
+            MessageForwarder.handle(context, senderPhone, fullBody)
         }
     }
 }
