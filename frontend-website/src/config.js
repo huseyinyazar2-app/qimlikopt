@@ -11,4 +11,9 @@ export const getPanelUrl = (subdomain, port) =>
     ? `https://${subdomain}.qimlik.com`
     : `http://${window.location.hostname}:${port || 5173}`;
 
+// Qimlik'in kendi gateway SIM numarasi: demo (/dene), kayit + panellerde varsayilan.
+// Musteriler kendi gateway numaralarini panelden ayarlar. VITE_GATEWAY_PHONE ile override edilebilir.
+export const GATEWAY_PHONE = import.meta.env.VITE_GATEWAY_PHONE || '905404234000';
+export const GATEWAY_PHONE_DISPLAY = '+90 540 423 40 00';
+
 export default API_URL;

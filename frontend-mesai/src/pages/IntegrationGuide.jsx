@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BookOpen, Code, Terminal, Smartphone, Monitor, Globe, CheckCircle, Copy } from 'lucide-react';
+import { GATEWAY_PHONE } from '../config';
 
 export default function IntegrationGuide({ user }) {
   const [activeTab, setActiveTab] = useState('nodejs');
@@ -294,7 +295,7 @@ void OpenWhatsApp(string code) {
             <div style={{ background: '#0d1117', padding: '1rem', borderRadius: 8, border: '1px solid var(--glass-border)', position: 'relative' }}>
               <pre style={{ margin: 0, fontSize: '0.75rem', fontFamily: 'monospace', color: '#e6edf3', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
 {`// 1. Popup penceresini açın
-const popupUrl = "https://qimlik.com/verify?prefix=${user?.prefix || 'PREFIX'}&code=791104&gateway_phone=905404234000";
+const popupUrl = "https://qimlik.com/verify?prefix=${user?.prefix || 'PREFIX'}&code=791104&gateway_phone=${GATEWAY_PHONE}";
 const popup = window.open(popupUrl, "Qimlik OTP", "width=500,height=650,resizable=yes");
 
 // 2. Doğrulama sonucunu dinleyin
@@ -317,7 +318,7 @@ window.addEventListener("message", (event) => {
               <ul style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6', paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <li><strong><code>prefix</code></strong>: Firmanızın ön eki (örn: <code>{user?.prefix || 'ASHE'}</code>) - <em>Zorunlu</em></li>
                 <li><strong><code>code</code></strong>: Ürettiğiniz 6 haneli doğrulama kodu - <em>Zorunlu</em></li>
-                <li><strong><code>gateway_phone</code></strong>: Aktif Qimlik Gateway telefon numaranız (örn: <code>905404234000</code>) - <em>İsteğe Bağlı</em></li>
+                <li><strong><code>gateway_phone</code></strong>: Aktif Qimlik Gateway telefon numaranız (örn: <code>{GATEWAY_PHONE}</code>) - <em>İsteğe Bağlı</em></li>
                 <li><strong><code>phone</code></strong>: Kullanıcının kendi telefon numarası (örn: <code>+905555555555</code>, ekranda göstermek için) - <em>İsteğe Bağlı</em></li>
               </ul>
             </div>

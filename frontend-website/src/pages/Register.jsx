@@ -6,14 +6,13 @@ import {
   ArrowLeft, ArrowRight, CheckCircle, ExternalLink, MessageSquare, Smartphone, Clock,
 } from 'lucide-react';
 import { PRODUCTS } from '../data/products';
-import { getApiUrl, getPanelUrl } from '../config';
+import { getApiUrl, getPanelUrl, GATEWAY_PHONE } from '../config';
 
 const ICONS = { ShieldCheck, MapPin, Truck, QrCode };
 
 // qimlik'in kendi kaydında telefon doğrulaması (dogfooding): kullanıcı "QMLK <kod>"
 // mesajını gateway'e WhatsApp/SMS ile gönderir, verify-status &phone= ile doğrularız.
 const SIGNUP_PREFIX = 'QMLK';
-const GATEWAY_PHONE = '905404234000';
 const genCode = () => String(Math.floor(100000 + Math.random() * 900000));
 
 export default function Register() {

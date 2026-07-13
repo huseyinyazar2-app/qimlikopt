@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts';
-import { getApiUrl } from '../config';
+import { getApiUrl, GATEWAY_PHONE } from '../config';
 
 export default function Dashboard({ user }) {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ export default function Dashboard({ user }) {
 
   // WhatsApp Simulator State
   const [gatewayPhone, setGatewayPhone] = useState(() => {
-    return localStorage.getItem('sim_gateway_phone') || '+905404234000';
+    return localStorage.getItem('sim_gateway_phone') || `+${GATEWAY_PHONE}`;
   });
   const [otpCode, setOtpCode] = useState('');
   const [verificationStatus, setVerificationStatus] = useState('waiting'); // 'waiting', 'success', 'failed'

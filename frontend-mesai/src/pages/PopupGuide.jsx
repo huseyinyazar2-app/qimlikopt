@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { ExternalLink, CheckCircle, Globe, Terminal, Code, HelpCircle } from 'lucide-react';
+import { GATEWAY_PHONE } from '../config';
 
 export default function PopupGuide({ user }) {
   const [testStatus, setTestStatus] = useState('idle'); // 'idle', 'testing', 'success'
   const [testCode, setTestCode] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const gatewayPhone = localStorage.getItem('sim_gateway_phone') || '+905404234000';
+  const gatewayPhone = localStorage.getItem('sim_gateway_phone') || `+${GATEWAY_PHONE}`;
 
   // Handle message listener for our own live demo test
   useEffect(() => {

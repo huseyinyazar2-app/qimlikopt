@@ -4,6 +4,7 @@ const { signToken, hashPassword, verifyPassword, companyGuard, workerGuard, requ
 const { createOtp, verifyOtp } = require('../otp');
 const { mountPanelUsers } = require('../panelUsers');
 const { notify, mountNotifications } = require('../notifications');
+const { GATEWAY_PHONE } = require('../config');
 
 const router = express.Router();
 
@@ -265,7 +266,7 @@ router.post('/employee/login/request', async (req, res) => {
         if (checkClient.rows.length === 0) {
             await db.query(
                 "INSERT INTO clients (company_name, prefix, webhook_url, api_key, phone_number, is_active) VALUES (?, ?, ?, ?, ?, ?)",
-                ['Qimlik Mesai System', 'MSAI', 'http://localhost:3303/api/client/webhook', 'msaisystemkey123', '905404234000', 1]
+                ['Qimlik Mesai System', 'MSAI', 'http://localhost:3303/api/client/webhook', 'msaisystemkey123', GATEWAY_PHONE, 1]
             );
         }
 
@@ -273,7 +274,7 @@ router.post('/employee/login/request', async (req, res) => {
         res.json({
             prefix: 'MSAI',
             code,
-            gateway_phone: '905404234000'
+            gateway_phone: GATEWAY_PHONE
         });
     } catch (err) {
         res.status(500).json({ error: err.message });

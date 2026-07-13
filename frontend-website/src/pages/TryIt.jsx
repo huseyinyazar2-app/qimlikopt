@@ -5,12 +5,11 @@ import {
   Clock, RefreshCw, Play, ArrowRight,
 } from 'lucide-react';
 import PageHero from '../components/PageHero';
-import { getApiUrl } from '../config';
+import { getApiUrl, GATEWAY_PHONE, GATEWAY_PHONE_DISPLAY } from '../config';
 
 // Web sitesinde canli, gercek reverse-OTP denemesi.
 // Ziyaretci "DEMO <kod>" mesajini gateway numarasina (WhatsApp veya SMS) gonderir;
 // backend logs'a "success" yazar; bu sayfa verify-status ile dogrulamayi yakalar.
-const GATEWAY_PHONE = '905404234000'; // aktif Qimlik Gateway telefonu (uluslararasi, +90 olmadan)
 const DEMO_PREFIX = 'DEMO';
 const COUNTDOWN = 180; // saniye
 
@@ -128,7 +127,7 @@ export default function TryIt() {
                 <div style={{ background: 'var(--bg-alt)', border: '1px dashed var(--border-light)', borderRadius: 12, padding: '1.1rem', textAlign: 'center', marginBottom: '1.5rem' }}>
                   <div className="text-muted" style={{ fontSize: '0.75rem', marginBottom: '0.35rem' }}>Gönderilecek mesaj</div>
                   <div style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '0.08em', fontFamily: 'Outfit, sans-serif' }}>{message}</div>
-                  <div className="text-muted" style={{ fontSize: '0.78rem', marginTop: '0.35rem' }}>Alıcı: +90 540 423 40 00</div>
+                  <div className="text-muted" style={{ fontSize: '0.78rem', marginTop: '0.35rem' }}>Alıcı: {GATEWAY_PHONE_DISPLAY}</div>
                 </div>
 
                 {/* Iki buton */}

@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { ShieldCheck, MessageSquare, CheckCircle, AlertTriangle, Clock, RefreshCw, XCircle } from 'lucide-react';
-import { getApiUrl } from '../config';
+import { getApiUrl, GATEWAY_PHONE } from '../config';
 
 export default function Verify() {
   const [searchParams] = useSearchParams();
   const prefix = searchParams.get('prefix') || '';
   const code = searchParams.get('code') || '';
-  const gatewayPhone = searchParams.get('gateway_phone') || '905404234000';
+  const gatewayPhone = searchParams.get('gateway_phone') || GATEWAY_PHONE;
   const userPhone = searchParams.get('phone') || '';
 
   const [status, setStatus] = useState('waiting'); // 'waiting', 'success', 'expired', 'error'

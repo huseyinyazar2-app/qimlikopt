@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./index');
 const { hashPassword, isHashed } = require('../auth');
+const { GATEWAY_PHONE } = require('../config');
 
 async function initDb() {
     try {
@@ -178,7 +179,7 @@ async function seedSystemClients() {
             if (rows.length === 0) {
                 await db.client.execute({
                     sql: 'INSERT INTO clients (company_name, prefix, webhook_url, api_key, phone_number, contact_name, contact_surname, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
-                    args: [name, prefix, '', key, '905404234000', 'Qimlik', 'Sistem'],
+                    args: [name, prefix, '', key, GATEWAY_PHONE, 'Qimlik', 'Sistem'],
                 });
                 console.log(`Sistem firması (${prefix}) tohumlandı.`);
             }

@@ -16,7 +16,7 @@ import {
   CheckCircle2, 
   AlertTriangle 
 } from 'lucide-react';
-import { getApiUrl } from '../config';
+import { getApiUrl, GATEWAY_PHONE } from '../config';
 
 export default function DeliverPage({ user }) {
   const { packageId } = useParams();
@@ -301,7 +301,7 @@ export default function DeliverPage({ user }) {
   };
 
   const waMessage = `TSLM ${otpCode}`;
-  const waLink = `https://wa.me/905404234000?text=${encodeURIComponent(waMessage)}`;
+  const waLink = `https://wa.me/${GATEWAY_PHONE}?text=${encodeURIComponent(waMessage)}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(waLink)}`;
 
   return (

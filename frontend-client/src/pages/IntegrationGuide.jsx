@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { BookOpen, Globe, Smartphone, Monitor, CheckCircle, Copy, Zap, Server, MousePointerClick } from 'lucide-react';
+import { GATEWAY_PHONE } from '../config';
 
-// Aktif Qimlik Gateway telefonu (uluslararası, + olmadan). Kullanıcılar mesajı buraya gönderir.
-const GATEWAY_PHONE = '905404234000';
 const API_BASE = 'https://api.qimlik.com';
 
 export default function IntegrationGuide({ user }) {
