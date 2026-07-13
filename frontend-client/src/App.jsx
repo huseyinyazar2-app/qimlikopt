@@ -31,6 +31,12 @@ function App() {
     localStorage.removeItem('qimlik_client_user');
   };
 
+  // Kullanıcı bilgisi güncellendiğinde (örn. ön ek değişimi) state + localStorage'ı tazele.
+  const handleUserUpdate = (userData) => {
+    setUser(userData);
+    localStorage.setItem('qimlik_client_user', JSON.stringify(userData));
+  };
+
   return (
     <BrowserRouter>
       <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
@@ -41,7 +47,7 @@ function App() {
             <Route path="dashboard" element={<Dashboard user={user} />} />
             <Route path="logs" element={<Logs user={user} />} />
             <Route path="webhooks" element={<Webhooks user={user} />} />
-            <Route path="api" element={<ApiDocs user={user} onLogout={handleLogout} />} />
+            <Route path="api" element={<ApiDocs user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />} />
             <Route path="integration" element={<IntegrationGuide user={user} />} />
             <Route path="popup-guide" element={<PopupGuide user={user} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

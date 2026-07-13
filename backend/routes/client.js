@@ -189,6 +189,50 @@ router.put('/:clientId/api-key', async (req, res) => {
     }
 });
 
+// --- CLIENT PREFIX (ÖN EK) UPDATE ---
+// Ön ek, ters-OTP akışının anahtarıdır (kullanıcı "ÖNEK kod" gönderir; gateway.js buradan firmayı bulur).
+// Sahiplik kanıtı: mevcut api_key. Değiştirmeden ÖNCE çakışma kontrol edilir; clients.prefix'teki
+// UNIQUE kısıtı da yarış durumuna (aynı anda iki değişiklik) karşı backstop görevi görür.
+router.put('/:clientId/prefix', async (req, res) => {
+    const { clientId } = req.params;
+    const { current_api_key } = req.body;
+
+    // Normalize: büyük harf + yalnızca A-Z0-9 (gateway.js gelen mesajı upper'a çevirip eşler).
+    const newPrefix = (req.body.prefix || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    if (newPrefix.length < 3 || newPrefix.length > 8) {
+        return res.status(400).json({ error: 'Ön ek 3-8 karakter olmalı ve yalnızca harf/rakam içermelidir.' });
+    }
+
+    try {
+        const { rows } = await db.query('SELECT api_key, prefix FROM clients WHERE id = ?', [clientId]);
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Firma bulunamadı.' });
+        }
+        if (!current_api_key || rows[0].api_key !== current_api_key) {
+            return res.status(403).json({ error: 'Mevcut şifre (API Key) hatalı.' });
+        }
+        if (rows[0].prefix === newPrefix) {
+            return res.json({ message: 'Ön ek zaten bu değerde.', prefix: newPrefix });
+        }
+
+        // Çakışma kontrolü (kendisi hariç tüm firmalar).
+        const taken = await db.query('SELECT id FROM clients WHERE prefix = ? AND id != ?', [newPrefix, clientId]);
+        if (taken.rows.length > 0) {
+            return res.status(409).json({ error: `"${newPrefix}" ön eki başka bir firma tarafından kullanılıyor. Lütfen farklı bir ön ek seçin.` });
+        }
+
+        await db.query('UPDATE clients SET prefix = ? WHERE id = ?', [newPrefix, clientId]);
+        res.json({ message: 'Ön ek güncellendi.', prefix: newPrefix });
+    } catch (err) {
+        // SELECT ile UPDATE arasındaki yarışta UNIQUE kısıtı devreye girer.
+        if (/UNIQUE constraint failed/i.test(err.message || '')) {
+            return res.status(409).json({ error: `"${newPrefix}" ön eki kullanımda. Lütfen farklı bir ön ek seçin.` });
+        }
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // --- CLIENT WEBHOOK URL UPDATE ---
 // Doğrulama olunca qimlik'in POST atacağı adres. Boş bırakılırsa webhook gönderilmez.
 router.put('/:clientId/webhook', async (req, res) => {

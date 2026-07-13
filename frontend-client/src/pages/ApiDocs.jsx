@@ -1,10 +1,10 @@
-import { Copy, CheckCircle, Eye, EyeOff, Save, Lock } from 'lucide-react';
+import { Copy, CheckCircle, Eye, EyeOff, Save, Lock, Pencil, X } from 'lucide-react';
 import { useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { getApiUrl } from '../config';
 
-export default function ApiDocs({ user, onLogout }) {
+export default function ApiDocs({ user, onLogout, onUserUpdate }) {
   const [copied, setCopied] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -12,6 +12,35 @@ export default function ApiDocs({ user, onLogout }) {
   const [updating, setUpdating] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState(user?.webhook_url || '');
   const [savingWebhook, setSavingWebhook] = useState(false);
+  const [editingPrefix, setEditingPrefix] = useState(false);
+  const [prefixInput, setPrefixInput] = useState(user?.prefix || '');
+  const [savingPrefix, setSavingPrefix] = useState(false);
+
+  const handlePrefixSave = async () => {
+    const desired = prefixInput.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (desired.length < 3 || desired.length > 8) {
+      toast.error('Ön ek 3-8 karakter olmalı ve yalnızca harf/rakam içermelidir.');
+      return;
+    }
+    if (desired === user?.prefix) { setEditingPrefix(false); return; }
+
+    setSavingPrefix(true);
+    try {
+      // Sahiplik kanıtı olarak saklı api_key otomatik gönderilir (kullanıcıya ek yük yok).
+      const { data } = await axios.put(`${getApiUrl()}/api/client/${user.id}/prefix`, {
+        prefix: desired,
+        current_api_key: user.api_key,
+      });
+      toast.success('Ön ek güncellendi: ' + data.prefix);
+      onUserUpdate?.({ ...user, prefix: data.prefix });
+      setEditingPrefix(false);
+    } catch (err) {
+      // 409 = çakışma (başka firma kullanıyor), 403 = api_key hatalı vb.
+      toast.error(err.response?.data?.error || err.message);
+    } finally {
+      setSavingPrefix(false);
+    }
+  };
 
   const handleWebhookSave = async () => {
     setSavingWebhook(true);
@@ -71,11 +100,55 @@ export default function ApiDocs({ user, onLogout }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div>
               <div className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Atanan Prefix (Ön Ek)</div>
-              <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', borderRadius: 8, fontFamily: 'monospace', fontSize: '1.1rem', color: 'var(--brand-primary)' }}>
-                {user?.prefix}
-              </div>
+
+              {!editingPrefix ? (
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <div style={{ flex: 1, padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', borderRadius: 8, fontFamily: 'monospace', fontSize: '1.1rem', color: 'var(--brand-primary)' }}>
+                    {user?.prefix}
+                  </div>
+                  <button
+                    onClick={() => { setPrefixInput(user?.prefix || ''); setEditingPrefix(true); }}
+                    className="btn-outline"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+                  >
+                    <Pencil size={16} /> Değiştir
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <input
+                    type="text"
+                    value={prefixInput}
+                    maxLength={8}
+                    autoFocus
+                    onChange={e => setPrefixInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                    onKeyDown={e => { if (e.key === 'Enter') handlePrefixSave(); if (e.key === 'Escape') setEditingPrefix(false); }}
+                    placeholder="ÖRN: AKTAS"
+                    style={{ flex: 1, padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--brand-primary)', outline: 'none', fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: '0.05em' }}
+                  />
+                  <button
+                    onClick={handlePrefixSave}
+                    disabled={savingPrefix}
+                    className="btn-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+                  >
+                    <Save size={16} /> {savingPrefix ? 'Kontrol ediliyor…' : 'Kaydet'}
+                  </button>
+                  <button
+                    onClick={() => setEditingPrefix(false)}
+                    disabled={savingPrefix}
+                    className="btn-outline"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, padding: 0 }}
+                    title="İptal"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              )}
+
               <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
-                Kullanıcılarınız SMS metnine bu ön eki yazarak size kod gönderecektir. (Örn: {user?.prefix} 1234)
+                Kullanıcılarınız SMS/WhatsApp metnine bu ön eki yazarak size kod gönderir. (Örn: {user?.prefix} 1234)
+                {editingPrefix && <><br /><strong>Not:</strong> Ön eki değiştirirseniz entegrasyon kodunuzdaki ön eki de güncellemeniz gerekir. Kaydederken bu ön eğin başka firmada kullanılmadığı otomatik kontrol edilir.</>}
               </p>
             </div>
 
