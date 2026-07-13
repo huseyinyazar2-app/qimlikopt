@@ -16,10 +16,9 @@ export default function Dashboard({ user }) {
   // Analitik (trend + saatlik yoğunluk) durumu
   const [analytics, setAnalytics] = useState({ daily: [], hourly: [] });
 
-  // WhatsApp Simulator State
-  const [gatewayPhone, setGatewayPhone] = useState(() => {
-    return localStorage.getItem('sim_gateway_phone') || `+${GATEWAY_PHONE}`;
-  });
+  // Qimlik Gateway numarası: mesajın GİDECEĞİ sabit alıcı (qimlik'in ortak SIM'i).
+  // Kullanıcının/test cihazının kendi numarası DEĞİL — herkes bu numaraya gönderir.
+  const gatewayPhone = `+${GATEWAY_PHONE}`;
   const [otpCode, setOtpCode] = useState('');
   const [verificationStatus, setVerificationStatus] = useState('waiting'); // 'waiting', 'success', 'failed'
 
@@ -63,13 +62,6 @@ export default function Dashboard({ user }) {
   useEffect(() => {
     generateNewCode();
   }, []);
-
-  // Save Gateway Phone to localStorage
-  const handlePhoneChange = (e) => {
-    const val = e.target.value;
-    setGatewayPhone(val);
-    localStorage.setItem('sim_gateway_phone', val);
-  };
 
   // Poll logs to check if the OTP code has been verified
   useEffect(() => {
@@ -386,7 +378,7 @@ export default function Dashboard({ user }) {
         </div>
 
         <p className="text-muted" style={{ fontSize: '0.9rem', marginBottom: '2rem', lineHeight: '1.5' }}>
-          Müşterilerinizin tarayıp doğrulama yapacağı QR kod akışını yerel test cihazınızla deneyin. Aşağıdaki telefon numarasına WhatsApp uygulaması yüklü ve Qimlik Gateway aktif olan test cihazınızın numarasını girin.
+          Müşterilerinizin tarayıp doğrulama yapacağı QR akışını test edin. QR'ı test cihazınızın WhatsApp'ıyla okutun; <strong>{'{ön ek} {kod}'}</strong> mesajı hazır gelir, göndermeniz yeterli. Mesaj aşağıdaki <strong>Qimlik Gateway</strong> numarasına gider (herkesin gönderdiği ortak alıcı numara).
         </p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
@@ -425,21 +417,21 @@ export default function Dashboard({ user }) {
             {/* Target Phone Setup */}
             <div>
               <label className="text-muted" style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 500 }}>
-                Test Cihazı WhatsApp Numarası (Ülke kodu ile)
+                Qimlik Gateway Numarası (mesajın gideceği numara)
               </label>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={gatewayPhone}
-                  onChange={handlePhoneChange}
-                  placeholder="+905xxxxxxxxx"
-                  style={{ 
-                    flex: 1, 
-                    padding: '0.75rem 1rem', 
-                    background: 'rgba(255,255,255,0.8)', 
-                    border: '1px solid var(--glass-border)', 
-                    borderRadius: 8, 
-                    color: 'var(--text-primary)', 
+                  readOnly
+                  title="Sabit alıcı numara — herkes bu numaraya gönderir"
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem 1rem',
+                    background: 'rgba(15,23,42,0.04)',
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: 8,
+                    color: 'var(--text-primary)',
                     outline: 'none',
                     fontFamily: 'monospace',
                     fontSize: '1rem'

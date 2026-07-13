@@ -7,7 +7,7 @@ export default function PopupGuide({ user }) {
   const [testCode, setTestCode] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const gatewayPhone = localStorage.getItem('sim_gateway_phone') || `+${GATEWAY_PHONE}`;
+  const gatewayPhone = `+${GATEWAY_PHONE}`;
 
   // Handle message listener for our own live demo test
   useEffect(() => {
