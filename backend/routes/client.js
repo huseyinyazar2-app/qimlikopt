@@ -1,7 +1,8 @@
 const express = require('express');
 const db = require('../db');
-const { signToken, companyGuard } = require('../auth');
-const { samePhone } = require('../otp');
+const { signToken, companyGuard, generateApiSecret, readBearer } = require('../auth');
+const { samePhone, createOtp, verifyOtp } = require('../otp');
+const { GATEWAY_PHONE } = require('../config');
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.post('/login', async (req, res) => {
 
     try {
         const { rows } = await db.query(
-            'SELECT id, company_name, prefix, webhook_url, api_key, phone_number, is_active FROM clients WHERE api_key = ?',
+            'SELECT id, company_name, prefix, webhook_url, api_key, api_secret, phone_number, is_active FROM clients WHERE api_key = ?',
             [apiKey]
         );
 
@@ -89,13 +90,14 @@ router.post('/register', async (req, res) => {
             ? `https://api.qimlik.com/api/client/webhook/${finalPrefix}`
             : `http://${host}/api/client/webhook/${finalPrefix}`;
 
+        const apiSecret = generateApiSecret();
         await db.query(
-            'INSERT INTO clients (company_name, prefix, webhook_url, api_key, phone_number, contact_name, contact_surname) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [company_name, finalPrefix, defaultWebhook, password, phone_number || '', contact_name || '', contact_surname || '']
+            'INSERT INTO clients (company_name, prefix, webhook_url, api_key, api_secret, phone_number, contact_name, contact_surname) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [company_name, finalPrefix, defaultWebhook, password, apiSecret, phone_number || '', contact_name || '', contact_surname || '']
         );
 
         const { rows } = await db.query(
-            'SELECT id, company_name, prefix, webhook_url, api_key, phone_number, contact_name, contact_surname, is_active FROM clients WHERE prefix = ?',
+            'SELECT id, company_name, prefix, webhook_url, api_key, api_secret, phone_number, contact_name, contact_surname, is_active FROM clients WHERE prefix = ?',
             [finalPrefix]
         );
 
@@ -151,6 +153,94 @@ router.get('/verify-status', async (req, res) => {
     }
 });
 
+// ============================================================================
+// GÜÇLÜ DOĞRULAMA YOLU (otp.js) — verify-status'un aksine: kod SUNUCUDA üretilir
+// (CSPRNG), telefona bağlıdır, TEK KULLANIMLIK. Gerçek entegrasyonlar bunu kullanmalı.
+// Ham verify-status yalnız pazarlama demosu (/dene) içindir.
+// Bu uçlar JWT '/:clientId' guard'ından ÖNCE tanımlanır (yoksa /otp, :clientId sanılır).
+// ============================================================================
+
+// Client API kimliği: entegrasyon secret'i (x-qimlik-secret) — login şifresinden AYRI.
+async function clientApiGuard(req, res, next) {
+    const secret = req.headers['x-qimlik-secret'] || readBearer(req);
+    if (!secret) {
+        return res.status(401).json({ error: 'x-qimlik-secret başlığı gerekli.' });
+    }
+    try {
+        const { rows } = await db.query(
+            'SELECT id, prefix, is_active FROM clients WHERE api_secret = ?', [secret]
+        );
+        const client = rows[0];
+        if (!client || !client.is_active) {
+            return res.status(401).json({ error: 'Geçersiz API secret.' });
+        }
+        req.client = client;
+        next();
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+}
+
+// Kodu SUNUCUDA üret (telefona bağlı). Müşterinin sunucusu çağırır.
+router.post('/otp/start', clientApiGuard, async (req, res) => {
+    const phone = (req.body.phone || '').trim();
+    if (!phone || phone.replace(/\D/g, '').length < 9) {
+        return res.status(400).json({ error: 'Geçerli bir telefon numarası zorunludur.' });
+    }
+    try {
+        const code = await createOtp('client', req.client.prefix, phone);
+        res.json({ code, prefix: req.client.prefix, gateway_phone: GATEWAY_PHONE, expires_in: 300 });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Doğrula: telefon ZORUNLU (sahiplik), kod bu telefona üretilmiş + bu telefondan
+// gönderilmiş olmalı; başarıda tek kullanımlık tüketilir (otp.js verifyOtp).
+router.post('/otp/verify', clientApiGuard, async (req, res) => {
+    const phone = (req.body.phone || '').trim();
+    const code = (req.body.code || '').trim();
+    if (!phone || !code) {
+        return res.status(400).json({ error: 'phone ve code zorunludur.' });
+    }
+    try {
+        const result = await verifyOtp('client', req.client.prefix, phone, code, req.client.prefix);
+        res.json({ verified: result.verified });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- KAYIT (SIGNUP) TELEFON DOĞRULAMASI (PUBLIC) ---
+// qimlik'in kendi /kayit akışı: kullanıcı henüz müşteri değil → QMLK sistem firması.
+// Güçlü yol: sunucu-üretimi kod + telefon zorunlu + tek kullanımlık.
+router.post('/signup-otp/start', async (req, res) => {
+    const phone = (req.body.phone || '').trim();
+    if (!phone || phone.replace(/\D/g, '').length < 9) {
+        return res.status(400).json({ error: 'Geçerli bir telefon numarası zorunludur.' });
+    }
+    try {
+        const code = await createOtp('signup', 'QMLK', phone);
+        res.json({ code, prefix: 'QMLK', gateway_phone: GATEWAY_PHONE, expires_in: 300 });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/signup-otp/verify', async (req, res) => {
+    const phone = (req.body.phone || '').trim();
+    const code = (req.body.code || '').trim();
+    if (!phone || !code) {
+        return res.status(400).json({ error: 'phone ve code zorunludur.' });
+    }
+    try {
+        const result = await verifyOtp('signup', 'QMLK', phone, code, 'QMLK');
+        res.json({ verified: result.verified });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
 // --- CLIENT AUTH MIDDLEWARE (JWT) ---
 const clientGuard = companyGuard('client', 'clients');
@@ -184,6 +274,19 @@ router.put('/:clientId/api-key', async (req, res) => {
 
         await db.query('UPDATE clients SET api_key = ? WHERE id = ?', [new_api_key, clientId]);
         res.json({ message: 'Şifreniz başarıyla değiştirildi.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- API SECRET DÖNDÜRME (ROTATE) ---
+// Secret sızarsa firma yenisini üretir; eski secret anında geçersiz olur.
+router.put('/:clientId/api-secret', async (req, res) => {
+    const { clientId } = req.params;
+    try {
+        const apiSecret = generateApiSecret();
+        await db.query('UPDATE clients SET api_secret = ? WHERE id = ?', [apiSecret, clientId]);
+        res.json({ message: 'API secret yenilendi.', api_secret: apiSecret });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

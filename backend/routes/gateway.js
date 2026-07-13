@@ -65,7 +65,7 @@ router.post('/receive', authenticateGateway, async (req, res) => {
                     code: code,
                     full_message: message,
                     status: 'verified',
-                    _api_key: client.api_key,
+                    _api_secret: client.api_secret,
                 },
             });
         } catch (queueErr) {

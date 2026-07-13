@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const db = require('./index');
-const { hashPassword, isHashed } = require('../auth');
+const { hashPassword, isHashed, generateApiSecret } = require('../auth');
 const { GATEWAY_PHONE } = require('../config');
 
 async function initDb() {
@@ -118,11 +118,35 @@ async function runMigrations() {
     // Eski paketlere takip jetonu üret (yeni public/track ucu jetonla çalışır).
     await backfillTrackingTokens();
 
+    // Entegrasyon secret'i (webhook imzasi + client API). Login sifresinden (api_key) ayri.
+    await addColumn('clients', 'api_secret', 'VARCHAR(80)');
+
     // logs tablosunun bozuk foreign key'ini onar (aşağıya bak).
     await fixLogsForeignKey();
 
     // Sistem firmaları: canlı demo (DEMO) + qimlik kendi kaydının telefon doğrulaması (QMLK).
     await seedSystemClients();
+
+    // api_secret'i olmayan (eski) firmalara guclu rastgele secret uret. Idempotent:
+    // yalniz NULL/bos olanlari doldurur, mevcut secret'lara dokunmaz.
+    await backfillApiSecrets();
+}
+
+async function backfillApiSecrets() {
+    try {
+        const { rows } = await db.client.execute(
+            "SELECT id FROM clients WHERE api_secret IS NULL OR api_secret = ''"
+        );
+        for (const r of rows) {
+            await db.client.execute({
+                sql: 'UPDATE clients SET api_secret = ? WHERE id = ?',
+                args: [generateApiSecret(), r.id],
+            });
+        }
+        if (rows.length) console.log(`${rows.length} firmaya api_secret uretildi.`);
+    } catch (err) {
+        console.warn('api_secret backfill atlandı:', err.message);
+    }
 }
 
 // Kendi kendini onaran göç: eski migrate_remove_unique.js `clients` tablosunu

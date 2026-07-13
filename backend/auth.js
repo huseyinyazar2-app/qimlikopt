@@ -1,6 +1,13 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const db = require('./db');
+
+// Entegrasyon (webhook imzasi + client API) icin guclu rastgele secret. 192-bit.
+// Login sifresinden AYRIDIR; panelde gosterilir/kopyalanir, dondurulebilir.
+function generateApiSecret() {
+    return 'qsk_' + crypto.randomBytes(24).toString('hex');
+}
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -149,6 +156,7 @@ module.exports = {
     hashPassword,
     verifyPassword,
     isHashed,
+    generateApiSecret,
     signToken,
     companyGuard,
     workerGuard,

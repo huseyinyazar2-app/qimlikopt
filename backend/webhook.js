@@ -1,4 +1,5 @@
 const axios = require('axios');
+const crypto = require('crypto');
 const db = require('./db');
 
 // Ters-OTP dış webhook teslim kuyrugu.
@@ -37,18 +38,32 @@ async function deliverOne(row) {
     } catch (e) {
         payload = {};
     }
-    // Idempotency: musteri tekrarlari ayirt edebilsin
+    // Imza sirri: entegrasyon secret'i (login sifresi DEGIL). Eski kuyruk kayitlari icin
+    // _api_key'e geri dus (geriye uyumluluk).
+    const secret = payload._api_secret || payload._api_key || '';
+    // Sirri govdeden cikar; ASLA tel uzerinden gonderilmez (imza yeterli).
+    const sendBody = { ...payload };
+    delete sendBody._api_secret;
+    delete sendBody._api_key;
+
+    // Imzalanan baytlarin birebir gonderilmesi icin govdeyi ham string olarak yolla.
+    const bodyStr = JSON.stringify(sendBody);
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = crypto.createHmac('sha256', secret)
+        .update(`${timestamp}.${bodyStr}`)
+        .digest('hex');
+
     const headers = {
         'Content-Type': 'application/json',
-        'x-qimlik-key': payload._api_key || undefined,
+        // HMAC-SHA256(secret, "<timestamp>.<ham govde>"). Alici ayni hesabi yapip
+        // timingSafeEqual ile karsilastirmali + timestamp penceresini (±5 dk) kontrol etmeli.
+        'x-qimlik-signature': `sha256=${signature}`,
+        'x-qimlik-timestamp': String(timestamp),
         'x-qimlik-delivery-id': String(row.id),
         'x-qimlik-event-id': String(row.log_id || ''),
     };
-    // _api_key'i govdeden cikar (header'da gonderiliyor)
-    const sendBody = { ...payload };
-    delete sendBody._api_key;
 
-    const resp = await axios.post(row.target_url, sendBody, { headers, timeout: REQUEST_TIMEOUT_MS });
+    const resp = await axios.post(row.target_url, bodyStr, { headers, timeout: REQUEST_TIMEOUT_MS });
     return resp.status;
 }
 

@@ -1,4 +1,4 @@
-import { Copy, CheckCircle, Eye, EyeOff, Save, Lock, Pencil, X } from 'lucide-react';
+import { Copy, CheckCircle, Eye, EyeOff, Save, Lock, Pencil, X, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -6,7 +6,6 @@ import { getApiUrl } from '../config';
 
 export default function ApiDocs({ user, onLogout, onUserUpdate }) {
   const [copied, setCopied] = useState(false);
-  const [showKey, setShowKey] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -15,6 +14,24 @@ export default function ApiDocs({ user, onLogout, onUserUpdate }) {
   const [editingPrefix, setEditingPrefix] = useState(false);
   const [prefixInput, setPrefixInput] = useState(user?.prefix || '');
   const [savingPrefix, setSavingPrefix] = useState(false);
+  const [apiSecret, setApiSecret] = useState(user?.api_secret || '');
+  const [showSecret, setShowSecret] = useState(false);
+  const [rotating, setRotating] = useState(false);
+
+  const handleRotateSecret = async () => {
+    if (!window.confirm('API Secret yenilenecek. Eski secret anında geçersiz olur; entegrasyonunuzda yenisini kullanmanız gerekir. Devam edilsin mi?')) return;
+    setRotating(true);
+    try {
+      const { data } = await axios.put(`${getApiUrl()}/api/client/${user.id}/api-secret`);
+      setApiSecret(data.api_secret);
+      onUserUpdate?.({ ...user, api_secret: data.api_secret });
+      toast.success('API Secret yenilendi.');
+    } catch (err) {
+      toast.error('Hata: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setRotating(false);
+    }
+  };
 
   const handlePrefixSave = async () => {
     const desired = prefixInput.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -153,30 +170,48 @@ export default function ApiDocs({ user, onLogout, onUserUpdate }) {
             </div>
 
             <div>
-              <div className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Mevcut Şifre (API Key)</div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <input 
-                  type={showKey ? "text" : "password"} 
-                  value={user?.api_key || ''} 
-                  readOnly 
-                  style={{ flex: 1, padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--text-primary)', outline: 'none', fontFamily: showKey ? 'monospace' : 'inherit' }}
-                />
-                <button 
-                  onClick={() => setShowKey(!showKey)} 
-                  className="btn-outline" 
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, padding: 0 }}
-                  title={showKey ? "Gizle" : "Göster"}
-                >
-                  {showKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-                <button 
-                  onClick={() => handleCopy(user?.api_key || '')} 
-                  className="btn-primary" 
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                >
-                  Kopyala
-                </button>
-              </div>
+              <div className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>API Secret (Entegrasyon Anahtarı)</div>
+              {apiSecret ? (
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <input
+                    type={showSecret ? "text" : "password"}
+                    value={apiSecret}
+                    readOnly
+                    style={{ flex: 1, padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.8)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--text-primary)', outline: 'none', fontFamily: 'monospace', fontSize: '0.85rem' }}
+                  />
+                  <button
+                    onClick={() => setShowSecret(!showSecret)}
+                    className="btn-outline"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, padding: 0 }}
+                    title={showSecret ? "Gizle" : "Göster"}
+                  >
+                    {showSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                  <button
+                    onClick={() => handleCopy(apiSecret)}
+                    className="btn-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                  >
+                    Kopyala
+                  </button>
+                  <button
+                    onClick={handleRotateSecret}
+                    disabled={rotating}
+                    className="btn-outline"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+                    title="Yeni secret üret (eski geçersiz olur)"
+                  >
+                    <RefreshCw size={16} /> {rotating ? 'Yenileniyor…' : 'Yenile'}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,193,7,0.12)', border: '1px solid rgba(255,193,7,0.4)', borderRadius: 8, fontSize: '0.85rem' }}>
+                  API Secret'inizi görmek için lütfen çıkış yapıp tekrar giriş yapın (hesabınıza yeni güvenlik anahtarı tanımlandı).
+                </div>
+              )}
+              <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                Webhook imzası ve sunucu API çağrıları (<code>otp/start</code>, <code>otp/verify</code>) bu anahtarla yapılır. <strong>Bu login şifreniz DEĞİLDİR</strong> — gizli tutun, sızarsa <em>Yenile</em> ile döndürün. Login şifrenizi aşağıdaki <strong>Şifre Değiştir</strong> bölümünden yönetirsiniz.
+              </p>
             </div>
 
             <div>
@@ -199,7 +234,7 @@ export default function ApiDocs({ user, onLogout, onUserUpdate }) {
                 </button>
               </div>
               <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
-                Bir doğrulama başarılı olduğunda, qimlik bu adrese <code>POST</code> isteğiyle bildirim gönderir (sunucu-taraflı akış). Kullanmıyorsanız boş bırakabilirsiniz; o zaman doğrulamayı <code>verify-status</code> ile kendiniz sorgularsınız.
+                Bir doğrulama başarılı olduğunda, qimlik bu adrese <code>POST</code> isteğiyle (HMAC imzalı) bildirim gönderir (sunucu-taraflı akış). Kullanmıyorsanız boş bırakabilirsiniz; o zaman doğrulamayı <code>otp/verify</code> ile kendiniz sorgularsınız.
               </p>
             </div>
           </div>

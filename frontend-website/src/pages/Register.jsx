@@ -10,10 +10,10 @@ import { getApiUrl, getPanelUrl, GATEWAY_PHONE } from '../config';
 
 const ICONS = { ShieldCheck, MapPin, Truck, QrCode };
 
-// qimlik'in kendi kaydında telefon doğrulaması (dogfooding): kullanıcı "QMLK <kod>"
-// mesajını gateway'e WhatsApp/SMS ile gönderir, verify-status &phone= ile doğrularız.
+// qimlik'in kendi kaydında telefon doğrulaması (dogfooding): sunucu kod üretir
+// (signup-otp/start), kullanıcı "QMLK <kod>"u gateway'e gönderir, signup-otp/verify
+// ile telefon-sahipliği doğrulanır (telefon zorunlu, tek kullanımlık).
 const SIGNUP_PREFIX = 'QMLK';
-const genCode = () => String(Math.floor(100000 + Math.random() * 900000));
 
 export default function Register() {
   const [product, setProduct] = useState(null);
@@ -157,11 +157,16 @@ function PhoneVerifyField({ value, onChange, verified, onVerified, accent }) {
   };
   useEffect(() => () => stop(), []);
 
-  const start = () => {
+  const start = async () => {
     setErr('');
     if (cleanPhone.length < 10) { setErr('Geçerli bir telefon numarası girin.'); return; }
     stop();
-    const c = genCode();
+    // Kod SUNUCUDA (CSPRNG) üretilir, telefona bağlanır, tek kullanımlıktır.
+    let c;
+    try {
+      const { data } = await axios.post(`${getApiUrl()}/api/client/signup-otp/start`, { phone: cleanPhone });
+      c = data.code;
+    } catch { setErr('Kod üretilemedi, lütfen tekrar deneyin.'); return; }
     setCode(c); setStatus('waiting'); setTimeLeft(180); setOpen(true);
 
     timerRef.current = setInterval(() => {
@@ -170,9 +175,7 @@ function PhoneVerifyField({ value, onChange, verified, onVerified, accent }) {
 
     pollRef.current = setInterval(async () => {
       try {
-        const { data } = await axios.get(`${getApiUrl()}/api/client/verify-status`, {
-          params: { prefix: SIGNUP_PREFIX, code: c, phone: cleanPhone },
-        });
+        const { data } = await axios.post(`${getApiUrl()}/api/client/signup-otp/verify`, { phone: cleanPhone, code: c });
         if (data.verified) { stop(); setStatus('idle'); setOpen(false); onVerified(); }
       } catch { /* poll hatası yoksay */ }
     }, 2000);
